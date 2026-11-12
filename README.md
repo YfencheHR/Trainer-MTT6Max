@@ -129,7 +129,7 @@ Puedes ayudar reportando errores, compartiendo ideas, revisando manos o proponie
   [nuestro servidor de Discord](https://discord.gg/qSwwtekDF).
 
 - **Donaciones:** si el proyecto te resulta útil, puedes apoyar su desarrollo con una donación.
-  [![Donar con PayPal](https://www.paypal.com/donate/?hosted_button_id=X4TJZAJRL8F2C)](https://paypal.com)
+  [Donar con PayPal](https://www.paypal.com/donate/?hosted_button_id=X4TJZAJRL8F2C)
 
 ## Colaboración con herramientas de IA
 
