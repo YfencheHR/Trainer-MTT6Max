@@ -1,0 +1,46 @@
+{
+  "vpip": {
+    "segments": [
+      {"min": 0, "max": 12, "color": "#10b981", "label": "Nit - Muy conservador"},
+      {"min": 12, "max": 20, "color": "#f59e0b", "label": "Tight Nit - Conservador"},
+      {"min": 20, "max": 40, "color": "#f97316", "label": "Balance - Normal"},
+      {"min": 40, "max": 60, "color": "#ef4444", "label": "Excesivo - Muy agresivo"},
+      {"min": 60, "max": 100, "color": "#a855f7", "label": "Extremo - Demasiado agresivo"}
+    ]
+  },
+  "pfr": {
+    "segments": [
+      {"min": 0, "max": 5, "color": "#10b981", "label": "Nit - Muy conservador"},
+      {"min": 5, "max": 10, "color": "#f59e0b", "label": "Tight - Conservador"},
+      {"min": 10, "max": 20, "color": "#f97316", "label": "Balance - Normal"},
+      {"min": 20, "max": 40, "color": "#ef4444", "label": "Excesivo - Muy agresivo"},
+      {"min": 40, "max": 100, "color": "#a855f7", "label": "Extremo - Demasiado agresivo"}
+    ]
+  },
+  "tilt": {
+    "segments": [
+      {"min": 0, "max": 10, "color": "#10b981", "label": "Bajo - Muy estable"},
+      {"min": 10, "max": 30, "color": "#f59e0b", "label": "Moderado - Bastante estable"},
+      {"min": 30, "max": 60, "color": "#f97316", "label": "Notable - Propenso a tiltear"},
+      {"min": 60, "max": 80, "color": "#ef4444", "label": "Alto - Muy propenso a tiltear"},
+      {"min": 80, "max": 100, "color": "#a855f7", "label": "Extremo - Extremadamente inestable"}
+    ]
+  },
+  "af": {
+    "segments": [
+      {"min": 0, "max": 2, "color": "#10b981", "label": "Bajo - Muy pasivo"},
+      {"min": 2, "max": 3.5, "color": "#f59e0b", "label": "Moderado - Relativamente pasivo"},
+      {"min": 3.5, "max": 5, "color": "#f97316", "label": "Balance - Normal"},
+      {"min": 5, "max": 7, "color": "#ef4444", "label": "Alto - Muy agresivo"},
+      {"min": 7, "max": 999, "color": "#a855f7", "label": "Extremo - Extremadamente agresivo"}
+    ]
+  },
+  "default": {
+    "segments": [
+      {"min": 0, "max": 25, "color": "#10b981", "label": "Bajo"},
+      {"min": 25, "max": 50, "color": "#f59e0b", "label": "Moderado"},
+      {"min": 50, "max": 75, "color": "#f97316", "label": "Alto"},
+      {"min": 75, "max": 100, "color": "#ef4444", "label": "Muy Alto"}
+    ]
+  }
+}

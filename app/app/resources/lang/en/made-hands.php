@@ -1,0 +1,31 @@
+<?php
+
+return [
+    'title' => 'Make Hands',
+    'description' => 'Manage made hands and their values for mathematical calculations',
+    'name' => 'Hand Name',
+    'description_label' => 'Description',
+    'value' => 'Hand Value',
+    'order' => 'Display Order',
+    'is_special' => 'Is Special Project',
+    'type' => 'Hand Type',
+    'applies_to_river' => 'Applies to River',
+    'create' => 'Add New Hand',
+    'edit' => 'Edit Hand',
+    'delete' => 'Delete',
+    'normal_hands' => 'Made Hands',
+    'special_hands' => 'Special Projects',
+    'create_success' => 'Hand created successfully',
+    'update_success' => 'Hand updated successfully',
+    'delete_success' => 'Hand deleted successfully',
+    'types' => [
+        'pair' => 'Pair',
+        'two_pair' => 'Two Pair',
+        'set' => 'Set / Trips',
+        'straight' => 'Straight',
+        'flush' => 'Flush',
+        'full_house' => 'Full House',
+        'quads' => 'Quads',
+        'draw_project' => 'Draw Project',
+    ],
+];

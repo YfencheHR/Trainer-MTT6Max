@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Hands Values',
+    'description' => 'Manage preflop equity values for starting hands',
+    'pairs' => 'Pairs',
+    'suited' => 'Suited (s)',
+    'offsuit' => 'Offsuit (o)',
+    'combinatorios' => 'Combinatorios',
+    'ev' => 'Preflop Equity (%)',
+    'invalid_value' => 'Invalid value. Enter a number between 0 and 100',
+    'update_error' => 'Error updating value',
+    'update_success' => 'Equity updated successfully',
+    'edit_strategy' => 'Edit this hand strategy',
+    'strategy_help' => 'Generated tables are heuristic chipEV estimates, not GTO/Nash. Their frequencies combine a baseline range and approximate EV; they do not model ICM or postflop play. You can edit available actions; frequencies must total 100% and EV is measured in big blinds.',
+    'action_key' => 'Action (e.g. open_2_5bb)',
+    'frequency_pct' => 'Frequency %',
+    'ev_bb' => 'EV (bb)',
+    'size_bb' => 'Size (bb)',
+    'add_action' => 'Add action',
+    'remove_action' => 'Remove action',
+    'save_strategy' => 'Save strategy',
+    'cancel' => 'Cancel',
+    'close' => 'Close',
+    'invalid_action_key' => 'Action keys must be unique and use lowercase letters, numbers, or underscores.',
+    'frequency_total_error' => 'Action frequencies must total 100%.',
+    'strategy_update_success' => 'Hand strategy saved successfully.',
+];

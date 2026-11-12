@@ -1,0 +1,46 @@
+# Local development
+.env
+.env.local
+.env.*.local
+*.log
+
+# Local editor and agent settings
+.claude/
+
+# Laravel
+app/vendor/
+app/node_modules/
+app/public/storage
+app/storage/*.key
+app/.env
+app/.env.backup
+app/.env.production.local
+app/.phpunit.result.cache
+app/dusk/screenshots/
+app/dusk/console/
+
+# Python
+python/__pycache__/
+python/*.py[cod]
+python/*$py.class
+python/*.so
+python/.Python
+python/env/
+python/venv/
+python/.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db

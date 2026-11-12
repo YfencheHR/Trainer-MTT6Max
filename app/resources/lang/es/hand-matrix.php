@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Hands Values',
+    'description' => 'Gestiona los valores de Equity Preflop para manos iniciales',
+    'pairs' => 'Parejas',
+    'suited' => 'Suited (s)',
+    'offsuit' => 'Offsuit (o)',
+    'combinatorios' => 'Combinatorios',
+    'ev' => 'Equity Preflop (%)',
+    'invalid_value' => 'Valor inválido. Ingresa un número entre 0 y 100',
+    'update_error' => 'Error al actualizar el valor',
+    'update_success' => 'Equity actualizada correctamente',
+    'edit_strategy' => 'Editar estrategia de esta mano',
+    'strategy_help' => 'Las tablas generadas son heurísticas chipEV, no GTO/Nash. Sus frecuencias combinan un rango base y EV aproximados; no modelan ICM ni la acción postflop. Puedes editar las acciones disponibles; sus frecuencias deben sumar 100% y el EV se expresa en ciegas grandes.',
+    'action_key' => 'Acción (p. ej. open_2_5bb)',
+    'frequency_pct' => 'Frecuencia %',
+    'ev_bb' => 'EV (bb)',
+    'size_bb' => 'Tamaño (bb)',
+    'add_action' => 'Añadir acción',
+    'remove_action' => 'Eliminar acción',
+    'save_strategy' => 'Guardar estrategia',
+    'cancel' => 'Cancelar',
+    'close' => 'Cerrar',
+    'invalid_action_key' => 'La clave de acción debe ser única y usar letras minúsculas, números o guion bajo.',
+    'frequency_total_error' => 'Las frecuencias de las acciones deben sumar 100%.',
+    'strategy_update_success' => 'Estrategia de la mano guardada correctamente.',
+];

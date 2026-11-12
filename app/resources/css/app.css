@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root {
+  --fondo: #12161c;
+  --texto: #ffffff;
+  --tenue: #9ca3af;
+  --acento: #1a9ba8;
+  --aviso: #ffc857;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  font: 15px / 1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-white;
+  }
+}
+
+.app-nav a[aria-current="page"] {
+  color: var(--texto);
+  border-bottom-color: var(--acento);
+}
+
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 100%;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  color: var(--tenue);
+}
+
+.app-nav a:hover {
+  color: var(--texto);
+}
+
+.app-beta {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--aviso);
+  border: 1px solid rgba(255, 200, 87, 0.35);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .btn-primary {
+    @apply bg-green-500 hover:bg-green-600 text-white;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-700 hover:bg-slate-600 text-white border border-slate-600;
+  }
+
+  .card {
+    @apply bg-slate-800 rounded-lg border border-slate-700 p-6;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-green-500;
+  }
+}
+
+/* Apuesta de un jugador sobre la mesa */
+.apuesta {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.65rem 0.15rem 0.3rem;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  border-radius: 999px;
+  color: #fde68a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.apuesta::before {
+  content: "";
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fbbf24 38%, #b45309 40%, #b45309 54%, #fde68a 56%);
+}
+
+/* Reverso de carta */
+.carta-reverso {
+  background: repeating-linear-gradient(45deg, #1d4ed8 0 4px, #3b82f6 4px 8px);
+  border: 1px solid #93c5fd;
+}

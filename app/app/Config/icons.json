@@ -1,0 +1,101 @@
+{
+  "defaults": {
+    "tipos": {
+      "setminer": "⛏️",
+      "roca": "🪨",
+      "nit": "🤐",
+      "omc": "👴",
+      "tag": "🎯",
+      "lag": "🚀",
+      "calling_station": "📞",
+      "maniaco": "🤪",
+      "ballena": "🐋",
+      "usuario_real": "👤",
+      "pool": "🎱"
+    },
+    "perfiles": {
+      "tight-pasivo": "🐢",
+      "tight-agresivo": "🦅",
+      "loose-agresivo": "🐺",
+      "loose-pasivo": "🐟",
+      "errático": "🎭"
+    },
+    "fallback": "🤖"
+  },
+  "groups": [
+    {
+      "name": "Tipos de jugador",
+      "icons": [
+        { "i": "⛏️", "n": "Setminer" },
+        { "i": "🪨", "n": "Roca" },
+        { "i": "🤐", "n": "Nit" },
+        { "i": "👴", "n": "OMC (jugador de siempre)" },
+        { "i": "🎯", "n": "TAG (tight agresivo)" },
+        { "i": "🚀", "n": "LAG (loose agresivo)" },
+        { "i": "📞", "n": "Calling station" },
+        { "i": "🤪", "n": "Maníaco" },
+        { "i": "🐋", "n": "Ballena" },
+        { "i": "🐟", "n": "Pez (fish)" },
+        { "i": "🦈", "n": "Tiburón (regular fuerte)" },
+        { "i": "🧠", "n": "Pensador / solver humano" },
+        { "i": "🎭", "n": "Farolero" },
+        { "i": "🎰", "n": "Gambler / ludópata" },
+        { "i": "🧊", "n": "Sangre fría" },
+        { "i": "🔥", "n": "En racha" },
+        { "i": "🌪️", "n": "Tilt" },
+        { "i": "🧲", "n": "Pegajoso (no suelta nada)" },
+        { "i": "🐢", "n": "Pasivo / tight" },
+        { "i": "🐇", "n": "Hiperagresivo" },
+        { "i": "🕵️", "n": "Lector de manos" },
+        { "i": "🕸️", "n": "Trampero (slowplay)" },
+        { "i": "🛡️", "n": "Defensor de ciegas" },
+        { "i": "⚔️", "n": "Agresor" },
+        { "i": "🍺", "n": "Recreativo" },
+        { "i": "🧳", "n": "Turista" },
+        { "i": "🎓", "n": "Coach / estudiante" },
+        { "i": "⚙️", "n": "Grinder" },
+        { "i": "🤖", "n": "Bot" },
+        { "i": "👤", "n": "Jugador real" }
+      ]
+    },
+    {
+      "name": "Animales",
+      "icons": [
+        { "i": "🦁", "n": "León" }, { "i": "🐯", "n": "Tigre" }, { "i": "🐺", "n": "Lobo" }, { "i": "🦊", "n": "Zorro" },
+        { "i": "🐻", "n": "Oso" }, { "i": "🐼", "n": "Panda" }, { "i": "🦅", "n": "Águila" }, { "i": "🐍", "n": "Serpiente" },
+        { "i": "🦂", "n": "Escorpión" }, { "i": "🦉", "n": "Búho" }, { "i": "🐙", "n": "Pulpo" }, { "i": "🦇", "n": "Murciélago" },
+        { "i": "🐗", "n": "Jabalí" }, { "i": "🐘", "n": "Elefante" }, { "i": "🦏", "n": "Rinoceronte" }, { "i": "🐊", "n": "Cocodrilo" },
+        { "i": "🦍", "n": "Gorila" }, { "i": "🐒", "n": "Mono" }, { "i": "🐕", "n": "Perro" }, { "i": "🐎", "n": "Caballo" },
+        { "i": "🦆", "n": "Pato" }, { "i": "🐀", "n": "Rata" }, { "i": "🦖", "n": "Dinosaurio" }, { "i": "🐝", "n": "Abeja" }
+      ]
+    },
+    {
+      "name": "Poker y dinero",
+      "icons": [
+        { "i": "🃏", "n": "Comodín" }, { "i": "🎲", "n": "Dado" }, { "i": "♠️", "n": "Picas" }, { "i": "♥️", "n": "Corazones" },
+        { "i": "♦️", "n": "Diamantes" }, { "i": "♣️", "n": "Tréboles" }, { "i": "💎", "n": "Diamante" }, { "i": "👑", "n": "Corona" },
+        { "i": "💰", "n": "Bolsa de dinero" }, { "i": "💵", "n": "Billete" }, { "i": "🏆", "n": "Trofeo" }, { "i": "🥇", "n": "Oro" },
+        { "i": "🎖️", "n": "Medalla" }, { "i": "🏅", "n": "Medalla deportiva" }, { "i": "🎟️", "n": "Entrada" }, { "i": "💳", "n": "Tarjeta" },
+        { "i": "🪙", "n": "Moneda" }, { "i": "💸", "n": "Dinero volando" }
+      ]
+    },
+    {
+      "name": "Actitud y estado",
+      "icons": [
+        { "i": "❄️", "n": "Frío" }, { "i": "⚡", "n": "Rayo" }, { "i": "🌊", "n": "Ola" }, { "i": "🏔️", "n": "Montaña" },
+        { "i": "🌋", "n": "Volcán" }, { "i": "💣", "n": "Bomba" }, { "i": "💥", "n": "Explosión" }, { "i": "✨", "n": "Brillo" },
+        { "i": "⭐", "n": "Estrella" }, { "i": "😎", "n": "Seguro de sí mismo" }, { "i": "🥶", "n": "Helado" }, { "i": "😡", "n": "Enfadado" },
+        { "i": "🤑", "n": "Codicioso" }, { "i": "😴", "n": "Dormido" }, { "i": "🤯", "n": "Mente explotada" }, { "i": "🥱", "n": "Aburrido" },
+        { "i": "😈", "n": "Travieso" }, { "i": "🤡", "n": "Payaso" }
+      ]
+    },
+    {
+      "name": "Símbolos",
+      "icons": [
+        { "i": "🔔", "n": "Campana" }, { "i": "📢", "n": "Megáfono" }, { "i": "🔮", "n": "Bola de cristal" }, { "i": "🧿", "n": "Amuleto" },
+        { "i": "🧩", "n": "Puzzle" }, { "i": "🔧", "n": "Herramienta" }, { "i": "🔒", "n": "Candado" }, { "i": "🔑", "n": "Llave" },
+        { "i": "🧭", "n": "Brújula" }, { "i": "🗡️", "n": "Daga" }, { "i": "🎱", "n": "Bola 8" }, { "i": "🎪", "n": "Circo" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "preflop": {
+    "vpip": {"min": 24, "max": 28},
+    "pfr": {"min": 19, "max": 24},
+    "three_bet": {"min": 10, "max": 12},
+    "squeeze": {"min": 9, "max": 11},
+    "vs_or": {"min": 42, "max": 48},
+    "sb": {"min": 18, "max": 22},
+    "ff_cb": {"min": 33, "max": 40},
+    "fold_to_3b": {"min": 60, "max": 70},
+    "four_bet": {"min": 3, "max": 5},
+    "fold_to_4b": {"min": 75, "max": 85},
+    "rfi": {"min": 35, "max": 45},
+    "cold_call": {"min": 15, "max": 25},
+    "sb_defense": {"min": 35, "max": 45},
+    "bb_defense": {"min": 45, "max": 55}
+  },
+  "flop": {
+    "af_flop": {"min": 2.5, "max": 3.5},
+    "cbet_ip": {"min": 70, "max": 80},
+    "cbet_oop": {"min": 55, "max": 65},
+    "cr_flop": {"min": 10, "max": 16},
+    "f2cbet": {"min": 35, "max": 45},
+    "raise_cb": {"min": 12, "max": 16},
+    "fold_cb_ip": {"min": 30, "max": 40},
+    "fold_cb_oop": {"min": 25, "max": 35},
+    "check_call": {"min": 35, "max": 45},
+    "xr_oop": {"min": 44, "max": 48},
+    "xr_ip": {"min": 45, "max": 55},
+    "donk": {"min": 5, "max": 15},
+    "float": {"min": 20, "max": 30},
+    "f2raise_flop": {"min": 35, "max": 45},
+    "cbet_ip_def": {"min": 48, "max": 58},
+    "cbet_oop_def": {"min": 35, "max": 45}
+  },
+  "turn": {
+    "af_turn": {"min": 2.8, "max": 3.8},
+    "beturn": {"min": 45, "max": 55},
+    "cbet_turn": {"min": 48, "max": 58},
+    "cr_turn": {"min": 10, "max": 18},
+    "f2beturn": {"min": 38, "max": 48},
+    "check_call_turn": {"min": 35, "max": 45},
+    "raise_turn": {"min": 10, "max": 18},
+    "fold_raise_turn": {"min": 35, "max": 45},
+    "barrel": {"min": 30, "max": 40},
+    "f2raise_turn": {"min": 35, "max": 45},
+    "checkcall_turn": {"min": 40, "max": 50}
+  },
+  "river": {
+    "af_river": {"min": 2.0, "max": 3.0},
+    "betriver": {"min": 38, "max": 48},
+    "f2betriver": {"min": 38, "max": 48},
+    "vb_ratio": {"min": 1.2, "max": 2.0},
+    "bluff_river": {"min": 10, "max": 20},
+    "check_call_river": {"min": 40, "max": 50},
+    "wsd": {"min": 25, "max": 35},
+    "shove": {"min": 5, "max": 15}
+  },
+  "position_specific": {
+    "sb_vs_or": {"min": 40, "max": 50},
+    "bb_vs_or": {"min": 42, "max": 52},
+    "btn_vs_or": {"min": 45, "max": 55},
+    "co_vs_or": {"min": 42, "max": 48},
+    "ep_vs_or": {"min": 20, "max": 28}
+  },
+  "3bet_scenarios": {
+    "3bet_iso": {"min": 12, "max": 18},
+    "4bet_playpot": {"min": 8, "max": 12},
+    "fold_to_3b_btn": {"min": 25, "max": 35},
+    "fold_to_3b_sb": {"min": 35, "max": 45},
+    "cold_4bet": {"min": 2, "max": 4}
+  },
+  "advanced": {
+    "limp_sb": {"min": 0, "max": 5},
+    "iso_limp": {"min": 15, "max": 25},
+    "minsteal": {"min": 0, "max": 18},
+    "overshove_turn": {"min": 25, "max": 35},
+    "overshove_river": {"min": 15, "max": 25},
+    "river_bluff_50bb": {"min": 40, "max": 50}
+  },
+  "notes": "Valores completos de equilibrio GTO para poker 6-max. Los valores están en porcentajes excepto vb_ratio, af_*, y wsd que tienen sus propias escalas."
+}
