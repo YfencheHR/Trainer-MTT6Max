@@ -102,6 +102,35 @@ class TournamentController extends Controller
             return back()->withInput()->withErrors(['bot_percentages' => __('tournaments.no_bots_selected')]);
         }
 
+        // Validar que hay al menos 1 bot importado (no-base) con todas sus estadísticas
+        $selectedBots = $poolBots->only(array_keys($botPercentages));
+        $importedBots = $selectedBots->filter(fn ($bot) => ($bot->metadata['source'] ?? null) === 'pt4_import');
+
+        if ($importedBots->isEmpty()) {
+            return back()->withInput()->withErrors([
+                'bot_percentages' => __('tournaments.no_imported_bots'),
+            ]);
+        }
+
+        $botsWithFullStats = $importedBots->filter(function ($bot) {
+            $hudStats = $bot->hudStats()
+                ->whereNull('posicion')
+                ->whereNull('accion')
+                ->first();
+            return $hudStats &&
+                   !is_null($hudStats->vpip) &&
+                   !is_null($hudStats->pfr) &&
+                   !is_null($hudStats->three_bet) &&
+                   !is_null($hudStats->cbet) &&
+                   !is_null($hudStats->donk);
+        });
+
+        if ($botsWithFullStats->isEmpty()) {
+            return back()->withInput()->withErrors([
+                'bot_percentages' => __('tournaments.no_bots_with_complete_stats'),
+            ]);
+        }
+
         // Rivales = jugadores totales - el héroe (si existe), repartidos según el % de cada bot
         $hasHero = $validated['hero_player'] ?? true;
         $allBots = $poolBots;

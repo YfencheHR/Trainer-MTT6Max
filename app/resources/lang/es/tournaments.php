@@ -56,6 +56,8 @@ return [
     'pool_bots_only' => 'Solo se pueden seleccionar perfiles Pool como rivales.',
     'cannot_start' => 'No se puede iniciar el torneo',
     'cannot_end' => 'No se puede finalizar el torneo',
+    'no_imported_bots' => 'Debes seleccionar al menos un bot importado (desde PokerTracker) para crear un torneo',
+    'no_bots_with_complete_stats' => 'Los bots seleccionados no tienen estadísticas completas. Importa datos de PokerTracker o asegúrate de que los bots tengan VPIP, PFR, 3-bet, C-bet y DONK',
 
     'play_area' => 'Área de Juego',
     'play_coming_soon' => 'Interfaz de juego próximamente...',

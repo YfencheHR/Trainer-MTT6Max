@@ -56,6 +56,8 @@ return [
     'pool_bots_only' => 'Only Pool profiles can be selected as opponents.',
     'cannot_start' => 'Tournament cannot be started',
     'cannot_end' => 'Tournament cannot be ended',
+    'no_imported_bots' => 'You must select at least one imported bot (from PokerTracker) to create a tournament',
+    'no_bots_with_complete_stats' => 'Selected bots do not have complete statistics. Import data from PokerTracker or ensure bots have VPIP, PFR, 3-bet, C-bet, and DONK stats',
 
     'play_area' => 'Game Area',
     'play_coming_soon' => 'Game interface coming soon...',
