@@ -21,8 +21,8 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->timestamps();
 
-            $table->unique(['tournament_hand_id', 'tournament_player_id', 'street', 'sequence']);
-            $table->index(['tournament_hand_id', 'tournament_player_id', 'street']);
+            $table->index('tournament_hand_id');
+            $table->index('tournament_player_id');
         });
     }
 
