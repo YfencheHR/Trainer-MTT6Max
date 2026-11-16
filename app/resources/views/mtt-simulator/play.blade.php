@@ -24,10 +24,13 @@
     <!-- Layout Principal: Mesa (3/4) + Info (1/4) -->
     <div style="max-width: 1400px; margin: 0 auto;" class="px-4 sm:px-6 lg:px-8 py-6 flex flex-col-reverse lg:flex-row gap-3">
 
-      <!-- Columna Derecha: Rivales + Log (1/4) -->
+      <!-- Columna Derecha: Rivales + Rangos + Log (1/4) -->
       <div class="w-full lg:w-1/4" style="display: flex; flex-direction: column; gap: 1.5rem;">
         <!-- Rivales en Acción -->
         <x-active-players-info :tournament="$tournament" :playersStats="$playersStats ?? []" />
+
+        <!-- Rangos de Bots en Acción -->
+        <x-bots-action-ranges :handId="$hand->id" />
 
         <!-- Log del Juego -->
         <x-game-log />
