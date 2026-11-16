@@ -18,6 +18,13 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $this->call([
+            CardSeeder::class,
+            StartingHandSeeder::class,
+            MadeHandsSeeder::class,
+            UpdateHandEquitySeeder::class,
+            HandGroupSeeder::class,
+            NashHandGroupValueSeeder::class,
+            OtherScenariosSeeder::class,
             HandMatrixSeeder::class,
             HeuristicPreflopStrategySeeder::class,
             BotSeeder::class,
