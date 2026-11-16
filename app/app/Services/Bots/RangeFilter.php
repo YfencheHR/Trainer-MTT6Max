@@ -136,6 +136,12 @@ class RangeFilter
                 $actionKey = $this->mapActionToKey($action);
                 $frequency = (float) ($handData[$actionKey] ?? 0);
 
+                // If primary key has 0 frequency, try defense variant for defensive actions
+                if ($frequency === 0 && $action === 'call' && isset($handData['defense_call'])) {
+                    $frequency = (float) $handData['defense_call'];
+                    $actionKey = 'defense_call';
+                }
+
                 if ($frequency > 0 || $this->isExceptionAction($action, $hand, $context)) {
                     // Recalcular distribución (normalizar según acciones posibles)
                     $result[$hand] = $this->normalizeFrequencies($handData, $actionKey);
