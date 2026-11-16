@@ -64,35 +64,32 @@ function botsActionRanges(handId) {
             this.$watch(
                 () => ({
                     players: this.$store.handStatistics.data.players,
-                    dynamicRanges: this.$store.handStatistics.data.dynamic_ranges,
-                    lastAction: this.$store.handStatistics.data.last_action,
+                    dynamicRanges: this.$store.gameState.dynamicRanges,
                 }),
                 (newData) => {
-                    const state = this.$store.handStatistics.data;
-                    if (state && state.hand_id === this.handId) {
-                        this.updateBotsFromState(state);
-                    }
+                    console.log('Watch triggered:', newData);
+                    this.updateBots();
                 },
                 { deep: true }
             );
 
             setTimeout(() => {
-                const state = this.$store.handStatistics.data;
-                if (state && state.hand_id === this.handId) {
-                    this.updateBotsFromState(state);
-                }
+                console.log('Initial update');
+                this.updateBots();
             }, 100);
         },
 
-        updateBotsFromState(state) {
-            console.log('updateBotsFromState:', state);
+        updateBots() {
+            const players = this.$store.handStatistics.data.players || [];
+            const dynamicRanges = this.$store.gameState.dynamicRanges;
 
-            if (!state || !state.players) return;
+            console.log('updateBots - players:', players);
+            console.log('updateBots - dynamicRanges:', dynamicRanges);
 
             const botsMap = new Map(this.activeBots.map(b => [b.id, b]));
             const newActiveBots = [];
 
-            state.players.forEach(player => {
+            players.forEach(player => {
                 if (!player.is_bot) return;
 
                 const botData = {
@@ -101,12 +98,13 @@ function botsActionRanges(handId) {
                     position: player.position,
                     is_folded: player.is_folded,
                     is_all_in: player.is_all_in,
-                    action: state.last_action?.player_id === player.id ? state.last_action.action : null,
+                    action: null,
                     ranges: null
                 };
 
-                if (state.dynamic_ranges && state.dynamic_ranges.player_id === player.id) {
-                    botData.ranges = state.dynamic_ranges.ranges;
+                if (dynamicRanges && dynamicRanges.player_id === player.id) {
+                    botData.ranges = dynamicRanges.ranges;
+                    botData.action = 'rango actual';
                 } else {
                     const existingBot = botsMap.get(player.id);
                     if (existingBot && existingBot.ranges) {
@@ -117,6 +115,7 @@ function botsActionRanges(handId) {
                 newActiveBots.push(botData);
             });
 
+            console.log('newActiveBots:', newActiveBots);
             this.activeBots = newActiveBots;
         }
     };
