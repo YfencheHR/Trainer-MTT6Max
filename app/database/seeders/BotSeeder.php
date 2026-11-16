@@ -157,6 +157,12 @@ class BotSeeder extends Seeder
             ]
         ];
 
+        // Agregar source a todos los bots para que sean considerados part of the pool
+        $bots = array_map(function ($botData) {
+            $botData['metadata']['source'] = 'pt4_import';
+            return $botData;
+        }, $bots);
+
         foreach ($bots as $botData) {
             Bot::firstOrCreate(
                 ['nombre' => $botData['nombre']],

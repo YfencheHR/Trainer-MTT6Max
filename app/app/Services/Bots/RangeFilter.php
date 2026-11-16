@@ -3,10 +3,9 @@
 namespace App\Services\Bots;
 
 use App\Models\Bot;
-use App\Models\Hand;
 use App\Models\HandActionRange;
+use App\Models\TournamentHand;
 use App\Models\TournamentPlayer;
-use App\Services\Bots\Brain\RivalPreflopTables;
 
 /**
  * Filtra y actualiza rangos dinámicos de bots durante la mano.
@@ -19,14 +18,11 @@ use App\Services\Bots\Brain\RivalPreflopTables;
  */
 class RangeFilter
 {
-    public function __construct(
-        private RivalPreflopTables $preflopTables,
-    ) {}
 
     /**
      * Inicializa los rangos para un jugador al inicio de la mano
      */
-    public function initializeHandRanges(Hand $hand, TournamentPlayer $player): void
+    public function initializeHandRanges(TournamentHand $hand, TournamentPlayer $player): void
     {
         $bot = $player->bot;
         if (!$bot) return; // Solo para bots
@@ -55,7 +51,7 @@ class RangeFilter
      * Actualiza el rango tras una acción del bot (fold, call, raise, etc.)
      */
     public function updateAfterAction(
-        Hand $hand,
+        TournamentHand $hand,
         TournamentPlayer $player,
         string $action,
         string $street,
@@ -213,7 +209,7 @@ class RangeFilter
     /**
      * Obtiene el rango actual de un jugador para mostrar en UI
      */
-    public function getCurrentRange(Hand $hand, TournamentPlayer $player): ?array
+    public function getCurrentRange(TournamentHand $hand, TournamentPlayer $player): ?array
     {
         $latest = HandActionRange::where([
             'hand_id' => $hand->id,

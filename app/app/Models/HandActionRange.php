@@ -22,11 +22,11 @@ class HandActionRange extends Model
 
     public function hand()
     {
-        return $this->belongsTo(TournamentHand::class, 'tournament_hand_id');
+        return $this->belongsTo(TournamentHand::class, 'hand_id');
     }
 
     public function player()
     {
-        return $this->belongsTo(TournamentPlayer::class, 'tournament_player_id');
+        return $this->belongsTo(TournamentPlayer::class, 'player_id');
     }
 }

@@ -228,42 +228,6 @@ class TournamentController extends Controller
         $currentHand = $hand;
         $noHudData = $config['game_settings']['no_hud_data'] ?? false;
 
-        // Obtener stats de cada jugador en la mesa
-        $playersStats = [];
-        $displayTable = $displayTable ?? $tournament->tables()->where('is_active', true)->first();
-        if ($displayTable) {
-            foreach ($displayTable->players as $tournamentPlayer) {
-                $bot = $tournamentPlayer->bot;
-
-                $stats = [];
-                if ($bot) {
-                    $hudStat = $bot->hudStats()->whereNull('posicion')->whereNull('accion')->first();
-                    if ($hudStat) {
-                        $stats = [
-                            'name' => $tournamentPlayer->name,
-                            'is_bot' => true,
-                            'vpip' => round($hudStat->vpip ?? 0),
-                            'pfr' => round($hudStat->pfr ?? 0),
-                            'af' => round($hudStat->af_preflop ?? 0, 1),
-                            'three_bet' => round($hudStat->three_bet ?? 0),
-                            'cbet' => round($hudStat->cbet ?? 0),
-                            'donk' => round($hudStat->donk ?? 0),
-                            'bb100' => $bot->metadata['bb100'] ?? null,
-                        ];
-                    }
-                } else {
-                    $stats = [
-                        'name' => $tournamentPlayer->name,
-                        'is_bot' => false,
-                    ];
-                }
-
-                if (!empty($stats)) {
-                    $playersStats[$tournamentPlayer->id] = $stats;
-                }
-            }
-        }
-
         return view('mtt-simulator.play', compact(
             'tournament',
             'hand',
@@ -275,8 +239,7 @@ class TournamentController extends Controller
             'pot',
             'activeTables',
             'currentHand',
-            'noHudData',
-            'playersStats'
+            'noHudData'
         ));
     }
 

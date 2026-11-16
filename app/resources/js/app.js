@@ -80,13 +80,17 @@ Alpine.store('gameState', {
   currentPosition: null,
   board: [],
   street: 'preflop',
+  dynamicRanges: null,
 
   set(state) {
     if (!state) return;
+    console.log('🎮 gameState.set() called with state:', state);
     this.currentPlayerId = state.current_player_id ?? null;
     this.currentPosition = state.current_player_position ?? null;
     this.board = Array.isArray(state.board) ? state.board : [];
     this.street = state.current_street || 'preflop';
+    this.dynamicRanges = state.dynamic_ranges ?? null;
+    console.log('📊 dynamicRanges set to:', this.dynamicRanges);
 
     // Si el jugador actual es un bot, extraer su ID
     if (Array.isArray(state.players)) {

@@ -61,13 +61,31 @@ class HandPlayService
             ];
         }, $players, array_keys($players));
 
+        // Obtener rangos dinámicos del jugador actual
+        $currentPlayerId = $completed ? null : $meta['turn'];
+        $dynamicRanges = null;
+        if ($currentPlayerId && !$completed) {
+            $tp = $hand->table ? $hand->table->players()->find($currentPlayerId) : $hand->tournament->players()->find($currentPlayerId);
+            if ($tp && $tp->bot) {
+                $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+                $ranges = $rangeFilter->getCurrentRange($hand, $tp);
+                if ($ranges) {
+                    $dynamicRanges = [
+                        'player_id' => $tp->id,
+                        'player_name' => $tp->name,
+                        'ranges' => $ranges,
+                    ];
+                }
+            }
+        }
+
         return [
             'hand_id' => $hand->id,
             'players' => array_values($out),
             'board' => $hand->community_cards ?? [],
             'pot' => (int) $meta['pot'],
             'current_street' => $completed ? 'completed' : $meta['street'],
-            'current_player_id' => $completed ? null : $meta['turn'],
+            'current_player_id' => $currentPlayerId,
             'is_all_in' => collect($players)->contains(fn($p) => $p['all_in']),
             'status' => $hand->status,
             'winner_id' => $meta['winner_id'] ?? null,
@@ -79,6 +97,7 @@ class HandPlayService
             'last_action' => $meta['last_action'] ?? null,
             'hero_actions' => $this->heroLegal($players, $meta, $completed),
             'big_blind' => (int) ($meta['bb'] ?? 100),
+            'dynamic_ranges' => $dynamicRanges,
         ];
     }
 

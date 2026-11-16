@@ -1,41 +1,16 @@
-@props(['tournament' => null, 'playersStats' => []])
+@props(['tournament' => null])
 
 {{-- Panel que muestra matrices de rangos dinámicos de rivales en acción durante la mano --}}
 <div x-data="{
-    dynamicRanges: null,
-    lastPlayerId: null,
-    getHandId() {
-      const path = window.location.pathname;
-      const parts = path.split('/');
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (parts[i] === 'hand' && !isNaN(parts[i + 1])) {
-          return parts[i + 1];
-        }
-      }
-      return null;
-    },
-    async loadDynamicRanges() {
-      const gameState = $store?.gameState;
-      if (!gameState) return;
-
-      const currentPlayerId = gameState.currentPlayerId;
-      const handId = this.getHandId();
-
-      if (!currentPlayerId || !handId || currentPlayerId === this.lastPlayerId) return;
-
-      try {
-        const resp = await fetch(`/mtt-simulator/hand/${handId}/ranges/${currentPlayerId}`);
-        const data = await resp.json();
-        if (data.success && data.data) {
-          this.dynamicRanges = data.data;
-          this.lastPlayerId = currentPlayerId;
-        }
-      } catch (e) {
-        console.error('Error loading dynamic ranges:', e);
-      }
+    get dynamicRanges() {
+      return $store?.gameState?.dynamicRanges ?? null;
     },
     init() {
-      this.$watch(() => $store?.gameState?.currentPlayerId, () => this.loadDynamicRanges());
+      this.$watch(() => $store?.gameState?.dynamicRanges, (ranges) => {
+        if (ranges) {
+          console.log('✅ Rangos dinámicos actualizados:', ranges);
+        }
+      });
     }
   }"
   style="background-color: #1a212a; border: 1px solid #2e3a48; border-radius: 0.5rem; padding: 0.75rem;">
@@ -76,81 +51,4 @@
     </div>
   </template>
 
-  {{-- Contenedor scrolleable de stats de todos los jugadores --}}
-  <div style="max-height: 250px; overflow-y: auto;">
-    @forelse($playersStats as $playerId => $stats)
-      <div style="background: rgba(0,0,0,0.3); border-radius: 0.4rem; padding: 0.6rem; margin-bottom: 0.5rem; border-left: 3px solid
-        @if($stats['is_bot']) #ef4444 @else #10b981 @endif
-      ;">
-
-        {{-- Nombre y rol --}}
-        <p style="margin: 0; font-size: 0.85rem; font-weight: 600; color: #d1d5db;">
-          {{ $stats['name'] }}
-          <span style="font-size: 0.7rem; color: #9ca3af;">
-            @if($stats['is_bot']) 🤖 @else 👤 @endif
-          </span>
-        </p>
-
-        {{-- Stats principales en grid 2x3 --}}
-        @php
-            $statCell = 'margin: 0; font-size: 0.7rem; color: #9ca3af; text-transform: uppercase;';
-            $statVal = 'margin: 0.2rem 0 0 0; font-size: 0.9rem; font-weight: 600; color: #60a5fa;';
-        @endphp
-
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; margin-top: 0.4rem;">
-          <div>
-            <p style="{{ $statCell }}">VPIP</p>
-            <p style="{{ $statVal }}">{{ $stats['vpip'] ?? '–' }}%</p>
-          </div>
-          <div>
-            <p style="{{ $statCell }}">PFR</p>
-            <p style="{{ $statVal }}">{{ $stats['pfr'] ?? '–' }}%</p>
-          </div>
-          <div>
-            <p style="{{ $statCell }}">AF</p>
-            <p style="{{ $statVal }}">{{ $stats['af'] ?? '–' }}</p>
-          </div>
-          <div>
-            <p style="{{ $statCell }}">3-BET</p>
-            <p style="{{ $statVal }}">{{ $stats['three_bet'] ?? '–' }}%</p>
-          </div>
-        </div>
-
-        {{-- Stats postflop --}}
-        <div style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.1);">
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem;">
-            <div>
-              <p style="{{ $statCell }}">C-BET</p>
-              <p style="{{ $statVal }}">{{ $stats['cbet'] ?? '–' }}%</p>
-            </div>
-            <div>
-              <p style="{{ $statCell }}">DONK</p>
-              <p style="{{ $statVal }}">{{ $stats['donk'] ?? '–' }}%</p>
-            </div>
-          </div>
-        </div>
-
-        {{-- BB100 si está disponible --}}
-        @if(isset($stats['bb100']) && $stats['bb100'] !== null)
-          <div style="margin-top: 0.4rem; padding: 0.4rem; background: rgba(255,255,255,0.05); border-radius: 0.3rem;">
-            <p style="{{ $statCell }}">BB/100</p>
-            <p style="margin: 0.2rem 0 0 0; font-size: 0.9rem; font-weight: 600; color:
-              @if($stats['bb100'] > 0) #10b981 @elseif($stats['bb100'] < 0) #ef4444 @else #9ca3af @endif
-            ;">
-              @if($stats['bb100'] > 0) + @endif {{ $stats['bb100'] }}
-            </p>
-          </div>
-        @endif
-      </div>
-    @empty
-      <p style="margin: 0; font-size: 0.8rem; color: #9ca3af; text-align: center; padding: 1rem;">
-        Esperando acción...
-      </p>
-    @endforelse
-  </div>
-
-  {{-- Ayuda --}}
-  <p style="margin: 1rem 0 0 0; font-size: 0.7rem; color: #6b7280; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.5rem;">
-    <strong>Tip:</strong> Usa estos stats para entender las decisiones del bot. Rivales con VPIP alto juegan más manos; AF alto = agresivos.
-  </p>
 </div>
