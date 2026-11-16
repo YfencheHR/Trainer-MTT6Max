@@ -600,11 +600,12 @@ class HandPlayService
             $showAll = (bool) data_get($hand->tournament->config, 'game_settings.show_all_cards', false);
             if ($showAll && !empty($p['hole_cards']) && count($p['hole_cards']) === 2) {
                 try {
-                    $cards = array_map(fn($c) => mb_convert_encoding($c, 'UTF-8', 'UTF-8'), $p['hole_cards']);
-                    $extra['cards'] = $cards;
-                    $extra['hand'] = $this->holesName($cards);
+                    $handName = $this->holesName($p['hole_cards']);
+                    if (!empty($handName)) {
+                        $extra['hand'] = $handName;
+                    }
                 } catch (\Throwable $e) {
-                    // Silently fail - fold still happens, just without hand notation
+                    // Silently fail - fold still happens
                 }
             }
         }
