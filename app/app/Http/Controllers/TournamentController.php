@@ -143,7 +143,7 @@ class TournamentController extends Controller
         ]);
 
         // Crear jugadores del torneo
-        $this->createTournamentPlayers($tournament, $botsToAdd, $validated['starting_stack']);
+        $this->createTournamentPlayers($tournament, $botsToAdd, $validated['starting_stack'], $hasHero);
 
         return redirect()->route('mtt-simulator.show', $tournament)
             ->with('success', __('tournaments.created_successfully'));
@@ -267,7 +267,7 @@ class TournamentController extends Controller
             ->with('success', __('tournaments.ended'));
     }
 
-    private function createTournamentPlayers(Tournament $tournament, $bots, $starting_stack): void
+    private function createTournamentPlayers(Tournament $tournament, $bots, $starting_stack, bool $hasHero = true): void
     {
         $position = 0;
 
