@@ -125,11 +125,13 @@
       <!-- Checkboxes: Hero Player, Show All Cards, No HUD Data -->
       <div style="padding-top: 1.5rem; padding-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
         <label class="flex items-center gap-3 cursor-pointer p-3 rounded" style="background-color: #0f1419; border: 1px solid #2e3a48; width: fit-content;">
+          <input type="hidden" name="hero_player" value="0">
           <input type="checkbox" id="heroPlayer" name="hero_player" value="1" {{ old('hero_player', true) ? 'checked' : '' }} style="accent-color: #047857; width: 18px; height: 18px;">
           <span style="color: #a1a5b0;">{{ __('tournaments.hero_player') }}</span>
         </label>
 
         <label class="flex items-center gap-3 cursor-pointer p-3 rounded" style="background-color: #0f1419; border: 1px solid #2e3a48; width: fit-content;">
+          <input type="hidden" name="show_all_cards" value="0">
           <input type="checkbox" name="show_all_cards" value="1" {{ old('show_all_cards') ? 'checked' : '' }} style="accent-color: #047857; width: 18px; height: 18px;">
           <span style="color: #a1a5b0;">{{ __('tournaments.show_all_cards') }}</span>
         </label>
