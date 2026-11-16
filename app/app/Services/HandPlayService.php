@@ -595,7 +595,14 @@ class HandPlayService
             'raise' => 'hizo ' . $verb . $this->bb($p['bet'], $meta),
             'allin' => 'hizo all-in ' . ($p['bet'] > $legal['maxBet'] ? 'a ' : 'por ') . $this->bb($p['bet'], $meta),
         };
-        $this->log($meta, $p['name'] . ' ' . $text, 'action');
+        $extra = [];
+        if ($action === 'fold') {
+            $showAll = (bool) data_get($hand->tournament->config, 'game_settings.show_all_cards', false);
+            if ($showAll && !empty($p['hole_cards'])) {
+                $extra['cards'] = $p['hole_cards'];
+            }
+        }
+        $this->log($meta, $p['name'] . ' ' . $text, 'action', $extra);
 
         $record = [
             'player_id' => $p['id'],
