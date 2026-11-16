@@ -53,6 +53,7 @@ export function gameTable(handId, userId, initialState = null) {
       if (window.Alpine?.store('gameLog')) window.Alpine.store('gameLog').set(s.log);
       if (window.Alpine?.store('tournamentInfo')) window.Alpine.store('tournamentInfo').set(s.tournament);
       if (window.Alpine?.store('handStatistics')) window.Alpine.store('handStatistics').set(s);
+      if (window.Alpine?.store('gameState')) window.Alpine.store('gameState').set(s);
       this.connectSocket();
       // Historial de las manos anteriores de la mesa (para que el log no se pierda al recargar)
       new GameAPI().getLogHistory(this.handId)

@@ -4,17 +4,29 @@
 <div x-data="{
     dynamicRanges: null,
     lastPlayerId: null,
-    handId: window.location.pathname.split('/').find((_, i, arr) => arr[i-1] === 'hand' && !isNaN(arr[i])),
+    getHandId() {
+      const path = window.location.pathname;
+      const parts = path.split('/');
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (parts[i] === 'hand' && !isNaN(parts[i + 1])) {
+          return parts[i + 1];
+        }
+      }
+      return null;
+    },
     async loadDynamicRanges() {
-      const currentPlayerId = $store.gameState?.currentPlayerId;
-      const handId = this.handId;
+      const gameState = $store?.gameState;
+      if (!gameState) return;
+
+      const currentPlayerId = gameState.currentPlayerId;
+      const handId = this.getHandId();
 
       if (!currentPlayerId || !handId || currentPlayerId === this.lastPlayerId) return;
 
       try {
         const resp = await fetch(`/mtt-simulator/hand/${handId}/ranges/${currentPlayerId}`);
         const data = await resp.json();
-        if (data.success) {
+        if (data.success && data.data) {
           this.dynamicRanges = data.data;
           this.lastPlayerId = currentPlayerId;
         }
@@ -23,7 +35,7 @@
       }
     },
     init() {
-      this.$watch('$store.gameState.currentPlayerId', () => this.loadDynamicRanges());
+      this.$watch(() => $store?.gameState?.currentPlayerId, () => this.loadDynamicRanges());
     }
   }"
   style="background-color: #1a212a; border: 1px solid #2e3a48; border-radius: 0.5rem; padding: 0.75rem;">
