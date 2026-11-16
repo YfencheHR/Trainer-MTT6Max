@@ -97,6 +97,25 @@ class GamePlayController extends Controller
         return $this->respond(fn() => $this->rounds->resolveTable($tournament, $table, (int) $data['round']));
     }
 
+    /** GET /mtt-simulator/hand/{hand}/ranges/{player} */
+    public function getPlayerRanges(TournamentHand $hand, int $player): JsonResponse
+    {
+        return $this->respond(function () use ($hand, $player) {
+            $tp = $hand->table ? $hand->table->players()->find($player) : $hand->tournament->players()->find($player);
+            abort_unless($tp, 404, 'Jugador no encontrado en la mano');
+
+            $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+            $ranges = $rangeFilter->getCurrentRange($hand, $tp);
+
+            return [
+                'player_id' => $tp->id,
+                'player_name' => $tp->name,
+                'is_bot' => (bool) $tp->bot,
+                'ranges' => $ranges ?? [],
+            ];
+        });
+    }
+
     private function respond(callable $fn): JsonResponse
     {
         try {

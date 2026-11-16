@@ -629,6 +629,22 @@ class HandPlayService
 
         $this->advance($hand, $players, $meta, $idx);
 
+        // Actualizar rangos dinámicos del jugador que actuó
+        $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+        $tp = $hand->table ? $hand->table->players()->find($playerId) : $hand->tournament->players()->find($playerId);
+        if ($tp && $tp->bot) {
+            $rangeFilter->updateAfterAction(
+                $hand, $tp, $action, $meta['street'],
+                [
+                    'pot' => $meta['pot'],
+                    'stack' => $tp->current_stack,
+                    'position' => $tp->position,
+                    'action_number' => count(array_filter($players, fn($p) => $p['acted'])),
+                    'actors_count' => count(array_filter($players, fn($p) => !$p['folded'])),
+                ]
+            );
+        }
+
         return $withState ? $this->state($hand->fresh()) : [];
     }
 
@@ -1066,6 +1082,16 @@ class HandPlayService
         $hand->hero_cards = collect($players)->firstWhere('is_bot', false)['hole_cards'] ?? [];
         $hand->community_cards = [];
         $hand->save();
+
+        // Inicializar rangos dinámicos para todos los jugadores
+        $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+        foreach ($players as $player) {
+            $tp = $hand->table ? $hand->table->players()->find($player['id']) : $hand->tournament->players()->find($player['id']);
+            if ($tp) {
+                $rangeFilter->initializeHandRanges($hand, $tp);
+            }
+        }
+
         if ($meta['turn'] === null) {
             $this->showdown($hand, $players, $meta);
         }
