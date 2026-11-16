@@ -68,6 +68,7 @@ class TournamentController extends Controller
             'bot_percentages.*' => 'required|integer|min:0|max:100',
             'hand_types' => 'required|array|min:1',
             'hand_types.*' => 'required|integer|between:1,13',
+            'hero_player' => 'boolean',
             'show_all_cards' => 'boolean',
             'no_hud_data' => 'boolean',
             'player_time_mode' => 'required|in:unlimited,standard',
@@ -130,7 +131,8 @@ class TournamentController extends Controller
             }
         }
         shuffle($botsToAdd);
-        $num_players = count($botsToAdd) + 1; // +1 para el jugador
+        $hasHero = $validated['hero_player'] ?? true;
+        $num_players = count($botsToAdd) + ($hasHero ? 1 : 0);
 
         $config = $this->buildTournamentConfig($validated, $botsToAdd, $num_players);
 
@@ -269,17 +271,19 @@ class TournamentController extends Controller
     {
         $position = 0;
 
-        // Crear jugador humano (usuario actual)
-        TournamentPlayer::create([
-            'tournament_id' => $tournament->id,
-            'user_id' => auth()->id(),
-            'bot_id' => null,
-            'name' => auth()->user()->name ?? 'Player',
-            'starting_stack' => $starting_stack,
-            'current_stack' => $starting_stack,
-            'is_bot' => false,
-            'position' => $position++,
-        ]);
+        // Crear jugador humano (usuario actual) solo si está habilitado
+        if ($hasHero) {
+            TournamentPlayer::create([
+                'tournament_id' => $tournament->id,
+                'user_id' => auth()->id(),
+                'bot_id' => null,
+                'name' => auth()->user()->name ?? 'Player',
+                'starting_stack' => $starting_stack,
+                'current_stack' => $starting_stack,
+                'is_bot' => false,
+                'position' => $position++,
+            ]);
+        }
 
         // Crear jugadores bots (si un bot se repite, se numera: Setminer, Setminer 2…)
         // Cada jugador hereda el cerebro de su bot tal como está ahora (snapshot congelado)
