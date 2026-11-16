@@ -104,6 +104,7 @@ class RangeFilter
                     'call' => round($r->open_call),
                     'fold' => round($r->open_fold),
                     'limp' => round($r->attack_limp),
+                    'check' => 100, // Always allowed postflop
                     'defense_3bet' => round($r->defense_three_bet),
                     'defense_call' => round($r->defense_call),
                     'defense_fold' => round($r->defense_fold),
