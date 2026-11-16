@@ -56,6 +56,7 @@ Route::prefix('mtt-simulator/hand')->group(function () {
     Route::get('{hand}/state', [GamePlayController::class, 'getHandState'])->name('mtt-simulator.hand.state');
     Route::get('{hand}/log', [GamePlayController::class, 'logHistory'])->name('mtt-simulator.hand.log');
     Route::get('{hand}/history', [TournamentHistoryController::class, 'hand'])->name('mtt-simulator.hand.history');
+    Route::get('{hand}/ranges/{player}', [GamePlayController::class, 'getPlayerRanges'])->name('mtt-simulator.hand.ranges');
     Route::post('{hand}/action', [GamePlayController::class, 'playerAction'])->name('mtt-simulator.hand.action');
     Route::post('{hand}/bot-action', [GamePlayController::class, 'botAction'])->name('mtt-simulator.hand.bot-action');
     Route::post('{hand}/next', [GamePlayController::class, 'nextHand'])->name('mtt-simulator.hand.next');
