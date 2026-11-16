@@ -1,10 +1,10 @@
 @props(['handId'])
 
 <div x-data="botsActionRanges({{ $handId }})" class="bg-slate-900 rounded-lg border border-slate-700 p-4">
-    <h3 class="text-sm font-semibold text-slate-200 mb-4">🎯 Rivales en Acción - Rangos</h3>
+    <h3 class="text-sm font-semibold text-slate-200 mb-4">Rivales en Accion - Rangos</h3>
 
     <div x-show="activeBots.length === 0" class="text-slate-400 text-sm">
-        Esperando acción de bots...
+        Esperando accion de bots...
     </div>
 
     <div x-show="activeBots.length > 0" class="space-y-3">
@@ -61,12 +61,27 @@ function botsActionRanges(handId) {
         init() {
             console.log('Init botsActionRanges para hand', this.handId);
 
-            // Escuchar actualizaciones del gameState global
-            this.$watch(() => window.gameState, (newState) => {
-                if (newState && newState.hand_id === this.handId) {
-                    this.updateBotsFromState(newState);
+            this.$watch(
+                () => ({
+                    players: this.$store.handStatistics.data.players,
+                    dynamicRanges: this.$store.handStatistics.data.dynamic_ranges,
+                    lastAction: this.$store.handStatistics.data.last_action,
+                }),
+                (newData) => {
+                    const state = this.$store.handStatistics.data;
+                    if (state && state.hand_id === this.handId) {
+                        this.updateBotsFromState(state);
+                    }
+                },
+                { deep: true }
+            );
+
+            setTimeout(() => {
+                const state = this.$store.handStatistics.data;
+                if (state && state.hand_id === this.handId) {
+                    this.updateBotsFromState(state);
                 }
-            }, { deep: true, immediate: true });
+            }, 100);
         },
 
         updateBotsFromState(state) {
@@ -78,7 +93,6 @@ function botsActionRanges(handId) {
             const newActiveBots = [];
 
             state.players.forEach(player => {
-                // Solo bots
                 if (!player.is_bot) return;
 
                 const botData = {
@@ -91,11 +105,9 @@ function botsActionRanges(handId) {
                     ranges: null
                 };
 
-                // Si hay dynamic_ranges para este jugador
                 if (state.dynamic_ranges && state.dynamic_ranges.player_id === player.id) {
                     botData.ranges = state.dynamic_ranges.ranges;
                 } else {
-                    // Mantener rangos anteriores si existe
                     const existingBot = botsMap.get(player.id);
                     if (existingBot && existingBot.ranges) {
                         botData.ranges = existingBot.ranges;
