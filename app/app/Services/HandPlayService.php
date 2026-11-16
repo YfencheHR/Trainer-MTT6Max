@@ -301,6 +301,52 @@ class HandPlayService
         ];
     }
 
+    /**
+     * Extrae todas las stats del bot para decisiones (preflop y postflop por calle)
+     */
+    private function botStatsFor(?\App\Models\Bot $bot, array $observed): array
+    {
+        if (!$bot) {
+            throw new \LogicException('Bot stats are mandatory for decision making');
+        }
+
+        $general = $bot->hudStats->first(fn($row) => $row->posicion === null && $row->accion === null && $row->rango_ciegas === null);
+        if (!$general) {
+            throw new \LogicException("Bot {$bot->id} has no general HUD stats defined");
+        }
+
+        $stats = [
+            'vpip' => $bot->vpip ?? $general->vpip ?? 20,
+            'pfr' => $bot->pfr ?? $general->pfr ?? 15,
+        ];
+
+        // Stats por calle para postflop decisions
+        foreach (['flop', 'turn', 'river'] as $street) {
+            $stats[$street] = [
+                'f2bet' => $general->f2bet,
+                'af' => match($street) {
+                    'flop' => $general->af_flop,
+                    'turn' => $general->af_turn,
+                    'river' => $general->af_river,
+                    default => null,
+                },
+                'cbet' => $general->cbet,
+                'donk' => $general->donk,
+                'raise_vs_bet' => $general->raise_vs_bet,
+                'cr' => match($street) {
+                    'flop' => $general->cr_flop,
+                    'turn' => $general->cr_turn,
+                    default => null,
+                },
+                'vb_ratio' => $general->vb_ratio,
+            ];
+        }
+
+        $stats['river']['vb_ratio'] = $general->vb_ratio ?? 2.0;
+
+        return $stats;
+    }
+
     public function heroAction(TournamentHand $hand, string $action, int $amount = 0): array
     {
         return $this->locked($hand, fn($h) => $this->doHeroAction($h, $action, $amount));
@@ -469,6 +515,7 @@ class HandPlayService
                 'total_in_hand' => $me['total'] ?? 0,
                 'hole_cards' => $me['hole_cards'],
                 'flags' => $meta['bot_flags'][$me['id']] ?? [], // intenciones (check-raise, float…) de esta mano
+                'stats' => $this->botStatsFor($playerRows->get($me['id'])?->bot, $stats[$me['id']] ?? []),
             ],
             'players' => $table,
             'history' => $meta['history'] ?? [],
@@ -548,7 +595,15 @@ class HandPlayService
             'raise' => 'hizo ' . $verb . $this->bb($p['bet'], $meta),
             'allin' => 'hizo all-in ' . ($p['bet'] > $legal['maxBet'] ? 'a ' : 'por ') . $this->bb($p['bet'], $meta),
         };
-        $this->log($meta, $p['name'] . ' ' . $text, 'action');
+        $extra = [];
+        if ($action === 'fold') {
+            $showAll = (bool) data_get($hand->tournament->config, 'game_settings.show_all_cards', false);
+            if ($showAll && !empty($p['hole_cards']) && count($p['hole_cards']) === 2) {
+                $extra['cards'] = $p['hole_cards'];
+                $extra['hand'] = $this->holesName($p['hole_cards']);
+            }
+        }
+        $this->log($meta, $p['name'] . ' ' . $text, 'action', $extra);
 
         $record = [
             'player_id' => $p['id'],
@@ -770,6 +825,20 @@ class HandPlayService
             default => '',
         };
     }
+
+    private function holesName(array $holes): string
+    {
+        if (count($holes) !== 2) {
+            return '';
+        }
+        $v1 = substr($holes[0], 0, -1);
+        $v2 = substr($holes[1], 0, -1);
+        $s1 = substr($holes[0], -1);
+        $s2 = substr($holes[1], -1);
+
+        return $v1 . $v2 . ($s1 === $s2 ? 's' : 'o');
+    }
+
     /**
      * Divide el bote en principal + laterales según lo aportado por cada jugador.
      * Cada bote: ['amount' => int, 'eligible' => [ids no foldeados que llegan a ese nivel]].
