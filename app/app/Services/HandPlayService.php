@@ -599,8 +599,12 @@ class HandPlayService
         if ($action === 'fold') {
             $showAll = (bool) data_get($hand->tournament->config, 'game_settings.show_all_cards', false);
             if ($showAll && !empty($p['hole_cards']) && count($p['hole_cards']) === 2) {
-                $extra['cards'] = $p['hole_cards'];
-                $extra['hand'] = $this->holesName($p['hole_cards']);
+                try {
+                    $extra['cards'] = $p['hole_cards'];
+                    $extra['hand'] = $this->holesName($p['hole_cards']);
+                } catch (\Throwable $e) {
+                    // Silently fail - fold still happens, just without hand notation
+                }
             }
         }
         $this->log($meta, $p['name'] . ' ' . $text, 'action', $extra);
@@ -831,10 +835,17 @@ class HandPlayService
         if (count($holes) !== 2) {
             return '';
         }
-        $v1 = substr($holes[0], 0, -1);
-        $v2 = substr($holes[1], 0, -1);
-        $s1 = substr($holes[0], -1);
-        $s2 = substr($holes[1], -1);
+        $c1 = $holes[0] ?? null;
+        $c2 = $holes[1] ?? null;
+
+        if (!is_string($c1) || !is_string($c2)) {
+            return '';
+        }
+
+        $v1 = substr((string) $c1, 0, -1);
+        $v2 = substr((string) $c2, 0, -1);
+        $s1 = substr((string) $c1, -1);
+        $s2 = substr((string) $c2, -1);
 
         return $v1 . $v2 . ($s1 === $s2 ? 's' : 'o');
     }
