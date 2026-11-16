@@ -254,4 +254,33 @@ class BotController extends Controller
     {
         return response()->json($bot->load('hudStats', 'ranges', 'gameStates'));
     }
+
+    public function getPreflopRanges(Bot $bot, string $position)
+    {
+        // Obtener todos los rangos preflop para esta posición
+        $ranges = $bot->preflopHandRanges()
+            ->where('position', $position)
+            ->get()
+            ->map(fn($r) => [
+                'hand' => $r->hand,
+                'attack' => [
+                    'open' => $r->attack_open,
+                    'limp' => $r->attack_limp,
+                ],
+                'defense' => [
+                    'three_bet' => $r->defense_three_bet,
+                    'call' => $r->defense_call,
+                    'fold' => $r->defense_fold,
+                ],
+            ])
+            ->keyBy('hand')
+            ->values();
+
+        return response()->json([
+            'position' => $position,
+            'ranges' => $ranges,
+            'bot_name' => $bot->nombre,
+            'bot_id' => $bot->id,
+        ]);
+    }
 }

@@ -22,28 +22,28 @@
     <!-- Layout Principal: Mesa (3/4) + Info (1/4) -->
     <div style="max-width: 1400px; margin: 0 auto;" class="px-4 sm:px-6 lg:px-8 py-6 flex flex-col-reverse lg:flex-row gap-3">
 
-      <!-- Columna Derecha: Info + Log (1/4) -->
+      <!-- Columna Derecha: Rivales + Log (1/4) -->
       <div class="w-full lg:w-1/4" style="display: flex; flex-direction: column; gap: 1.5rem;">
-        <!-- Información del Torneo -->
-        <?php if (isset($component)) { $__componentOriginalb25d0eb2c6bf50b3d34875c9f531f4da = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalb25d0eb2c6bf50b3d34875c9f531f4da = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.tournament-info','data' => ['tournament' => $tournament]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('tournament-info'); ?>
+        <!-- Rivales en Acción -->
+        <?php if (isset($component)) { $__componentOriginald07db53048bfd32c1fd193d69912f16e = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald07db53048bfd32c1fd193d69912f16e = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.active-players-info','data' => ['tournament' => $tournament,'playersStats' => $playersStats ?? []]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('active-players-info'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tournament' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($tournament)]); ?>
+<?php $component->withAttributes(['tournament' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($tournament),'playersStats' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($playersStats ?? [])]); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginalb25d0eb2c6bf50b3d34875c9f531f4da)): ?>
-<?php $attributes = $__attributesOriginalb25d0eb2c6bf50b3d34875c9f531f4da; ?>
-<?php unset($__attributesOriginalb25d0eb2c6bf50b3d34875c9f531f4da); ?>
+<?php if (isset($__attributesOriginald07db53048bfd32c1fd193d69912f16e)): ?>
+<?php $attributes = $__attributesOriginald07db53048bfd32c1fd193d69912f16e; ?>
+<?php unset($__attributesOriginald07db53048bfd32c1fd193d69912f16e); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginalb25d0eb2c6bf50b3d34875c9f531f4da)): ?>
-<?php $component = $__componentOriginalb25d0eb2c6bf50b3d34875c9f531f4da; ?>
-<?php unset($__componentOriginalb25d0eb2c6bf50b3d34875c9f531f4da); ?>
+<?php if (isset($__componentOriginald07db53048bfd32c1fd193d69912f16e)): ?>
+<?php $component = $__componentOriginald07db53048bfd32c1fd193d69912f16e; ?>
+<?php unset($__componentOriginald07db53048bfd32c1fd193d69912f16e); ?>
 <?php endif; ?>
 
         <!-- Log del Juego -->

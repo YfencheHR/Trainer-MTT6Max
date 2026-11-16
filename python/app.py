@@ -123,25 +123,39 @@ def generate_attack_table():
     Request:
     {
         "stack_depth_bb": 50,
-        "defense_range_percent": 20
+        "defense_range_percent": 20,
+        "defense_range_strs": ["AA", "KK", "AKs"],  # Optional
+        "equity_threshold": 0.5,  # Optional
+        "iterations": 1000  # Optional (optimized from 2000)
     }
     """
     try:
+        data = request.get_json(silent=True)
         stack_depth_bb, defense_percent = _table_parameters(
-            request.get_json(silent=True), 'defense_range_percent', 20,
+            data, 'defense_range_percent', 20,
         )
 
-        result = simulator.generate_attack_table(stack_depth_bb, defense_percent)
+        defense_range_strs = data.get('defense_range_strs')
+        equity_threshold = data.get('equity_threshold', 0.5)
+        iterations = data.get('iterations', 1000)
 
-        # Filtrar solo manos que entran en rango
+        result = simulator.generate_attack_table(
+            stack_depth_bb,
+            defense_percent,
+            defense_range_strs=defense_range_strs,
+            equity_threshold=equity_threshold,
+            iterations=iterations
+        )
+
         opening_range = [hand for hand, info in result.items() if info['include']]
+        cache_stats = simulator.get_cache_stats()
 
         return jsonify({
             'status': 'success',
             'stack_depth_bb': stack_depth_bb,
-            'defense_range_percent': defense_percent,
             'opening_range': opening_range,
             'range_percent': round(len(opening_range) / 169 * 100, 2),
+            'cache_stats': cache_stats,
             'tables': result
         })
 
@@ -158,25 +172,39 @@ def generate_defense_table():
     Request:
     {
         "stack_depth_bb": 50,
-        "attack_range_percent": 15
+        "attack_range_percent": 15,
+        "attack_range_strs": ["AKs", "AKo"],  # Optional
+        "equity_threshold": 0.45,  # Optional
+        "iterations": 500  # Optional (optimized from 1000)
     }
     """
     try:
+        data = request.get_json(silent=True)
         stack_depth_bb, attack_percent = _table_parameters(
-            request.get_json(silent=True), 'attack_range_percent', 15,
+            data, 'attack_range_percent', 15,
         )
 
-        result = simulator.generate_defense_table(stack_depth_bb, attack_percent)
+        attack_range_strs = data.get('attack_range_strs')
+        equity_threshold = data.get('equity_threshold', 0.45)
+        iterations = data.get('iterations', 500)
 
-        # Filtrar solo manos que entran en rango
+        result = simulator.generate_defense_table(
+            stack_depth_bb,
+            attack_percent,
+            attack_range_strs=attack_range_strs,
+            equity_threshold=equity_threshold,
+            iterations=iterations
+        )
+
         defending_range = [hand for hand, info in result.items() if info['include']]
+        cache_stats = simulator.get_cache_stats()
 
         return jsonify({
             'status': 'success',
             'stack_depth_bb': stack_depth_bb,
-            'attack_range_percent': attack_percent,
             'defending_range': defending_range,
             'range_percent': round(len(defending_range) / 169 * 100, 2),
+            'cache_stats': cache_stats,
             'tables': result
         })
 
@@ -239,6 +267,27 @@ def analyze():
         })
     except (TypeError, ValueError) as error:
         return jsonify({'status': 'error', 'message': str(error)}), 400
+
+
+@app.route('/api/cache/stats', methods=['GET'])
+def cache_stats():
+    """Devuelve estadísticas del caché de equity."""
+    stats = simulator.get_cache_stats()
+    return jsonify({
+        'status': 'success',
+        'cache_stats': stats
+    })
+
+
+@app.route('/api/cache/clear', methods=['POST'])
+def cache_clear():
+    """Limpia el caché de equity."""
+    simulator.clear_cache()
+    return jsonify({
+        'status': 'success',
+        'message': 'Cache cleared',
+        'cache_stats': simulator.get_cache_stats()
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

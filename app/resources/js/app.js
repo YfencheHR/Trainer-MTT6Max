@@ -73,6 +73,29 @@ Alpine.store('handStatistics', {
   },
 })
 
+// Estado del juego en tiempo real (jugador actual, posición, etc.)
+Alpine.store('gameState', {
+  currentPlayerId: null,
+  currentActorBotId: null,
+  currentPosition: null,
+  board: [],
+  street: 'preflop',
+
+  set(state) {
+    if (!state) return;
+    this.currentPlayerId = state.current_player_id ?? null;
+    this.currentPosition = state.current_player_position ?? null;
+    this.board = Array.isArray(state.board) ? state.board : [];
+    this.street = state.current_street || 'preflop';
+
+    // Si el jugador actual es un bot, extraer su ID
+    if (Array.isArray(state.players)) {
+      const currentPlayer = state.players.find(p => p.id === this.currentPlayerId);
+      this.currentActorBotId = currentPlayer?.bot_id ?? null;
+    }
+  },
+})
+
 Alpine.start()
 
 console.log('Livewire + Alpine.js initialized')

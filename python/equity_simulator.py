@@ -3,6 +3,7 @@
 from itertools import combinations
 from collections import defaultdict
 import random
+import hashlib
 
 
 class Card:
@@ -114,11 +115,22 @@ class HandEvaluator:
 class EquitySimulator:
     """Monte Carlo evaluator for heads-up and multiway preflop equity."""
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, equity_cache_size=1000):
         self.deck = self._create_deck()
         self.hand_names = self._generate_hand_names()
         self.rng = random.Random(seed)
         self._hand_combinations_cache = {}
+        self._equity_cache = {}
+        self._equity_cache_size = equity_cache_size
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+    def _get_equity_cache_key(self, hero_hand, opponent_ranges):
+        """Genera una clave única para el caché de equity."""
+        hero = hero_hand
+        opponents = tuple(tuple(sorted(r)) for r in opponent_ranges)
+        key_str = f"{hero}|{'|'.join('-'.join(o) for o in opponents)}"
+        return hashlib.md5(key_str.encode()).hexdigest()
 
     def _create_deck(self):
         """Crea baraja completa"""
@@ -192,11 +204,17 @@ class EquitySimulator:
         )
 
     def simulate_multiway_equity(self, hero_hand_str, opponent_ranges, iterations=5000):
-        """Simula equity frente a varios rangos, repartiendo los empates del bote."""
+        """Simula equity frente a varios rangos, repartiendo los empates del bote. Con caché."""
         if not isinstance(iterations, int) or iterations < 1:
             raise ValueError("iterations must be a positive integer")
         if not isinstance(opponent_ranges, list) or not opponent_ranges:
             raise ValueError("At least one opponent range is required")
+
+        # Verificar caché
+        cache_key = self._get_equity_cache_key(hero_hand_str, opponent_ranges)
+        if cache_key in self._equity_cache:
+            self._cache_hits += 1
+            return self._equity_cache[cache_key]
 
         player_ranges = [self._expand_range([hero_hand_str])]
         for opponent_range in opponent_ranges:
@@ -225,7 +243,7 @@ class EquitySimulator:
             else:
                 losses += 1
 
-        return {
+        result = {
             'equity': round(equity / iterations, 4),
             'wins': wins,
             'losses': losses,
@@ -233,6 +251,13 @@ class EquitySimulator:
             'iterations': iterations,
             'opponents': len(opponent_ranges),
         }
+
+        # Guardar en caché (con límite)
+        self._cache_misses += 1
+        if len(self._equity_cache) < self._equity_cache_size:
+            self._equity_cache[cache_key] = result
+
+        return result
 
     def _expand_range(self, hand_range):
         combos = []
@@ -281,6 +306,24 @@ class EquitySimulator:
 
         return list(best_hand)
 
+    def get_cache_stats(self):
+        """Devuelve estadísticas del caché."""
+        total = self._cache_hits + self._cache_misses
+        hit_rate = (self._cache_hits / total * 100) if total > 0 else 0
+        return {
+            'hits': self._cache_hits,
+            'misses': self._cache_misses,
+            'hit_rate': round(hit_rate, 2),
+            'size': len(self._equity_cache),
+            'max_size': self._equity_cache_size,
+        }
+
+    def clear_cache(self):
+        """Limpia el caché de equity."""
+        self._equity_cache.clear()
+        self._cache_hits = 0
+        self._cache_misses = 0
+
     def calculate_ev(self, equity, pot_bb, stack_bb, action_cost_bb):
         """
         Calcula EV de una acción
@@ -298,49 +341,67 @@ class EquitySimulator:
         # Versión básica, puede refinarse
         return equity * pot_bb - action_cost_bb
 
-    def generate_attack_table(self, stack_depth_bb, defense_range_percent=20):
+    def generate_attack_table(self, stack_depth_bb, defense_range_percent=20,
+                             defense_range_strs=None, equity_threshold=0.5, iterations=1000):
         """
         Genera una tabla heurística de equity de ataque para un stack depth.
 
         Args:
             stack_depth_bb: int - profundidad en bb
-            defense_range_percent: int - % usado para construir el rango rival
+            defense_range_percent: int - % usado para construir el rango rival (si defense_range_strs es None)
+            defense_range_strs: list - rango específico, ej ['AA', 'KK', 'AKs']
+            equity_threshold: float - threshold para incluir mano en rango
+            iterations: int - iteraciones por simulación (default 1000, era 2000)
 
         Returns:
             dict - {hand: {equity, ev, include}}
 
         This percentage-threshold table is not an equilibrium strategy.
         """
-        # Generar rango de defensa base (top X%)
-        num_hands_defending = max(1, int(169 * defense_range_percent / 100))
-        defense_range = self.hand_names[:num_hands_defending]  # Primeras N manos (más fuertes)
+        # Generar rango de defensa base
+        if defense_range_strs is None:
+            num_hands_defending = max(1, int(169 * defense_range_percent / 100))
+            defense_range = self.hand_names[:num_hands_defending]
+        else:
+            defense_range = defense_range_strs
 
         result = {}
 
         for hand in self.hand_names:
-            sim = self.simulate_equity(hand, defense_range, iterations=2000)
+            sim = self.simulate_equity(hand, defense_range, iterations=iterations)
             equity = sim['equity']
 
-            # Heuristic cutoff only; this does not model a betting game.
-            include = equity > 0.5
+            # Configurable threshold
+            include = equity > equity_threshold
 
             result[hand] = {
                 'equity': equity,
-                'ev': equity * 2.0 - 1.0,  # Aproximación simple
+                'ev': equity * 2.0 - 1.0,
                 'include': include,
                 'iterations': sim['iterations']
             }
 
         return result
 
-    def generate_defense_table(self, stack_depth_bb, attack_range_percent=15):
+    def generate_defense_table(self, stack_depth_bb, attack_range_percent=15,
+                              attack_range_strs=None, equity_threshold=0.45, iterations=500):
         """
         Genera una tabla heurística de equity defensiva para un stack depth.
 
+        Args:
+            stack_depth_bb: int - profundidad en bb
+            attack_range_percent: int - % usado para construir el rango rival (si attack_range_strs es None)
+            attack_range_strs: list - rango específico de ataque
+            equity_threshold: float - threshold para incluir mano en rango defensivo
+            iterations: int - iteraciones por simulación (default 500, más rápido)
+
         This percentage-threshold table is not an equilibrium strategy.
         """
-        num_hands_attacking = max(1, int(169 * attack_range_percent / 100))
-        attack_range = self.hand_names[:num_hands_attacking]
+        if attack_range_strs is None:
+            num_hands_attacking = max(1, int(169 * attack_range_percent / 100))
+            attack_range = self.hand_names[:num_hands_attacking]
+        else:
+            attack_range = attack_range_strs
 
         result = {}
 
@@ -348,17 +409,17 @@ class EquitySimulator:
             # Calcular equity contra cada mano del rango de ataque
             total_equity = 0
             for attack_hand in attack_range:
-                sim = self.simulate_equity(hand, [attack_hand], iterations=1000)
+                sim = self.simulate_equity(hand, [attack_hand], iterations=iterations)
                 total_equity += sim['equity']
 
             avg_equity = total_equity / len(attack_range)
-            include = avg_equity > 0.45  # Threshold más bajo para defensa
+            include = avg_equity > equity_threshold
 
             result[hand] = {
                 'equity': avg_equity,
                 'ev': avg_equity * 2.0 - 1.0,
                 'include': include,
-                'iterations': 1000
+                'iterations': iterations
             }
 
         return result

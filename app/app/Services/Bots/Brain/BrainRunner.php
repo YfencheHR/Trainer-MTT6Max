@@ -79,7 +79,7 @@ class BrainRunner
         }
 
         // 4) Ajuste de fold por la presión de los rivales que aún pueden actuar
-        $danger = $this->preflopDanger->apply($matrix, $ctx, $features, $brain['stats'] ?? []);
+        $danger = $this->preflopDanger->apply($matrix, $ctx, $features, $ctx['me']['stats'] ?? []);
 
         // 5) Imprecisión de la habilidad
         $lapse = $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
@@ -171,7 +171,7 @@ class BrainRunner
             }
             $this->rules->apply($rules, $perception['features'], $matrix, $rng, $fired);
         }
-        $danger = $this->preflopDanger->apply($matrix, $ctx, $perception['features'], $brain['stats'] ?? []);
+        $danger = $this->preflopDanger->apply($matrix, $ctx, $perception['features'], $ctx['me']['stats'] ?? []);
         $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
 
         return [

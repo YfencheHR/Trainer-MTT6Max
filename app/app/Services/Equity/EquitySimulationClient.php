@@ -56,14 +56,27 @@ class EquitySimulationClient
      * @param int $stackDepthBb
      * @param int $defenseRangePercent
      */
-    public function generateAttackTable(int $stackDepthBb, int $defenseRangePercent = 20): array
-    {
+    public function generateAttackTable(
+        int $stackDepthBb,
+        int $defenseRangePercent = 20,
+        ?array $defenseRangeStrs = null,
+        float $equityThreshold = 0.5,
+        int $iterations = 1000
+    ): array {
         try {
+            $payload = [
+                'stack_depth_bb' => $stackDepthBb,
+                'defense_range_percent' => $defenseRangePercent,
+                'equity_threshold' => $equityThreshold,
+                'iterations' => $iterations,
+            ];
+
+            if ($defenseRangeStrs !== null) {
+                $payload['defense_range_strs'] = $defenseRangeStrs;
+            }
+
             $response = Http::timeout($this->timeout)
-                ->post($this->baseUrl . '/api/tables/generate/attack', [
-                    'stack_depth_bb' => $stackDepthBb,
-                    'defense_range_percent' => $defenseRangePercent,
-                ]);
+                ->post($this->baseUrl . '/api/tables/generate/attack', $payload);
 
             if ($response->failed()) {
                 Log::error('Attack table generation failed', [
@@ -78,6 +91,7 @@ class EquitySimulationClient
                 'type' => 'ATTACK',
                 'range' => $data['opening_range'] ?? [],
                 'range_percent' => $data['range_percent'] ?? 0,
+                'cache_stats' => $data['cache_stats'] ?? [],
                 'tables' => $data['tables'] ?? [],
             ];
         } catch (\Exception $e) {
@@ -92,14 +106,27 @@ class EquitySimulationClient
     /**
      * Genera tabla de defensa para un stack depth
      */
-    public function generateDefenseTable(int $stackDepthBb, int $attackRangePercent = 15): array
-    {
+    public function generateDefenseTable(
+        int $stackDepthBb,
+        int $attackRangePercent = 15,
+        ?array $attackRangeStrs = null,
+        float $equityThreshold = 0.45,
+        int $iterations = 500
+    ): array {
         try {
+            $payload = [
+                'stack_depth_bb' => $stackDepthBb,
+                'attack_range_percent' => $attackRangePercent,
+                'equity_threshold' => $equityThreshold,
+                'iterations' => $iterations,
+            ];
+
+            if ($attackRangeStrs !== null) {
+                $payload['attack_range_strs'] = $attackRangeStrs;
+            }
+
             $response = Http::timeout($this->timeout)
-                ->post($this->baseUrl . '/api/tables/generate/defense', [
-                    'stack_depth_bb' => $stackDepthBb,
-                    'attack_range_percent' => $attackRangePercent,
-                ]);
+                ->post($this->baseUrl . '/api/tables/generate/defense', $payload);
 
             if ($response->failed()) {
                 Log::error('Defense table generation failed', [
@@ -114,6 +141,7 @@ class EquitySimulationClient
                 'type' => 'DEFENSE',
                 'range' => $data['defending_range'] ?? [],
                 'range_percent' => $data['range_percent'] ?? 0,
+                'cache_stats' => $data['cache_stats'] ?? [],
                 'tables' => $data['tables'] ?? [],
             ];
         } catch (\Exception $e) {
@@ -122,6 +150,41 @@ class EquitySimulationClient
                 'stack_depth_bb' => $stackDepthBb,
             ]);
             throw $e;
+        }
+    }
+
+    /**
+     * Obtiene estadísticas del caché
+     */
+    public function getCacheStats(): array
+    {
+        try {
+            $response = Http::timeout(5)->get($this->baseUrl . '/api/cache/stats');
+            if ($response->failed()) {
+                return [];
+            }
+            return $response->json('cache_stats', []);
+        } catch (\Exception $e) {
+            Log::error('Failed to get cache stats', [
+                'error' => $e->getMessage(),
+            ]);
+            return [];
+        }
+    }
+
+    /**
+     * Limpia el caché del servicio Python
+     */
+    public function clearCache(): bool
+    {
+        try {
+            $response = Http::timeout(5)->post($this->baseUrl . '/api/cache/clear');
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error('Failed to clear cache', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
         }
     }
 

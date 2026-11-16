@@ -1041,7 +1041,9 @@ class HandPlayService
         }
         $this->log($meta, '🎰 Mano #' . $hand->hand_number . ' comenzó', 'start');
         $heroCards = collect($players)->firstWhere('is_bot', false)['hole_cards'] ?? [];
-        $this->log($meta, 'Tus cartas', 'deal', ['cards' => $heroCards]);
+        if (!empty($heroCards)) {
+            $this->log($meta, 'Tus cartas', 'deal', ['cards' => $heroCards]);
+        }
         $this->log(
             $meta,
             ($ante > 0 ? "Ante {$ante}. " : '') . 'Ciegas ' . $sb . '/' . $bb

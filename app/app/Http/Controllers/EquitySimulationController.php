@@ -15,16 +15,38 @@ class EquitySimulationController extends Controller
     ) {}
 
     /**
+     * Página principal de Equity Simulation
+     */
+    public function index()
+    {
+        $status = $this->client->healthCheck();
+        $cacheStats = $this->client->getCacheStats();
+
+        return view('equity.index', [
+            'pythonServiceAvailable' => $status,
+            'cacheStats' => $cacheStats,
+        ]);
+    }
+
+    /**
      * Muestra la página de simulación interactiva
      */
     public function simulator()
     {
         $index = $this->generator->loadIndex();
-        $stackDepths = array_keys($this->generator->loadIndex()['stack_depths'] ?? []);
+        $stackDepths = $index['stack_depths'] ?? [];
+        $cacheStats = $this->client->getCacheStats();
+
+        // Cargar ranges para demostración
+        $attackRange = $this->generator->getAttackRange('50-100') ?? [];
+        $defenseRange = $this->generator->getDefenseRange('50-100') ?? [];
 
         return view('equity.simulator', [
             'stackDepths' => $stackDepths,
             'index' => $index,
+            'cacheStats' => $cacheStats,
+            'demoAttackRange' => $attackRange,
+            'demoDefenseRange' => $defenseRange,
         ]);
     }
 

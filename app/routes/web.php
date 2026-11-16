@@ -73,10 +73,24 @@ Route::get('/mtt-simulator/{tournament}/history/export', [TournamentHistoryContr
 // Resolución de mesas secundarias (una petición por mesa y ronda)
 Route::post('/mtt-simulator/{tournament}/tables/{table}/resolve', [GamePlayController::class, 'resolveTable'])->name('mtt-simulator.table.resolve');
 
+// Equity Simulation Routes
+Route::prefix('equity')->group(function () {
+    Route::get('/', [\App\Http\Controllers\EquitySimulationController::class, 'index'])->name('equity.index');
+    Route::get('/simulator', [\App\Http\Controllers\EquitySimulationController::class, 'simulator'])->name('equity.simulator');
+
+    // API endpoints
+    Route::post('/api/simulate', [\App\Http\Controllers\EquitySimulationController::class, 'simulate'])->name('equity.api.simulate');
+    Route::get('/api/range', [\App\Http\Controllers\EquitySimulationController::class, 'getRange'])->name('equity.api.range');
+    Route::get('/api/check-hand', [\App\Http\Controllers\EquitySimulationController::class, 'checkHand'])->name('equity.api.check-hand');
+    Route::post('/api/compare', [\App\Http\Controllers\EquitySimulationController::class, 'compare'])->name('equity.api.compare');
+    Route::get('/api/status', [\App\Http\Controllers\EquitySimulationController::class, 'status'])->name('equity.api.status');
+});
+
 // API Routes
 Route::prefix('api')->group(function () {
     Route::get('/bots', [BotController::class, 'api']);
     Route::get('/bots/{bot}', [BotController::class, 'apiShow']);
+    Route::get('/bots/{bot}/preflop-ranges/{position}', [BotController::class, 'getPreflopRanges']);
 
     // Game Action Routes
     Route::post('/tournaments/{tournament}/hands/start', [GameActionController::class, 'startHand'])->name('api.hand.start');

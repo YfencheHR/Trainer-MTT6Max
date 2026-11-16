@@ -79,25 +79,25 @@
           }
         ?>
 
-        <?php if (isset($component)) { $__componentOriginal545d64105464729d718bd9a2ad8179f6 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal545d64105464729d718bd9a2ad8179f6 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.matrix','data' => ['columns' => 13,'items' => $matrixItems,'cellComponent' => 'matrix.hand-cell','id' => 'handsMatrix']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+        <?php if (isset($component)) { $__componentOriginal611e5de8ce770e18e6862fc8abf1bcdc = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal611e5de8ce770e18e6862fc8abf1bcdc = $attributes; } ?>
+<?php $component = App\View\Components\Matrix::resolve(['columns' => 13,'items' => $matrixItems,'cellComponent' => 'matrix.hand-cell','id' => 'handsMatrix'] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('matrix'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php $attributes = $attributes->except(\App\View\Components\Matrix::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['columns' => 13,'items' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($matrixItems),'cellComponent' => 'matrix.hand-cell','id' => 'handsMatrix']); ?>
+<?php $component->withAttributes([]); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginal545d64105464729d718bd9a2ad8179f6)): ?>
-<?php $attributes = $__attributesOriginal545d64105464729d718bd9a2ad8179f6; ?>
-<?php unset($__attributesOriginal545d64105464729d718bd9a2ad8179f6); ?>
+<?php if (isset($__attributesOriginal611e5de8ce770e18e6862fc8abf1bcdc)): ?>
+<?php $attributes = $__attributesOriginal611e5de8ce770e18e6862fc8abf1bcdc; ?>
+<?php unset($__attributesOriginal611e5de8ce770e18e6862fc8abf1bcdc); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginal545d64105464729d718bd9a2ad8179f6)): ?>
-<?php $component = $__componentOriginal545d64105464729d718bd9a2ad8179f6; ?>
-<?php unset($__componentOriginal545d64105464729d718bd9a2ad8179f6); ?>
+<?php if (isset($__componentOriginal611e5de8ce770e18e6862fc8abf1bcdc)): ?>
+<?php $component = $__componentOriginal611e5de8ce770e18e6862fc8abf1bcdc; ?>
+<?php unset($__componentOriginal611e5de8ce770e18e6862fc8abf1bcdc); ?>
 <?php endif; ?>
       </div>
     </div>

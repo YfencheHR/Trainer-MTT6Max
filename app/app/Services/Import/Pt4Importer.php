@@ -65,7 +65,14 @@ class Pt4Importer
             $dir = storage_path('app/import/tmp-' . uniqid());
             mkdir($dir, 0775, true);
             $this->say('Descomprimiendo el zip…');
-            $this->run(['unzip', '-o', '-q', $path, '-d', $dir]);
+
+            $zip = new \ZipArchive();
+            if ($zip->open($path) !== true) {
+                throw new \RuntimeException('No se puede abrir el archivo ZIP.');
+            }
+            $zip->extractTo($dir);
+            $zip->close();
+
             $files = array_values(array_filter(glob($dir . '/*'), 'is_file'));
             usort($files, fn($a, $b) => filesize($b) <=> filesize($a));
             if (!$files) {
@@ -188,12 +195,23 @@ class Pt4Importer
     public function players(int $minHands): array
     {
         $rows = $this->tmp()->select("
-            select s.id_player, " . $this->select() . "
+            select s.id_player, " . $this->select() . ",
+                round(100.0 * avg(s.amt_won / nullif(b.amt_bb, 0)), 2) as bb100,
+                count(s.id_player) as hand_count
             from fresh_stats s join player p using (id_player)
+            left join tourney_blinds b on b.id_blinds = s.id_blinds
             where p.player_name not like '[%'
               and s.id_player not in (select id_player from tourney_hand_player_statistics where flg_hero group by 1)
             group by s.id_player having count(*) >= ? and avg(s.flg_vpip::int) > 0 -- VPIP 0: sentado sin jugar, no es un estilo
             order by count(*) desc", [$minHands]);
+
+        $this->say('Jugadores seleccionados: ' . count($rows));
+        $winners = $losers = 0;
+        foreach ($rows as $r) {
+            if (($r->bb100 ?? 0) > 0) $winners++;
+            else $losers++;
+        }
+        $this->say("Ganadores: $winners, Perdedores: $losers");
 
         $out = [];
         foreach ($rows as $r) {
@@ -478,46 +496,92 @@ class Pt4Importer
         $nPlayers = count($players);
         foreach ($groups as $botId => $ids) {
             $primary = $centroids[$botId]['bot'];
-            $agg = $this->aggregate($ids);
-            $g = $agg['general'];
-            $report['profiles'][] = ['bot' => $primary->nombre . ' · Pool', 'players' => count($ids), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
-            if (!$dry) {
-                $copy = $this->poolCopy($primary);
-                $this->write($copy, $agg);
-                app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
-                $this->logHistory($copy, count($ids), $nPlayers, $g, $agg['bb100']);
+            [$winners, $losers] = $this->splitByResult($ids, $players);
+
+            // Crear perfil para ganadores si existen
+            if (!empty($winners)) {
+                $agg = $this->aggregate($winners);
+                $g = $agg['general'];
+                $report['profiles'][] = ['bot' => $primary->nombre . ' · Pool (Ganador)', 'players' => count($winners), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
+                if (!$dry) {
+                    $copy = $this->poolCopy($primary);
+                    $copy->update(['nombre' => $copy->nombre . ' · W']);
+                    $this->write($copy, $agg);
+                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
+                    $this->logHistory($copy, count($winners), $nPlayers, $g, $agg['bb100']);
+                }
+            }
+
+            // Crear perfil para perdedores si existen
+            if (!empty($losers)) {
+                $agg = $this->aggregate($losers);
+                $g = $agg['general'];
+                $report['profiles'][] = ['bot' => $primary->nombre . ' · Pool (Perdedor)', 'players' => count($losers), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
+                if (!$dry) {
+                    $copy = $this->poolCopy($primary);
+                    $copy->update(['nombre' => $copy->nombre . ' · L']);
+                    $this->write($copy, $agg);
+                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
+                    $this->logHistory($copy, count($losers), $nPlayers, $g, $agg['bb100']);
+                }
             }
         }
 
         $i =$this->merge ? (int) Bot::where('tipo', 'pool')->where('metadata->source', 'pt4_import')->count() : 0;
         foreach ($clusters as $c) {
             $ids = $c['ids'];
-            $agg = $this->aggregate($ids);
-            $g = $agg['general'];
-            $i++;
-            $nombre = "Pool $i · " . (int) round($g['vpip']) . '/' . (int) round($g['pfr']);
-            $row = ['bot' => $nombre, 'players' => count($ids), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
-            $report['created'][] = $row;
-            if (!$dry) {
-                $perfil = $this->perfil((float) $g['vpip'], (float) $g['pfr']);
-                $bot = Bot::create([
-                    'nombre' => $nombre,
-                    'tipo' => 'pool',
-                    'perfil' => $perfil,
-                    'icono' => \App\Config\IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
-                    'vpip' => (int) round($g['vpip']), 'pfr' => (int) round($g['pfr']),
-                    'profesional' => false,
-                    'descripcion' => 'Perfil creado automáticamente desde PokerTracker: ' . count($ids) . ' jugadores parecidos (' . number_format($g['hands'], 0, ',', '.') . ' manos), '
-                        . 'VPIP ' . (int) round($g['vpip']) . ' / PFR ' . (int) round($g['pfr']) . '.',
-                    'metadata' => ['source' => 'pt4_import', 'players' => count($ids)],
-                ]);
-                $this->write($bot, $agg);
-                [, , $closest] = $this->nearest($g, $centroids);
-                $like = $centroids[$closest]['bot'] ?? null;
-                $this->fillMissing($bot, $like);
-                $bot->update(['metadata' => array_merge((array) $bot->metadata, ['template' => $like?->tipo, 'primary_id' => $like?->id])]);
-                app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
-                $this->logHistory($bot, count($ids), $nPlayers, $g, $agg['bb100']);
+            [$winners, $losers] = $this->splitByResult($ids, $players);
+
+            // Crear perfil para ganadores si existen
+            if (!empty($winners)) {
+                $agg = $this->aggregate($winners);
+                $g = $agg['general'];
+                $i++;
+                $nombre = "Pool $i · " . (int) round($g['vpip']) . '/' . (int) round($g['pfr']) . ' (W)';
+                $row = ['bot' => $nombre, 'players' => count($winners), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
+                $report['created'][] = $row;
+                if (!$dry) {
+                    $perfil = $this->perfil((float) $g['vpip'], (float) $g['pfr']);
+                    $bot = Bot::create([
+                        'nombre' => $nombre,
+                        'tipo' => 'pool',
+                        'perfil' => $perfil,
+                        'icono' => \App\Config\IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
+                        'vpip' => (int) round($g['vpip']), 'pfr' => (int) round($g['pfr']),
+                        'profesional' => false,
+                        'descripcion' => 'Ganador: ' . count($winners) . ' jugadores (' . number_format($g['hands'], 0, ',', '.') . ' manos), VPIP ' . (int) round($g['vpip']) . '/',
+                        'metadata' => ['source' => 'pt4_import', 'players' => count($winners)],
+                    ]);
+                    $this->write($bot, $agg);
+                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
+                    $this->logHistory($bot, count($winners), $nPlayers, $g, $agg['bb100']);
+                }
+            }
+
+            // Crear perfil para perdedores si existen
+            if (!empty($losers)) {
+                $agg = $this->aggregate($losers);
+                $g = $agg['general'];
+                $i++;
+                $nombre = "Pool $i · " . (int) round($g['vpip']) . '/' . (int) round($g['pfr']) . ' (L)';
+                $row = ['bot' => $nombre, 'players' => count($losers), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
+                $report['created'][] = $row;
+                if (!$dry) {
+                    $perfil = $this->perfil((float) $g['vpip'], (float) $g['pfr']);
+                    $bot = Bot::create([
+                        'nombre' => $nombre,
+                        'tipo' => 'pool',
+                        'perfil' => $perfil,
+                        'icono' => \App\Config\IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
+                        'vpip' => (int) round($g['vpip']), 'pfr' => (int) round($g['pfr']),
+                        'profesional' => false,
+                        'descripcion' => 'Perdedor: ' . count($losers) . ' jugadores (' . number_format($g['hands'], 0, ',', '.') . ' manos), VPIP ' . (int) round($g['vpip']) . '/',
+                        'metadata' => ['source' => 'pt4_import', 'players' => count($losers)],
+                    ]);
+                    $this->write($bot, $agg);
+                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
+                    $this->logHistory($bot, count($losers), $nPlayers, $g, $agg['bb100']);
+                }
             }
         }
         if (!$dry) {
@@ -630,6 +694,23 @@ class Pt4Importer
         $c['pfr'] = $h ? ($c['pfr'] * $c['hands'] + $o['pfr'] * $o['hands']) / $h : $c['pfr'];
         $c['hands'] = $h;
         $c['ids'] = array_merge($c['ids'], $o['ids']);
+    }
+
+    /** Separa jugadores en ganadores y perdedores según BB100 */
+    private function splitByResult(array $playerIds, array $allPlayers): array
+    {
+        $winners = [];
+        $losers = [];
+        foreach ($playerIds as $id) {
+            $p = $allPlayers[$id] ?? null;
+            if (!$p) continue;
+            if (($p['bb100'] ?? 0) > 0) {
+                $winners[] = $id;
+            } else {
+                $losers[] = $id;
+            }
+        }
+        return [$winners, $losers];
     }
 
     /**

@@ -175,7 +175,11 @@ class Perceiver
             $f['perceived_rank'] = round($perceivedRank, 1);
 
             // Fuerza de la mano DENTRO DE SU RANGO (el rango se estrecha en las calles posteriores)
-            $stats = $brain['stats'] ?? [];
+            // Stats del bot: desde contexto (BD), NO del cerebro JSON
+            $stats = $ctx['me']['stats'] ?? [];
+            if (empty($stats)) {
+                throw new \LogicException("Bot {$ctx['me']['id']} missing statistics in context");
+            }
             $base = !empty($f['i_raised_preflop']) ? ($stats['pfr'] ?? 15) : ($stats['vpip'] ?? 25);
             $rangePct = max(5.0, min(100.0, (float) $base * ['flop' => 1.0, 'turn' => 0.8, 'river' => 0.65][$street]));
             $rangeRank = $this->rangePercentile($hole, $board, $seeStraights, $seeFlushes, !$blind, !$blind, $rangePct);
@@ -311,7 +315,7 @@ class Perceiver
         $real['bluff_likelihood'] = $realBluff;
 
         // ------------------------------------------------ SUS estadísticas (prior de la matriz)
-        $st = (($brain['stats'] ?? [])[$street] ?? []);
+        $st = (($ctx['me']['stats'] ?? [])[$street] ?? []);
         $f['own_f2bet'] = $st['f2bet'] ?? null;
         $f['own_af'] = $st['af'] ?? null;
         $f['own_raise_vs_bet'] = $st['raise_vs_bet'] ?? null;

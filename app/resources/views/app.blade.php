@@ -14,10 +14,12 @@
     <link rel="icon" type="image/png" href="/images/poker-trainer-icon.png" />
     <link rel="stylesheet" href="{{ asset('assets/fonts.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}" />
+    @stack('head-scripts')
   </head>
   <body style="background-color: #12161c;" class="text-white min-h-screen">
     <x-navbar />
     @yield('content')
+    @stack('scripts')
     <script type="module" src="{{ asset('assets/app.js') }}"></script>
   </body>
 </html>

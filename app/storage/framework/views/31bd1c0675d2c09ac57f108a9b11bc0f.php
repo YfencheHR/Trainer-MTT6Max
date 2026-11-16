@@ -14,6 +14,7 @@
     <link rel="icon" type="image/png" href="/images/poker-trainer-icon.png" />
     <link rel="stylesheet" href="<?php echo e(asset('assets/fonts.css')); ?>" />
     <link rel="stylesheet" href="<?php echo e(asset('assets/app.css')); ?>" />
+    <?php echo $__env->yieldPushContent('head-scripts'); ?>
   </head>
   <body style="background-color: #12161c;" class="text-white min-h-screen">
     <?php if (isset($component)) { $__componentOriginala591787d01fe92c5706972626cdf7231 = $component; } ?>
@@ -37,6 +38,7 @@
 <?php unset($__componentOriginala591787d01fe92c5706972626cdf7231); ?>
 <?php endif; ?>
     <?php echo $__env->yieldContent('content'); ?>
+    <?php echo $__env->yieldPushContent('scripts'); ?>
     <script type="module" src="<?php echo e(asset('assets/app.js')); ?>"></script>
   </body>
 </html>

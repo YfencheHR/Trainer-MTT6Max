@@ -143,6 +143,7 @@ export function gameTable(handId, userId, initialState = null) {
       if (window.Alpine?.store('gameLog')) window.Alpine.store('gameLog').set(state.log);
       if (window.Alpine?.store('tournamentInfo')) window.Alpine.store('tournamentInfo').set(state.tournament);
       if (window.Alpine?.store('handStatistics')) window.Alpine.store('handStatistics').set(state);
+      if (window.Alpine?.store('gameState')) window.Alpine.store('gameState').set(state);
       this.currentBet = Number.parseInt(state.current_bet) || 0;
       this.legal = state.hero_actions || null;
       this.lastAction = state.last_action || null;
