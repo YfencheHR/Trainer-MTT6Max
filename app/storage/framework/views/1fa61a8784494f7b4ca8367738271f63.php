@@ -22,28 +22,28 @@
     <!-- Layout Principal: Mesa (3/4) + Info (1/4) -->
     <div style="max-width: 1400px; margin: 0 auto;" class="px-4 sm:px-6 lg:px-8 py-6 flex flex-col-reverse lg:flex-row gap-3">
 
-      <!-- Columna Derecha: Rivales + Log (1/4) -->
+      <!-- Columna Derecha: Rivales + Rangos + Log (1/4) -->
       <div class="w-full lg:w-1/4" style="display: flex; flex-direction: column; gap: 1.5rem;">
-        <!-- Rivales en Acción -->
-        <?php if (isset($component)) { $__componentOriginald07db53048bfd32c1fd193d69912f16e = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginald07db53048bfd32c1fd193d69912f16e = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.active-players-info','data' => ['tournament' => $tournament,'playersStats' => $playersStats ?? []]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('active-players-info'); ?>
+        <!-- Rivales en Acción - Rangos -->
+        <?php if (isset($component)) { $__componentOriginal52a4cdb85072beea63091637d7427e2f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal52a4cdb85072beea63091637d7427e2f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.bots-action-ranges','data' => ['handId' => $hand->id]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('bots-action-ranges'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tournament' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($tournament),'playersStats' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($playersStats ?? [])]); ?>
+<?php $component->withAttributes(['handId' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hand->id)]); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
-<?php if (isset($__attributesOriginald07db53048bfd32c1fd193d69912f16e)): ?>
-<?php $attributes = $__attributesOriginald07db53048bfd32c1fd193d69912f16e; ?>
-<?php unset($__attributesOriginald07db53048bfd32c1fd193d69912f16e); ?>
+<?php if (isset($__attributesOriginal52a4cdb85072beea63091637d7427e2f)): ?>
+<?php $attributes = $__attributesOriginal52a4cdb85072beea63091637d7427e2f; ?>
+<?php unset($__attributesOriginal52a4cdb85072beea63091637d7427e2f); ?>
 <?php endif; ?>
-<?php if (isset($__componentOriginald07db53048bfd32c1fd193d69912f16e)): ?>
-<?php $component = $__componentOriginald07db53048bfd32c1fd193d69912f16e; ?>
-<?php unset($__componentOriginald07db53048bfd32c1fd193d69912f16e); ?>
+<?php if (isset($__componentOriginal52a4cdb85072beea63091637d7427e2f)): ?>
+<?php $component = $__componentOriginal52a4cdb85072beea63091637d7427e2f; ?>
+<?php unset($__componentOriginal52a4cdb85072beea63091637d7427e2f); ?>
 <?php endif; ?>
 
         <!-- Log del Juego -->
