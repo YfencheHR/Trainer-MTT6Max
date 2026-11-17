@@ -85,14 +85,12 @@ Alpine.store('gameState', {
 
   set(state) {
     if (!state) return;
-    console.log('🎮 gameState.set() called with state:', state);
     this.currentPlayerId = state.current_player_id ?? null;
     this.currentPosition = state.current_player_position ?? null;
     this.board = Array.isArray(state.board) ? state.board : [];
     this.street = state.current_street || 'preflop';
     this.dynamicRanges = state.dynamic_ranges ?? null;
     this.botsRanges = (state.bots_ranges && !Array.isArray(state.bots_ranges)) ? state.bots_ranges : {};
-    console.log('📊 dynamicRanges set to:', this.dynamicRanges);
 
     // Si el jugador actual es un bot, extraer su ID
     if (Array.isArray(state.players)) {
@@ -173,4 +171,3 @@ window.botsActionRanges = function(handId) {
 
 Alpine.start()
 
-console.log('Livewire + Alpine.js initialized')
