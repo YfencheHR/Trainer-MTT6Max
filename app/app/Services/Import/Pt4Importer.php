@@ -108,6 +108,80 @@ class Pt4Importer
         return $n;
     }
 
+    /**
+     * Un 3-bet sin haber actuado antes. Comprobado contra DB0.backup: flg_p_3bet_def_opp también es true para quien abrió,
+     * limpeó o pagó la apertura; sin esas marcas (y sin limpers ni squeeze) quedan solo los que aún no habían actuado, y su
+     * acción coincide con enum_p_3bet_action (F: sin vpip ni subidas · C: pagó · R: subió).
+     */
+    private const PRECISE = ['limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet', 'cold3_fold', 'cold3_call', 'cold3_raise'];
+
+    private const COLD3 = '(flg_p_3bet_def_opp and not flg_p_open and not flg_p_limp and not flg_p_ccall and cnt_p_face_limpers = 0 and not flg_p_squeeze_def_opp)';
+
+    /** Contadores por mano inicial y posición que se guardan en bot_preflop_hand_stats (se suman entre importaciones). */
+    private const HAND_COUNT_COLUMNS = [
+        'open_opportunities', 'open_raises', 'limps',
+        'vs_open_opportunities', 'three_bets', 'vs_open_calls',
+        'vs_3bet_opportunities', 'open_reraises', 'open_calls', 'open_folds',
+        'limp_raise_opportunities', 'limp_raises', 'limp_pushes',
+        'squeeze_opportunities', 'squeezes',
+        'vs_4bet_opportunities', 'vs_4bet_calls', 'vs_4bet_raises', 'vs_4bet_folds',
+        'vs_limp_opportunities', 'vs_limp_raises', 'vs_limp_calls',
+        'cold3_opportunities', 'cold3_calls', 'cold3_raises',
+    ];
+
+    /**
+     * Columnas de tourney_hand_player_statistics que usa el importador. Comprobadas contra un volcado real de PT4
+     * (DB0.backup, PostgreSQL 12). Se verifican AL EMPEZAR para no descubrir una columna ausente tras una importación larga.
+     */
+    private const REQUIRED_COLUMNS = [
+        'position', 'amt_won', 'cnt_f_call', 'cnt_f_raise', 'cnt_p_call', 'cnt_p_face_limpers', 'cnt_p_raise', 'cnt_players',
+        'cnt_r_call', 'cnt_r_raise', 'cnt_t_call', 'cnt_t_raise', 'enum_allin', 'enum_f_cbet_action',
+        'enum_p_3bet_action', 'enum_p_4bet_action', 'enum_r_cbet_action', 'enum_t_cbet_action', 'flg_bb_steal_fold',
+        'flg_blind_def_opp', 'flg_f_bet', 'flg_f_cbet', 'flg_f_cbet_def_opp', 'flg_f_cbet_opp', 'flg_f_check',
+        'flg_f_check_raise', 'flg_f_donk', 'flg_f_donk_opp', 'flg_f_face_raise', 'flg_f_fold', 'flg_f_has_position',
+        'flg_f_saw', 'flg_hero', 'flg_p_3bet', 'flg_p_3bet_def_opp', 'flg_p_3bet_opp', 'flg_p_4bet',
+        'flg_p_4bet_def_opp', 'flg_p_4bet_opp', 'flg_p_ccall', 'flg_p_face_raise', 'flg_p_limp', 'flg_p_open',
+        'flg_p_open_opp', 'flg_p_squeeze', 'flg_p_squeeze_def_opp', 'flg_p_squeeze_opp', 'flg_r_bet', 'flg_r_cbet', 'flg_r_cbet_def_opp',
+        'flg_r_cbet_opp', 'flg_r_fold', 'flg_r_has_position', 'flg_r_saw', 'flg_sb_steal_fold', 'flg_showdown',
+        'flg_t_bet', 'flg_t_cbet', 'flg_t_cbet_def_opp', 'flg_t_cbet_opp', 'flg_t_check', 'flg_t_check_raise',
+        'flg_t_face_raise', 'flg_t_float', 'flg_t_float_opp', 'flg_t_fold', 'flg_t_has_position', 'flg_t_saw',
+        'flg_vpip', 'flg_won_hand', 'holecard_1', 'holecard_2', 'id_blinds', 'id_hand', 'id_player',
+        'val_p_raise_aggressor_pos',
+    ];
+
+    /** Tipo de bote preflop de cada mano (mirando a todos sus jugadores): limp / srp / 3bp / 4bp. Requiere fresh_stats. */
+    private function buildPotTable(): void
+    {
+        $t = $this->tmp();
+        $t->statement('drop table if exists fresh_pot');
+        $t->statement("create table fresh_pot as
+            select id_hand, case when bool_or(flg_p_4bet) then '4bp' when bool_or(flg_p_3bet) then '3bp'
+                                 when bool_or(cnt_p_raise > 0) then 'srp' else 'limp' end as pot
+            from fresh_stats group by id_hand");
+        $t->statement('create index on fresh_pot (id_hand)');
+    }
+
+    /** Aborta de inmediato si el volcado no trae alguna columna que necesita el importador. */
+    private function assertColumns(): void
+    {
+        $have = array_column($this->tmp()->select(
+            "select column_name from information_schema.columns where table_name = 'tourney_hand_player_statistics'"
+        ), 'column_name');
+        $missing = array_values(array_diff(self::REQUIRED_COLUMNS, $have));
+        if ($missing) {
+            throw new \RuntimeException('El volcado de PT4 no trae columnas que necesita el importador: ' . implode(', ', $missing));
+        }
+    }
+
+    /**
+     * Etiqueta de posición (UTG/MP/CO/BTN/SB/BB) a partir de una columna de posición de PT4.
+     * La posición de PT4 es relativa al botón: 0 = BTN, 1 = CO, 8 = ciega GRANDE, 9 = ciega PEQUEÑA; el asiento más lejano del botón es UTG.
+     */
+    private function posLabel(string $col = 'position'): string
+    {
+        return "case when $col = 8 then 'BB' when $col = 9 then 'SB' when $col = 0 then 'BTN' when $col = 1 then 'CO' when $col = cnt_players - 3 then 'UTG' else 'MP' end";
+    }
+
     public function tmp(): Connection
     {
         if (!$this->tmp) {
@@ -138,6 +212,8 @@ class Pt4Importer
     private function exprs(): array
     {
         $pct = fn($n, $d) => "round(100.0 * sum($n) / nullif(sum($d), 0), 2)";
+        // Igual, pero null si hay menos de $min oportunidades: un % por oportunidad con 4 casos (p. ej. UTG ante una apertura) no es dato.
+        $pctMin = fn($n, $d, $min) => "round(100.0 * sum($n) / nullif(case when sum($d) >= $min then sum($d) end, 0), 2)";
 
         return [
             'hands' => 'count(*)',
@@ -148,14 +224,24 @@ class Pt4Importer
             'fold_to_3bet' => $pct("(enum_p_3bet_action = 'F')::int", 'flg_p_3bet_def_opp::int'),
             'four_bet' => $pct('flg_p_4bet::int', 'flg_p_4bet_opp::int'),
             'fold_to_4bet' => $pct("(enum_p_4bet_action = 'F')::int", 'flg_p_4bet_def_opp::int'),
-            'rfi' => $pct('flg_p_open::int', 'flg_p_open_opp::int'),
-            'limp' => $pct('flg_p_limp::int', 'flg_p_open_opp::int'),
+            // RFI = abrir SUBIENDO: flg_p_open también es true para quien abre limpeando (comprobado en datos reales: 32.405 aperturas con flg_p_limp y sin subida;
+            // RFI 44,1 % con ellas, 24,9 % solo subidas), así que se excluye el limp. Antes el RFI de un limper puro (PFR 0) salía 52 %.
+            'rfi' => $pct('(flg_p_open and not flg_p_limp)::int', 'flg_p_open_opp::int'),
+            // Limp de PRIMERO EN ENTRAR: el denominador (flg_p_open_opp) excluye los casos con limpers delante, así que el numerador
+            // también (con flg_p_limp a secas sumaba overlimps: SB 47,1 % en vez de 35,8 % en la muestra real).
+            'limp' => $pct('(flg_p_limp and flg_p_open_opp)::int', 'flg_p_open_opp::int'),
             'limp_raise' => $pct("(flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin <> 'P')::int", '(flg_p_limp and flg_p_face_raise)::int'),
             'limp_push' => $pct("(flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin = 'P')::int", '(flg_p_limp and flg_p_face_raise)::int'),
             'call_vs_3bet' => $pct("(enum_p_3bet_action = 'C')::int", 'flg_p_3bet_def_opp::int'),
             'reraise_vs_3bet' => $pct("(enum_p_3bet_action = 'R')::int", 'flg_p_3bet_def_opp::int'),
             'squeeze' => $pct('flg_p_squeeze::int', 'flg_p_squeeze_opp::int'),
-            'cold_call' => 'round(100.0 * avg(flg_p_ccall::int), 2)',
+            // Respuesta a un 3-bet SIN haber actuado antes (ni abrir, ni limpear, ni pagar la apertura, ni squeeze): ver self::COLD3.
+            'cold3_fold' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'F')::int", self::COLD3 . '::int', 20),
+            'cold3_call' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'C')::int", self::COLD3 . '::int', 20),
+            'cold3_raise' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'R')::int", self::COLD3 . '::int', 20),
+            // Call contra apertura POR OPORTUNIDAD (como three_bet), no sobre todas las manos. flg_p_ccall coincide exactamente con
+            // pagar una apertura fuera de ciegas sin haber limpeado (comprobado en datos reales) y nunca es true en las ciegas.
+            'cold_call' => $pctMin('(flg_p_ccall and flg_p_3bet_opp and not flg_p_limp)::int', '(flg_p_3bet_opp and not flg_p_limp and s.position not in (8, 9))::int', 30),
             'af_flop' => 'round(1.0 * sum(flg_f_bet::int + cnt_f_raise) / nullif(sum(cnt_f_call), 0), 2)',
             'cbet' => $pct('flg_f_cbet::int', 'flg_f_cbet_opp::int'),
             'f2cbet' => $pct("(enum_f_cbet_action = 'F')::int", 'flg_f_cbet_def_opp::int'),
@@ -227,8 +313,7 @@ class Pt4Importer
         $in = '{' . implode(',', array_map('intval', $ids)) . '}';
         $general = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s where id_player = any(?)', [$in]);
         $byPos = [];
-        // La posición de PT4 es relativa al botón: 0 = BTN, 1 = CO, 8 = ciega GRANDE, 9 = ciega PEQUEÑA; el asiento más lejano del botón es UTG
-        $label = "case when position = 8 then 'BB' when position = 9 then 'SB' when position = 0 then 'BTN' when position = 1 then 'CO' when position = cnt_players - 3 then 'UTG' else 'MP' end";
+        $label = $this->posLabel();
         foreach ($this->tmp()->select("select $label as pos, " . $this->select() . ' from fresh_stats s where id_player = any(?) group by 1', [$in]) as $r) {
             $pos = $r->pos;
             if (!$pos) {
@@ -275,49 +360,123 @@ class Pt4Importer
             'general' => $general,
             'positions' => $byPos,
             'preflop_hands' => $this->preflopHands($in, $label),
+            'vs_opener' => $this->vsOpener($in, $label),
             'postflop' => $postflop,
+            'postflop_pot' => $this->postflopByPot($in),
+            'stack_buckets' => $this->stackBuckets($in, $general),
             'bb100' => $bb,
         ];
+    }
+
+    /** Estadísticas que se calculan por tramo de stack (las que mueven las tablas preflop). */
+    private const STACK_STATS = ['vpip', 'pfr', 'af_preflop', 'three_bet', 'fold_to_3bet', 'four_bet', 'fold_to_4bet', 'rfi', 'limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet', 'squeeze', 'cold_call', 'cold3_fold', 'cold3_call', 'cold3_raise', 'shove'];
+
+    /** Manos de un tramo a partir de las cuales pesa más lo propio del jugador que la tendencia general. */
+    private const STACK_SHRINK_HANDS = 800;
+
+    private ?array $popRatios = null;
+
+    /**
+     * Cuánto cambia cada estadística en cada tramo de stack respecto al total, para TODOS los jugadores (bucket / total).
+     * Con ella, un jugador con pocas manos en un tramo hereda la tendencia general en vez de un dato ruidoso.
+     *
+     * @return array<string, array<string, float>> tramo => estadística => ratio
+     */
+    private function popRatios(): array
+    {
+        if ($this->popRatios !== null) {
+            return $this->popRatios;
+        }
+        $all = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s');
+        $out = [];
+        foreach (BotProfile::STACK_BUCKETS as $bucket => [$min, $max]) {
+            $row = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s where s.stack_bb >= ? and s.stack_bb < ?', [$min, $max]);
+            foreach (self::STACK_STATS as $k) {
+                $ratio = (isset($all[$k], $row[$k]) && (float) $all[$k] > 0) ? (float) $row[$k] / (float) $all[$k] : 1.0;
+                $out[$bucket][$k] = max(0.1, min(6.0, $ratio));
+            }
+        }
+
+        return $this->popRatios = $out;
+    }
+
+    /**
+     * Estadísticas generales de un grupo de jugadores en cada tramo de stack. Cada valor mezcla lo propio del tramo con lo que
+     * saldría de aplicar la tendencia general al total del grupo, según las manos que haya en ese tramo.
+     *
+     * @return array<string, array>
+     */
+    private function stackBuckets(string $in, array $general): array
+    {
+        $pop = $this->popRatios();
+        $out = [];
+        foreach (BotProfile::STACK_BUCKETS as $bucket => [$min, $max]) {
+            $row = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s where id_player = any(?) and s.stack_bb >= ? and s.stack_bb < ?', [$in, $min, $max]);
+            $n = (int) ($row['hands'] ?? 0);
+            $vals = ['hands' => $n];
+            foreach (self::STACK_STATS as $k) {
+                $own = $row[$k] ?? null;
+                $overall = $general[$k] ?? null;
+                if ($overall === null) {
+                    $vals[$k] = $own;
+                    continue;
+                }
+                $prior = (float) $overall * $pop[$bucket][$k];
+                $value = $own === null ? $prior : ($n * (float) $own + self::STACK_SHRINK_HANDS * $prior) / ($n + self::STACK_SHRINK_HANDS);
+                $vals[$k] = round(\App\Config\BotStreets::isRatio($k) ? $value : max(0.0, min(100.0, $value)), 2);
+            }
+            $out[$bucket] = $vals;
+        }
+
+        return $out;
     }
 
     /** Estadísticas preflop por mano inicial y posición, acumuladas sobre todas las combinaciones de palos. */
     private function preflopHands(string $in, string $label): array
     {
+        // Con limpers delante PT4 pone flg_p_open_opp = false (comprobado en datos reales), así que el nodo se define con
+        // cnt_p_face_limpers > 0 y sin subida previa: acciones = subir (aislar) / igualar (overlimp) / resto (fold; en la BB, check).
+        $limp = '(cnt_p_face_limpers > 0 and not flg_p_face_raise)';
         $rows = $this->tmp()->select("
-            select $label as pos, holecard_1 as card_1, holecard_3 as card_2,
+            select $label as pos, holecard_1 as card_1, holecard_2 as card_2,
               coalesce(sum(flg_p_open_opp::int), 0) as open_opportunities,
-              coalesce(sum(flg_p_open::int), 0) as open_raises,
-              coalesce(sum(flg_p_limp::int), 0) as limps,
-              coalesce(sum(flg_p_3bet_opp::int), 0) as vs_open_opportunities,
-              coalesce(sum(flg_p_3bet::int), 0) as three_bets,
+              coalesce(sum((flg_p_open and not flg_p_limp)::int), 0) as open_raises,
+              coalesce(sum((flg_p_limp and flg_p_open_opp)::int), 0) as limps,
+              coalesce(sum((flg_p_3bet_opp and not flg_p_limp)::int), 0) as vs_open_opportunities,
+              coalesce(sum((flg_p_3bet and not flg_p_limp)::int), 0) as three_bets,
               coalesce(sum(flg_p_3bet_def_opp::int), 0) as vs_3bet_opportunities,
               coalesce(sum((enum_p_3bet_action = 'R')::int), 0) as open_reraises,
               coalesce(sum((enum_p_3bet_action = 'C')::int), 0) as open_calls,
               coalesce(sum((enum_p_3bet_action = 'F')::int), 0) as open_folds,
               coalesce(sum((flg_p_limp and flg_p_face_raise)::int), 0) as limp_raise_opportunities,
               coalesce(sum((flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin <> 'P')::int), 0) as limp_raises,
-              coalesce(sum((flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin = 'P')::int), 0) as limp_pushes
+              coalesce(sum((flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin = 'P')::int), 0) as limp_pushes,
+              -- Contra una apertura: igualar (la resta hasta vs_open_opportunities es fold)
+              coalesce(sum((flg_p_3bet_opp and not flg_p_limp and not flg_p_3bet and cnt_p_call > 0 and cnt_p_raise = 0)::int), 0) as vs_open_calls,
+              -- Squeeze: apertura + uno o más callers delante
+              coalesce(sum(flg_p_squeeze_opp::int), 0) as squeeze_opportunities,
+              coalesce(sum(flg_p_squeeze::int), 0) as squeezes,
+              -- Hizo 3-bet y le hacen 4-bet: fold / call / 5-bet
+              coalesce(sum(flg_p_4bet_def_opp::int), 0) as vs_4bet_opportunities,
+              coalesce(sum((enum_p_4bet_action = 'C')::int), 0) as vs_4bet_calls,
+              coalesce(sum((enum_p_4bet_action = 'R')::int), 0) as vs_4bet_raises,
+              coalesce(sum((enum_p_4bet_action = 'F')::int), 0) as vs_4bet_folds,
+              -- Con limpers delante: aislar (raise) / overlimp
+              coalesce(sum($limp::int), 0) as vs_limp_opportunities,
+              coalesce(sum(($limp and cnt_p_raise > 0)::int), 0) as vs_limp_raises,
+              coalesce(sum(($limp and flg_p_limp)::int), 0) as vs_limp_calls,
+              -- Contra un 3-bet sin haber actuado antes (fold = oportunidades - calls - subidas)
+              coalesce(sum(" . self::COLD3 . "::int), 0) as cold3_opportunities,
+              coalesce(sum((" . self::COLD3 . " and enum_p_3bet_action = 'C')::int), 0) as cold3_calls,
+              coalesce(sum((" . self::COLD3 . " and enum_p_3bet_action = 'R')::int), 0) as cold3_raises
             from fresh_stats
             where id_player = any(?)
-              and holecard_1 between 1 and 52 and holecard_3 between 1 and 52
-            group by $label, holecard_1, holecard_3", [$in]);
+              and holecard_1 between 1 and 52 and holecard_2 between 1 and 52
+            group by $label, holecard_1, holecard_2", [$in]);
 
         $ranking = new PreflopRanking();
         $out = [];
-        $columns = [
-            'open_opportunities',
-            'open_raises',
-            'limps',
-            'vs_open_opportunities',
-            'three_bets',
-            'vs_3bet_opportunities',
-            'open_reraises',
-            'open_calls',
-            'open_folds',
-            'limp_raise_opportunities',
-            'limp_raises',
-            'limp_pushes',
-        ];
+        $columns = self::HAND_COUNT_COLUMNS;
 
         foreach ($rows as $row) {
             $pos = $row->pos;
@@ -372,6 +531,72 @@ class Pt4Importer
                 group by 1", [$in]);
             foreach ($rows as $r) {
                 $out[$street][$r->ip ? 'ip' : 'oop'] = (array) $r;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Respuesta ante una apertura según la posición de quien abre: [posición propia][posición del abridor] => contadores.
+     * val_p_raise_aggressor_pos usa la misma codificación que "position" y es siempre alguien que subió (comprobado en datos reales).
+     */
+    private function vsOpener(string $in, string $label): array
+    {
+        $vs = $this->posLabel('val_p_raise_aggressor_pos');
+        $rows = $this->tmp()->select("
+            select $label as pos, $vs as vs_pos,
+              coalesce(sum((flg_p_3bet_opp and not flg_p_limp)::int), 0) as opportunities,
+              coalesce(sum((flg_p_3bet and not flg_p_limp)::int), 0) as three_bets,
+              coalesce(sum((flg_p_3bet_opp and not flg_p_limp and not flg_p_3bet and cnt_p_call > 0 and cnt_p_raise = 0)::int), 0) as calls
+            from fresh_stats
+            where id_player = any(?) and flg_p_3bet_opp and not flg_p_limp and val_p_raise_aggressor_pos is not null
+            group by 1, 2", [$in]);
+
+        $out = [];
+        foreach ($rows as $r) {
+            if (!$r->pos || !$r->vs_pos) {
+                continue;
+            }
+            // MP/UTG de varias posiciones de PT4 se funden sumando
+            $t = &$out[$r->pos][$r->vs_pos];
+            $t ??= ['opportunities' => 0, 'three_bets' => 0, 'calls' => 0];
+            $t['opportunities'] += (int) $r->opportunities;
+            $t['three_bets'] += (int) $r->three_bets;
+            $t['calls'] += (int) $r->calls;
+            unset($t);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Postflop condicionado a lo que pasó preflop. Tipo de bote (de TODOS los jugadores de la mano):
+     *   limp = nadie subió · srp = una subida · 3bp = hubo 3-bet · 4bp = hubo 4-bet o más.
+     * Igual que postflopRoles() (agresor / defensor, IP / OOP) pero separado por tipo de bote:
+     * [calle][pot][ip|oop] => fila. En la flop se añade el donk (liderar siendo el que pagó preflop).
+     */
+    private function postflopByPot(string $in): array
+    {
+        $out = [];
+        foreach (['flop' => 'f', 'turn' => 't', 'river' => 'r'] as $street => $s) {
+            $donk = $s === 'f'
+                ? ", round(100.0 * sum(flg_f_donk::int) / nullif(sum(flg_f_donk_opp::int), 0), 2) as donk, coalesce(sum(flg_f_donk_opp::int), 0) as donk_n"
+                : '';
+            $rows = $this->tmp()->select("
+                select p.pot, flg_{$s}_has_position as ip,
+                  coalesce(sum(flg_{$s}_cbet_opp::int), 0) as agg_n,
+                  round(100.0 * sum(flg_{$s}_cbet::int) / nullif(sum(flg_{$s}_cbet_opp::int), 0), 2) as bet,
+                  coalesce(sum(flg_{$s}_cbet_def_opp::int), 0) as def_n,
+                  round(100.0 * sum((enum_{$s}_cbet_action = 'F')::int) / nullif(sum(flg_{$s}_cbet_def_opp::int), 0), 2) as fold,
+                  round(100.0 * sum((enum_{$s}_cbet_action = 'C')::int) / nullif(sum(flg_{$s}_cbet_def_opp::int), 0), 2) as call,
+                  round(100.0 * sum((enum_{$s}_cbet_action = 'R')::int) / nullif(sum(flg_{$s}_cbet_def_opp::int), 0), 2) as raise
+                  $donk
+                from fresh_stats s join fresh_pot p using (id_hand)
+                where id_player = any(?) and flg_{$s}_saw
+                group by 1, 2", [$in]);
+            foreach ($rows as $r) {
+                $out[$street][$r->pot][$r->ip ? 'ip' : 'oop'] = (array) $r;
             }
         }
 
@@ -455,10 +680,15 @@ class Pt4Importer
 
         // Sin datos registrados (primera importación con registro o recálculo) se recrean los bots Pool desde cero;
         // si ya hay datos, se conservan y se actualizan. Se hace ANTES de crear las copias.
+        // Los que ya están en algún torneo no se borran: se archivan (ver PoolBotRetirer).
         if (!$dry && !$this->merge) {
-            $old = Bot::where('tipo', 'pool')->whereIn('metadata->source', ['pt4_import', 'pt4_pool'])->pluck('id');
-            BotHudStat::whereIn('bot_id', $old)->delete();
-            Bot::whereIn('id', $old)->delete();
+            $retired = (new PoolBotRetirer())->retire();
+            if ($retired['archived'] > 0) {
+                $this->say("Perfiles anteriores archivados (los usan torneos ya jugados, siguen funcionando): {$retired['archived']}");
+            }
+            if ($retired['deleted'] > 0) {
+                $this->say("Perfiles anteriores sin uso eliminados: {$retired['deleted']}");
+            }
         }
 
         $players = $this->players($minHands);
@@ -586,6 +816,9 @@ class Pt4Importer
         }
         if (!$dry) {
             $this->register();
+            // Los rangos preflop de cada bot Pool se generan arriba, dentro de la propia importación (forBot): no hay que ejecutar nada más.
+            $pools = Bot::all()->filter(fn(Bot $b) => $b->isPool())->count();
+            $this->say("Rangos preflop generados para $pools bots Pool. La importación ha terminado: no hace falta ningún paso más.");
         }
 
         return $report;
@@ -795,6 +1028,7 @@ class Pt4Importer
     private function prepare(): array
     {
         $t = $this->tmp();
+        $this->assertColumns();
         $t->statement('drop table if exists known_hands');
         $t->statement('create table known_hands (id_site int, hand_no varchar(40), primary key (id_site, hand_no))');
         foreach (DB::table('pt4_imported_hands')->select('id_site', 'hand_no')->orderBy('id')->lazy(5000)->chunk(5000) as $chunk) {
@@ -811,8 +1045,13 @@ class Pt4Importer
             left join known_hands k on k.id_site = h.id_site and k.hand_no = h.hand_no
             where k.hand_no is null');
         $t->statement('create index on fresh_hands (id_hand)');
-        $t->statement('create table fresh_stats as select s.* from tourney_hand_player_statistics s join fresh_hands f using (id_hand)');
+        // stack_bb: stack al empezar la mano en ciegas grandes (amt_before / ciega grande de la mano), para las tablas por tramo de stack
+        $t->statement('create table fresh_stats as select s.*, s.amt_before / nullif(b.amt_bb, 0) as stack_bb
+            from tourney_hand_player_statistics s join fresh_hands f using (id_hand)
+            left join tourney_blinds b on b.id_blinds = s.id_blinds');
+        $this->popRatios = null;
         $t->statement('create index on fresh_stats (id_player)');
+        $this->buildPotTable();
 
         $total = (int) $t->selectOne('select count(*) n from tourney_hand_summary')->n;
         $new = (int) $t->selectOne('select count(*) n from fresh_hands')->n;
@@ -847,7 +1086,7 @@ class Pt4Importer
             return $new; // los valores previos eran provisionales (sin muestra): se sustituyen
         }
         $out = [];
-        $precisePercentages = ['limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet'];
+        $precisePercentages = self::PRECISE;
         foreach ($new as $k => $v) {
             $o = $old->{$k};
             $out[$k] = $o === null ? $v : (\App\Config\BotStreets::isRatio($k) || in_array($k, $precisePercentages, true)
@@ -894,7 +1133,7 @@ class Pt4Importer
     private function typed(array $row): array
     {
         $out = [];
-        $precisePercentages = ['limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet'];
+        $precisePercentages = self::PRECISE;
         foreach ($row as $k => $v) {
             if ($v === null || $k === 'hands') {
                 continue;
@@ -904,7 +1143,7 @@ class Pt4Importer
                 : (int) round($v);
         }
 
-        return $out;
+        return StatBounds::apply($out);
     }
 
     private function write(Bot $bot, array $agg): void
@@ -953,25 +1192,84 @@ class Pt4Importer
 
         $this->storePreflopHandStats($bot, $agg['preflop_hands'] ?? []);
 
+        // Estadísticas por tramo de stack: filas accion = 'stack' y rango_ciegas = tramo (las usa RivalPreflopTables)
+        foreach ($agg['stack_buckets'] ?? [] as $bucket => $r) {
+            $nBucket = (int) $r['hands'];
+            $new = $this->typed(array_filter(array_diff_key($r, ['hands' => 1]), fn($v) => $v !== null));
+            if (!$new) {
+                continue;
+            }
+            $sk = ['bot_id' => $bot->id, 'nivel' => 1, 'posicion' => null, 'accion' => BotProfile::STACK_ACTION, 'rango_ciegas' => $bucket];
+            $so = $this->merge ? BotHudStat::where($sk)->first() : null;
+            $st = $nBucket + (int) ($so->sample_size ?? 0);
+            BotHudStat::updateOrCreate($sk, $this->blend($so, $new, $nBucket) + ['sample_size' => $st, 'confidence' => round($st / ($st + 300), 3)]);
+        }
+
         // Postflop por calle, IP/OOP y papel. Filas sin posición de mesa: accion = "{calle}_agg_{ip|oop}" / "{calle}_def_{ip|oop}"
         //   agg → cbet (apuesta como agresor) · def → f2cbet / call_vs_bet / raise_vs_bet (respuesta como defensor)
         foreach ($agg['postflop'] ?? [] as $street => $byPos) {
             foreach ($byPos as $ip => $r) {
-                foreach (['agg' => [['bet' => 'cbet'], (int) $r['agg_n']], 'def' => [['fold' => 'f2cbet', 'call' => 'call_vs_bet', 'raise' => 'raise_vs_bet'], (int) $r['def_n']]] as $role => [$map, $n]) {
-                    if ($n < 30) {
-                        continue;
-                    }
-                    $new = [];
-                    foreach ($map as $src => $col) {
-                        if ($r[$src] !== null) {
-                            $new[$col] = (int) round($r[$src]);
-                        }
-                    }
-                    $pk = ['bot_id' => $bot->id, 'nivel' => 1, 'posicion' => null, 'accion' => "{$street}_{$role}_{$ip}", 'rango_ciegas' => null];
-                    $po = $this->merge ? BotHudStat::where($pk)->first() : null;
-                    $pt = $n + (int) ($po->sample_size ?? 0);
-                    BotHudStat::updateOrCreate($pk, $this->blend($po, $new, $n) + ['sample_size' => $pt, 'confidence' => round($pt / ($pt + 300), 3)]);
+                $this->storePostflopRows($bot, "{$street}_%s_{$ip}", $r);
+            }
+        }
+
+        // Lo mismo separado por lo que pasó preflop: {calle}_{agg|def}_{ip|oop}_{limp|srp|3bp|4bp}
+        foreach ($agg['postflop_pot'] ?? [] as $street => $byPot) {
+            foreach ($byPot as $pot => $byPos) {
+                foreach ($byPos as $ip => $r) {
+                    $this->storePostflopRows($bot, "{$street}_%s_{$ip}_{$pot}", $r);
                 }
+            }
+        }
+
+        $this->storeVsOpenerStats($bot, $agg['vs_opener'] ?? []);
+    }
+
+    /**
+     * Guarda las dos filas (agresor y defensor) de un contexto postflop. $accionFmt lleva %s donde va el papel (agg|def).
+     * agg → cbet · def → f2cbet / call_vs_bet / raise_vs_bet (+ donk en la flop: liderar siendo el que pagó preflop).
+     */
+    private function storePostflopRows(Bot $bot, string $accionFmt, array $r): void
+    {
+        $defMap = ['fold' => 'f2cbet', 'call' => 'call_vs_bet', 'raise' => 'raise_vs_bet'];
+        if (array_key_exists('donk', $r)) {
+            $defMap['donk'] = 'donk';
+        }
+        foreach (['agg' => [['bet' => 'cbet'], (int) $r['agg_n']], 'def' => [$defMap, (int) $r['def_n']]] as $role => [$map, $n]) {
+            if ($n < 30) {
+                continue;
+            }
+            $new = [];
+            foreach ($map as $src => $col) {
+                if ($r[$src] !== null) {
+                    $new[$col] = (int) round($r[$src]);
+                }
+            }
+            $pk = ['bot_id' => $bot->id, 'nivel' => 1, 'posicion' => null, 'accion' => sprintf($accionFmt, $role), 'rango_ciegas' => null];
+            $po = $this->merge ? BotHudStat::where($pk)->first() : null;
+            $pt = $n + (int) ($po->sample_size ?? 0);
+            BotHudStat::updateOrCreate($pk, $this->blend($po, StatBounds::apply($new), $n) + ['sample_size' => $pt, 'confidence' => round($pt / ($pt + 300), 3)]);
+        }
+    }
+
+    /** Suma contadores de respuesta ante apertura por posición propia y del abridor (acumula entre importaciones). */
+    private function storeVsOpenerStats(Bot $bot, array $stats): void
+    {
+        $now = now();
+        foreach ($stats as $pos => $byOpener) {
+            foreach ($byOpener as $vs => $c) {
+                $folds = max(0, $c['opportunities'] - $c['three_bets'] - $c['calls']);
+                DB::statement(
+                    'insert into bot_preflop_vs_opener_stats (bot_id, posicion, vs_posicion, opportunities, three_bets, calls, folds, created_at, updated_at)
+                     values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     on conflict (bot_id, posicion, vs_posicion) do update set
+                       opportunities = bot_preflop_vs_opener_stats.opportunities + excluded.opportunities,
+                       three_bets = bot_preflop_vs_opener_stats.three_bets + excluded.three_bets,
+                       calls = bot_preflop_vs_opener_stats.calls + excluded.calls,
+                       folds = bot_preflop_vs_opener_stats.folds + excluded.folds,
+                       updated_at = excluded.updated_at',
+                    [$bot->id, $pos, $vs, $c['opportunities'], $c['three_bets'], $c['calls'], $folds, $now, $now]
+                );
             }
         }
     }
@@ -979,20 +1277,7 @@ class Pt4Importer
     /** Incremental imports add action counts rather than replacing older hand samples. */
     private function storePreflopHandStats(Bot $bot, array $stats): void
     {
-        $countColumns = [
-            'open_opportunities',
-            'open_raises',
-            'limps',
-            'vs_open_opportunities',
-            'three_bets',
-            'vs_3bet_opportunities',
-            'open_reraises',
-            'open_calls',
-            'open_folds',
-            'limp_raise_opportunities',
-            'limp_raises',
-            'limp_pushes',
-        ];
+        $countColumns = self::HAND_COUNT_COLUMNS;
         $columns = array_merge(['bot_id', 'posicion', 'mano'], $countColumns, ['created_at', 'updated_at']);
         $now = now()->toDateTimeString();
         $values = [];
@@ -1026,6 +1311,6 @@ class Pt4Importer
             );
         }
 
-        $bot->preflopHandRanges()->where('is_manual', false)->delete();
+        $bot->allPreflopHandRanges()->where('is_manual', false)->delete();
     }
 }

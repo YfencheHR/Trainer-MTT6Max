@@ -26,10 +26,7 @@
 
       <!-- Columna Derecha: Rivales + Rangos + Log (1/4) -->
       <div class="w-full lg:w-1/4" style="display: flex; flex-direction: column; gap: 1.5rem;">
-        <!-- Rivales en Acción -->
-        <x-active-players-info :tournament="$tournament" :playersStats="$playersStats ?? []" />
-
-        <!-- Rangos de Bots en Acción -->
+        <!-- Rivales en Acción - Rangos -->
         <x-bots-action-ranges :handId="$hand->id" />
 
         <!-- Log del Juego -->

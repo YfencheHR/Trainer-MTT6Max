@@ -116,6 +116,14 @@
       <button type="button" @click="start()" :disabled="busy" class="pt4-import-button"
         x-text="busy ? 'Trabajando…' : '4. Subir e importar'"></button>
     </div>
+    <p x-show="reset" x-cloak style="margin: 0.6rem 0 0; padding: 0.6rem 0.8rem; font-size: 0.78rem; color: #fcd34d; background: rgba(252, 211, 77, 0.08); border: 1px solid rgba(252, 211, 77, 0.35); border-radius: 0.4rem;">
+      <template x-if="tournamentsAffected > 0">
+        <span>Hay <strong x-text="tournamentsAffected"></strong> torneo(s) que usan los perfiles actuales. <strong>No se borran</strong>: esos perfiles se archivan (los torneos siguen funcionando y sus historiales se conservan) y se crean perfiles nuevos con esta importación.</span>
+      </template>
+      <template x-if="tournamentsAffected === 0">
+        <span>Se sustituirán los perfiles importados anteriormente por los de esta copia. Ningún torneo los usa ahora mismo.</span>
+      </template>
+    </p>
     <p style="margin: 0.6rem 0 0; font-size: 0.75rem; color: #9ca3af;">Los jugadores con pocas manos se agrupan con otros parecidos (VPIP/PFR) y sus manos se suman, así que cada perfil se apoya en mucha más muestra.</p>
 
     <div x-show="busy && progress !== null" style="margin-top: 0.9rem; height: 0.5rem; background: #11161c; border-radius: 0.25rem; overflow: hidden;">
@@ -132,6 +140,7 @@
   function pt4Import() {
     return {
       ours: { bots: {{ $ours['bots'] }}, hud_stats: {{ $ours['hud_stats'] }}, pool: {{ $pool }} },
+      tournamentsAffected: {{ $tournamentsAffected ?? 0 }},
       fileName: '',
       minHands: 20, reset: false, busy: false, progress: null, error: null, state: null, log: '',
       csrf: document.querySelector('meta[name=csrf-token]').content,

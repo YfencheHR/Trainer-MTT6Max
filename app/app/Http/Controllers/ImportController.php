@@ -33,6 +33,8 @@ class ImportController extends Controller
         return view('import.index', [
             'ours' => ['bots' => Bot::count(), 'hud_stats' => BotHudStat::count(), 'ranges' => BotRange::count()],
             'pool' => Bot::where('tipo', 'pool')->count(),
+            // Torneos que usan hoy perfiles Pool: al recalcular esos perfiles se archivan (no se borran)
+            'tournamentsAffected' => (new \App\Services\Import\PoolBotRetirer())->tournamentsAffected(),
         ]);
     }
 

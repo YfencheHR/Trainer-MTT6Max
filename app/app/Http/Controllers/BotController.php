@@ -235,6 +235,14 @@ class BotController extends Controller
     public function destroy(Bot $bot)
     {
         $nombre = $bot->nombre;
+
+        // Si algún torneo ya juega con este perfil no se borra (rompería ese torneo): se archiva y desaparece de las listas
+        if (\App\Models\TournamentPlayer::where('bot_id', $bot->id)->exists()) {
+            $bot->forceFill(['archived_at' => now()])->save();
+
+            return redirect()->route('bots.index')->with('success', "Bot '{$nombre}' retirado: lo usan torneos ya jugados, así que se ha archivado en vez de borrarse.");
+        }
+
         $bot->delete();
         return redirect()->route('bots.index')->with('success', "Bot '{$nombre}' eliminado exitosamente.");
     }

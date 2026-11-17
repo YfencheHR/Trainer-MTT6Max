@@ -59,23 +59,11 @@ class BrainRunner
         $matrix = new DecisionMatrix($brain['default'] ?? 'fold');
         $fired = [];
         $strategy = $this->preflopStrategies->forDecision($ctx, $features);
-        if (($strategy['source'] ?? null) === 'pool_tables') {
+        // Los bots que juegan (Pool) deciden el preflop con su tabla; en el resto de calles y situaciones mandan las reglas del cerebro.
+        if ($strategy) {
             $matrix->mix($strategy['distribution']);
         } else {
-            $rules = $brain['rules'] ?? [];
-            if ($strategy) {
-                $rules[] = [
-                    'id' => 'preflop_hand_matrix',
-                    'name' => 'Mezcla con matriz preflop heurística',
-                    'priority' => 90,
-                    'when' => ['f' => 'street', 'op' => '=', 'v' => 'preflop'],
-                    'paint' => [[
-                        'blend' => $strategy['distribution'],
-                        'weight' => $strategy['prior_weight'],
-                    ]],
-                ];
-            }
-            $this->rules->apply($rules, $features, $matrix, $rng, $fired);
+            $this->rules->apply($brain['rules'] ?? [], $features, $matrix, $rng, $fired);
         }
 
         // 4) Ajuste de fold por la presión de los rivales que aún pueden actuar
@@ -153,23 +141,11 @@ class BrainRunner
         $matrix = new DecisionMatrix($brain['default'] ?? 'fold');
         $fired = [];
         $strategy = $this->preflopStrategies->forDecision($ctx, $perception['features']);
-        if (($strategy['source'] ?? null) === 'pool_tables') {
+        // Los bots que juegan (Pool) deciden el preflop con su tabla; en el resto de calles y situaciones mandan las reglas del cerebro.
+        if ($strategy) {
             $matrix->mix($strategy['distribution']);
         } else {
-            $rules = $brain['rules'] ?? [];
-            if ($strategy) {
-                $rules[] = [
-                    'id' => 'preflop_hand_matrix',
-                    'name' => 'Mezcla con matriz preflop heurística',
-                    'priority' => 90,
-                    'when' => ['f' => 'street', 'op' => '=', 'v' => 'preflop'],
-                    'paint' => [[
-                        'blend' => $strategy['distribution'],
-                        'weight' => $strategy['prior_weight'],
-                    ]],
-                ];
-            }
-            $this->rules->apply($rules, $perception['features'], $matrix, $rng, $fired);
+            $this->rules->apply($brain['rules'] ?? [], $perception['features'], $matrix, $rng, $fired);
         }
         $danger = $this->preflopDanger->apply($matrix, $ctx, $perception['features'], $ctx['me']['stats'] ?? []);
         $this->applyImprecision($matrix, $brain['imprecision'] ?? []);

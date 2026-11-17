@@ -2,11 +2,18 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        // Idempotente: si la tabla ya usa hand_id/player_id (renombrado hecho antes, p. ej. por la migración
+        // 2026_11_16_200000_fix_hand_action_ranges_column_names) no hay nada que renombrar.
+        if (!Schema::hasColumn('hand_action_ranges', 'tournament_hand_id')) {
+            return;
+        }
+
         // Primero eliminar las columnas GENERATED si existen
         DB::statement('ALTER TABLE hand_action_ranges DROP COLUMN IF EXISTS hand_id');
         DB::statement('ALTER TABLE hand_action_ranges DROP COLUMN IF EXISTS player_id');

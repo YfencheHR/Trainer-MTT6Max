@@ -20,7 +20,12 @@ class BotPreflopHandRange extends Model
         'limp_push',
         'defense_three_bet',
         'defense_call',
+        'stack_bucket',
         'defense_fold',
+        'cold3_raise',
+        'cold3_call',
+        'cold4_raise',
+        'cold4_call',
         'is_manual',
     ];
 
@@ -35,6 +40,10 @@ class BotPreflopHandRange extends Model
         'defense_three_bet' => 'float',
         'defense_call' => 'float',
         'defense_fold' => 'float',
+        'cold3_raise' => 'float',
+        'cold3_call' => 'float',
+        'cold4_raise' => 'float',
+        'cold4_call' => 'float',
         'is_manual' => 'boolean',
     ];
 

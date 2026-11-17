@@ -27,6 +27,9 @@ class BotHudStat extends Model
         'limp_push',
         'call_vs_3bet',
         'reraise_vs_3bet',
+        'cold3_fold',
+        'cold3_call',
+        'cold3_raise',
         'rfi',
         'squeeze',
         'cold_call',
@@ -74,6 +77,9 @@ class BotHudStat extends Model
         'limp_push' => 'float',
         'call_vs_3bet' => 'float',
         'reraise_vs_3bet' => 'float',
+        'cold3_fold' => 'float',
+        'cold3_call' => 'float',
+        'cold3_raise' => 'float',
         'confidence' => 'float',
         'sample_size' => 'integer'
     ];

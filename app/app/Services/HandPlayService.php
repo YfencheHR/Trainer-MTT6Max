@@ -73,15 +73,23 @@ class HandPlayService
                     $dynamicRanges = [
                         'player_id' => $tp->id,
                         'player_name' => $tp->name,
-                        'ranges' => $ranges,
+                        'ranges' => $this->slimRanges($ranges),
                     ];
                 }
             }
         }
 
+        // Rangos de los bots que han entrado en la mano (incluye los que luego foldearon)
+        $botIds = array_column(array_filter($players, fn($p) => $p['is_bot']), 'id');
+        $botsRanges = (object) array_map(
+            fn($b) => ['action' => $b['action'], 'ranges' => $this->rangeCodes($b['ranges'])],
+            app(\App\Services\Bots\RangeFilter::class)->getEnteredRanges($hand, $botIds)
+        );
+
         return [
             'hand_id' => $hand->id,
             'players' => array_values($out),
+            'bots_ranges' => $botsRanges,
             'board' => $hand->community_cards ?? [],
             'pot' => (int) $meta['pot'],
             'current_street' => $completed ? 'completed' : $meta['street'],
@@ -99,6 +107,26 @@ class HandPlayService
             'big_blind' => (int) ($meta['bb'] ?? 100),
             'dynamic_ranges' => $dynamicRanges,
         ];
+    }
+
+    /**
+     * Aligera un rango para el tiempo real: solo las acciones con frecuencia > 0 de cada mano. Reverb rechaza los mensajes
+     * de más de 10 KB y una matriz completa de 169 manos con 9 acciones ocupa ~20 KB.
+     */
+    private function slimRanges(array $ranges): array
+    {
+        return array_map(fn($r) => array_filter((array) $r, fn($v) => $v > 0), $ranges);
+    }
+
+    /** Rango compacto para el panel de rivales: por mano [fold, call, raise, check] en enteros. */
+    private function rangeCodes(array $ranges): array
+    {
+        return array_map(fn($r) => [
+            (int) round($r['fold'] ?? 0),
+            (int) round($r['call'] ?? 0),
+            (int) round($r['raise'] ?? 0),
+            (int) round($r['check'] ?? 0),
+        ], $ranges);
     }
 
     private function history(): \App\Services\History\HandHistoryRecorder
@@ -258,6 +286,14 @@ class HandPlayService
     }
 
     /** Etiqueta de posición según la distancia al botón (0 = BTN). */
+    /** Etiqueta de posición (UTG, HJ, CO, BTN, SB, BB) del jugador en el índice dado. */
+    private function positionFor(array $players, array $meta, int $idx): string
+    {
+        $n = count($players);
+        $btn = (int) ($meta['btn'] ?? 0) % max(1, $n);
+        return $this->positionLabel($n, ($idx - $btn + $n) % $n);
+    }
+
     private function positionLabel(int $n, int $k): string
     {
         if ($n === 2) {
@@ -657,7 +693,7 @@ class HandPlayService
                 [
                     'pot' => $meta['pot'],
                     'stack' => $tp->current_stack,
-                    'position' => $tp->position,
+                    'position' => $this->positionFor($players, $meta, $idx),
                     'action_number' => count(array_filter($players, fn($p) => $p['acted'])),
                     'actors_count' => count(array_filter($players, fn($p) => !$p['folded'])),
                 ]
@@ -1104,10 +1140,10 @@ class HandPlayService
 
         // Inicializar rangos dinámicos para todos los jugadores
         $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
-        foreach ($players as $player) {
+        foreach ($players as $i => $player) {
             $tp = $hand->table ? $hand->table->players()->find($player['id']) : $hand->tournament->players()->find($player['id']);
             if ($tp) {
-                $rangeFilter->initializeHandRanges($hand, $tp);
+                $rangeFilter->initializeHandRanges($hand, $tp, $this->positionFor($players, $meta, $i));
             }
         }
 

@@ -31,7 +31,7 @@ class BotProfile
     /** Cuánto se abre / se juega / se resube según la posición, respecto al valor general del bot. */
     private const OPEN_F = ['UTG' => 0.65, 'HJ' => 0.85, 'CO' => 1.15, 'BTN' => 1.6, 'SB' => 1.3, 'BB' => 1.0];
     private const VPIP_F = ['UTG' => 0.7, 'HJ' => 0.85, 'CO' => 1.05, 'BTN' => 1.35, 'SB' => 1.1, 'BB' => 1.5];
-    private const THREE_F = ['UTG' => 0.7, 'HJ' => 0.8, 'CO' => 1.0, 'BTN' => 1.25, 'SB' => 1.3, 'BB' => 1.3];
+    public const THREE_F = ['UTG' => 0.7, 'HJ' => 0.8, 'CO' => 1.0, 'BTN' => 1.25, 'SB' => 1.3, 'BB' => 1.3];
 
     /** Cifras documentadas de cada perfil (docs/03-Bots.md) para lo que no esté en la BD. */
     public const DOCUMENTED = [
@@ -64,6 +64,21 @@ class BotProfile
         'ballena' => ['flop' => ['f2bet' => 20, 'af' => 0.5, 'cbet' => 30, 'donk' => 12, 'cr' => 3], 'turn' => ['f2bet' => 20, 'af' => 0.5, 'bet' => 25, 'cr' => 3], 'river' => ['f2bet' => 22, 'af' => 0.5, 'bet' => 22], 'vb_ratio' => 1.5],
     ];
 
+    /** Tramos de stack (en ciegas grandes) de las tablas preflop por stack y de sus estadísticas (filas accion = 'stack'). */
+    public const STACK_BUCKETS = ['0-10' => [0, 10], '10-20' => [10, 20], '20-40' => [20, 40], '40+' => [40, 100000]];
+    public const STACK_ACTION = 'stack';
+
+    public static function stackBucketFor(float $bigBlinds): string
+    {
+        foreach (self::STACK_BUCKETS as $bucket => [$min, $max]) {
+            if ($bigBlinds < $max) {
+                return $bucket;
+            }
+        }
+
+        return '40+';
+    }
+
     /** Tramos de profundidad de stack (en ciegas grandes) de la columna rango_ciegas. */
     public const BUCKETS = [
         '0-6' => [0, 6], '6-25' => [6, 25], '25-40' => [25, 40], '40-80' => [40, 80],
@@ -82,6 +97,8 @@ class BotProfile
     public static function forBot(Bot $bot): array
     {
         $rows = $bot->relationLoaded('hudStats') ? $bot->hudStats : $bot->hudStats()->get();
+        // Las estadísticas por tramo de stack (accion = 'stack') las usa el generador de tablas por stack, no este perfil
+        $rows = $rows->reject(fn($r) => $r->accion === self::STACK_ACTION)->values();
         $ranges = BotRange::where('bot_id', $bot->id)->get();
 
         $doc = self::DOCUMENTED[$bot->templateTipo()] ?? self::DOCUMENTED['tag'];
@@ -95,7 +112,7 @@ class BotProfile
         if ($general) {
             foreach ([
                 'vpip', 'pfr', 'three_bet', 'fold_to_3bet', 'four_bet', 'fold_to_4bet', 'af_preflop',
-                'limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet',
+                'limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet', 'cold3_fold', 'cold3_call', 'cold3_raise',
             ] as $k) {
                 if ($general->{$k} !== null) {
                     $global[$k] = (float) $general->{$k};

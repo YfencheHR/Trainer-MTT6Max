@@ -15,7 +15,8 @@ La aplicación permite crear y configurar bots con diferentes perfiles, jugar to
 - Jugar y gestionar torneos MTT con varios rivales.
 - Consultar y exportar historiales de manos y torneos, incluidos datos de análisis y EV.
 - Explorar matrices de manos y escenarios de manos hechas.
-- Importar historiales de PokerTracker 4 y generar perfiles de bots a partir de esos datos.
+- Importar historiales de PokerTracker 4 y generar perfiles de bots, con sus tablas de decisión preflop, a partir de esos datos.
+- Ver, durante la mano, los rangos de los rivales que han entrado en el bote.
 - Consultar bots mediante endpoints JSON.
 
 El importador de PokerTracker está implementado. Procesa una copia de la base de datos en un entorno temporal y elimina esa copia al terminar. Los resultados se pueden revisar y ajustar desde la aplicación.
@@ -34,7 +35,11 @@ La aplicación ya muestra datos de EV en los historiales, pero la configuración
 
 ### Cerebro de los bots
 
-El sistema de decisiones de los bots es una primera versión funcional basada en reglas, perfiles, rangos y una percepción que varía según la habilidad. Está en proceso de pulido: se irán ajustando sus reglas, su comportamiento y las opciones de configuración.
+Los rivales que juegan son los perfiles generados por la importación de PokerTracker. Los perfiles base que trae la instalación no juegan: solo sirven de plantilla para clasificar a los jugadores importados.
+
+Preflop, cada rival decide con unas tablas por mano, posición y tramo de stack (menos de 10, 10-20, 20-40 y 40 o más ciegas grandes) que se generan de sus propias estadísticas: abrir, limpear, defender, responder a un 3-bet y a un 3-bet o 4-bet sin haber abierto. Con stack corto parte de sus subidas pasan a all-in según cómo juegue ese perfil. Postflop deciden las reglas del cerebro y una percepción que varía según la habilidad.
+
+Está en proceso de pulido. Quedan por hacer, entre otras cosas, que el postflop use los rangos de los rivales y tablas más finas por posición del abridor.
 
 ### Reproducción de torneos
 
@@ -48,14 +53,18 @@ Hay más ideas y mejoras planteadas que se irán definiendo durante el desarroll
 
 En `/import` se puede subir una copia comprimida de una base de PokerTracker 4. El sistema la procesa en una base temporal, calcula estadísticas de los jugadores y las distribuye entre perfiles de bot. Cuando un jugador no encaja en los perfiles disponibles, se puede generar un bot nuevo. Después de importar, los perfiles se pueden revisar y configurar en la aplicación.
 
+Las estadísticas se calculan en general, por posición y por tramo de stack, y con ellas se generan las tablas de decisión de cada perfil. Con los datos de los showdown se ajusta qué tipo de manos juega cada perfil, y las estadísticas extremas se acotan para evitar rangos irreales (por ejemplo, que un rival foldee AA).
+
+Al reimportar con "Recalcular desde cero", los perfiles que ya participan en torneos se archivan en lugar de borrarse, y la importación es atómica: si falla, los perfiles anteriores quedan como estaban. Cada torneo juega con una copia congelada de sus rivales, así que reimportar o editar un perfil después no cambia los torneos ya creados.
+
 Importa únicamente datos que tengas derecho a utilizar. La base temporal de trabajo se elimina al finalizar el procesamiento; los bots y resultados generados quedan en la base de datos de la instalación local.
 
 ## Tecnología
 
 - **Aplicación web:** Laravel 13, PHP 8.3 o superior y Blade. Los recursos CSS y JavaScript se sirven como archivos estáticos.
-- **Interfaz:** Blade con Tailwind CSS y Alpine.js. Los archivos servidos por Laravel están en `app/public/assets`.
+- **Interfaz:** Blade con Tailwind CSS y Alpine.js. Los archivos servidos por Laravel están en `app/public/assets`; se generan con Vite (`npm run build` desde `app/`, solo para desarrollar: el código fuente está en `app/resources`).
 - **Persistencia:** la configuración incluida en Docker usa PostgreSQL 15.
-- **Servicios del entorno Docker:** Redis 7 y un servicio Python/Flask para simulación de equity y generación de tablas.
+- **Servicios del entorno Docker:** Redis 7, Laravel Reverb (actualizaciones de la mesa en tiempo real) y un servicio Python/Flask para simulación de equity y generación de tablas.
 
 La lógica del juego y de los bots vive principalmente en `app/app/Services`; los modelos y controladores Laravel están en `app/app`, las páginas Blade en `app/resources/views` y las rutas en `app/routes`.
 
@@ -64,25 +73,51 @@ La lógica del juego y de los bots vive principalmente en `app/app/Services`; lo
 - Docker Desktop y Docker Compose para iniciar los servicios con la configuración incluida.
 - O, para ejecutar Laravel directamente, PHP 8.3+ y Composer. La base de datos debe configurarse en `app/.env`.
 
-## Inicio con Docker
+## Instalación (un solo comando)
 
-Desde la raíz del repositorio:
+Necesitas Docker Desktop **abierto y en marcha**. Después, desde la carpeta del proyecto, ejecuta un único comando.
+
+**Windows (PowerShell):**
+
+```powershell
+.\init.ps1
+```
+
+**Cualquier sistema:**
 
 ```bash
 docker compose up -d --build
-docker compose exec app php artisan migrate --seed
 ```
 
-Docker incluye una clave de aplicación de desarrollo y publica los servicios solo en `127.0.0.1`. La clave es para uso local; define tu propia `APP_KEY` antes de exponer la aplicación fuera de tu equipo. Abre [http://localhost:8000](http://localhost:8000). Para consultar los servicios:
+Eso es todo: no hay ningún paso más. La primera vez tarda unos minutos porque construye los servicios y prepara la base de datos (migraciones y datos base: cartas, manos y bots iniciales) por sí sola. Con `init.ps1` además se comprueba Docker, se prepara una clave de aplicación válida, se espera a que todo esté listo y se abre el navegador en [http://localhost:8000](http://localhost:8000).
+
+**Una vez instalado no hay que usar la consola.** Importar historiales de PokerTracker, crear bots, jugar torneos y consultar los resultados se hace desde la propia aplicación. Al importar, los rangos de los rivales se generan solos.
+
+**Para actualizar** a una versión nueva, descarga los cambios y vuelve a ejecutar el mismo comando: la base de datos se actualiza al arrancar y tus datos se conservan. Se puede ejecutar tantas veces como quieras sin riesgo.
+
+Docker incluye una clave de aplicación de desarrollo y publica los servicios solo en `127.0.0.1`. La clave es para uso local; define tu propia `APP_KEY` antes de exponer la aplicación fuera de tu equipo.
+
+Si algo no arranca, mira el registro de la aplicación:
 
 ```bash
-docker compose ps
 docker compose logs -f app
 ```
 
-Para detenerlos, ejecuta `docker compose down`. PostgreSQL y Redis usan volúmenes persistentes. `docker compose down -v` también elimina esos volúmenes y sus datos.
+Para detener todo, ejecuta `docker compose down`; para volver a arrancarlo, el mismo comando de instalación. PostgreSQL y Redis usan volúmenes persistentes. `docker compose down -v` también elimina esos volúmenes y sus datos.
 
-## Inicio de Laravel sin Docker
+## Reiniciar la aplicación desde cero
+
+Para dejar la aplicación como recién instalada (útil para probar la importación desde un estado limpio), desde la carpeta `app/`:
+
+```bash
+npm run reset-app
+```
+
+Es equivalente a `docker compose exec app php artisan app:reset`. **Borra todos los datos** (bots, torneos, historiales, importaciones y usuarios) y vuelve a cargar los datos base. Antes de borrar enseña qué se va a perder y pide confirmación; si no confirmas, no se toca nada. Para saltarse la pregunta: `npm run reset-app -- --force`.
+
+## Inicio de Laravel sin Docker (desarrollo)
+
+Esta opción es para quien desarrolla; el uso normal es la instalación con Docker de arriba.
 
 ```bash
 cd app
@@ -94,8 +129,10 @@ php artisan key:generate
 Configura la conexión a la base de datos en `app/.env` y luego ejecuta:
 
 ```bash
-php artisan migrate --seed
+php artisan db:initialize
 ```
+
+Aplica las migraciones y carga los datos base solo si la base de datos está vacía, así que se puede repetir sin duplicar nada.
 
 En otra terminal, desde `app/`, inicia Laravel:
 
@@ -104,6 +141,16 @@ php artisan serve --host=127.0.0.1 --port=8000
 ```
 
 Abre [http://localhost:8000](http://localhost:8000). La interfaz usa recursos estáticos incluidos en `app/public/assets`.
+
+## Pruebas
+
+Con los servicios en marcha:
+
+```bash
+docker compose exec app php artisan test
+```
+
+Para revisar los rangos que se generan para los rivales importados: `docker compose exec app php artisan bots:audit-ranges`.
 
 ## Rutas útiles
 

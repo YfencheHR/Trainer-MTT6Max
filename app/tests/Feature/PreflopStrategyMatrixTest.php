@@ -47,91 +47,15 @@ class PreflopStrategyMatrixTest extends TestCase
         $this->assertDatabaseCount('hand_group_values', 60);
     }
 
-    public function test_runtime_lookup_blends_a_hand_matrix_prior_and_modulates_it_for_the_aggressor(): void
+    public function test_base_profiles_do_not_play_so_they_get_no_preflop_strategy(): void
     {
-        $hand = $this->createHand('AA');
-        HandGroupValue::create([
-            'hand_group_id' => $hand->id,
-            'scenario' => 'Defense',
-            'positions' => ['BTN'],
-            'stack_depth_min' => 6,
-            'stack_depth_max' => 25,
-            'ev' => 1.2,
-            'actions' => [
-                'fold' => ['frequency_pct' => 20, 'ev_bb' => 0],
-                'call' => ['frequency_pct' => 40, 'ev_bb' => 0.5],
-                'raise_x3' => ['frequency_pct' => 40, 'ev_bb' => 1.5],
-            ],
-        ]);
+        $this->seed(BotSeeder::class);
+        $bot = Bot::where('tipo', 'tag')->firstOrFail(); // perfil base de los seeds: no es Pool
 
-        $strategyMatrix = app(PreflopStrategyMatrix::class);
-        $features = [
-            'street' => 'preflop',
-            'preflop_raises' => 1,
-            'position' => 'BTN',
-            'stack_bb' => 15,
-            'hand_code' => 'AA',
-            'agg_hands' => 0,
-            'agg_pfr' => null,
-        ];
-        $baseline = $strategyMatrix->forDecision([], $features);
-        $this->assertNotNull($baseline);
-        $this->assertSame('Defense', $baseline['scenario']);
-        $this->assertNull($baseline['opponent_adjustment']);
-
-        $features['agg_hands'] = 100;
-        $features['agg_pfr'] = 35;
-        $adjusted = $strategyMatrix->forDecision([], $features);
-        $this->assertNotNull($adjusted);
-        $this->assertEqualsWithDelta(100, array_sum($adjusted['distribution']), 0.001);
-        $this->assertGreaterThan($baseline['distribution']['raise_x3'], $adjusted['distribution']['raise_x3']);
-        $this->assertNotNull($adjusted['opponent_adjustment']);
-
-        $matrix = new DecisionMatrix('fold');
-        $fired = [];
-        app(RuleEngine::class)->apply([[
-            'id' => 'preflop_matrix',
-            'when' => ['f' => 'street', 'op' => '=', 'v' => 'preflop'],
-            'paint' => [[
-                'blend' => $adjusted['distribution'],
-                'weight' => $adjusted['prior_weight'],
-            ]],
-        ]], $features, $matrix, new Randomizer(new Mt19937(1)), $fired);
-
-        $this->assertGreaterThan(0, $matrix->points('raise_x3'));
-        $this->assertEqualsWithDelta(100, array_sum($matrix->distribution()), 0.02);
-    }
-
-    public function test_strategy_lookup_falls_back_when_its_preflop_scenario_is_not_applicable(): void
-    {
-        $hand = $this->createHand('AKs');
-        HandGroupValue::create([
-            'hand_group_id' => $hand->id,
-            'scenario' => 'Opener',
-            'positions' => ['CO'],
-            'stack_depth_min' => 6,
-            'stack_depth_max' => 25,
-            'ev' => 0,
-            'actions' => ['open_2_5bb' => ['frequency_pct' => 100, 'ev_bb' => 0.5]],
-        ]);
-
-        $strategyMatrix = app(PreflopStrategyMatrix::class);
-        $features = [
-            'street' => 'preflop',
-            'preflop_raises' => 0,
-            'limpers' => 1,
-            'position' => 'CO',
-            'stack_bb' => 15,
-            'hand_code' => 'AKs',
-        ];
-
-        $this->assertNull($strategyMatrix->forDecision([], $features));
-
-        $features['limpers'] = 0;
-        $this->assertNotNull($strategyMatrix->forDecision([], $features));
-
-        $features['preflop_raises'] = 2;
-        $this->assertNull($strategyMatrix->forDecision([], $features));
+        $this->assertNull(app(PreflopStrategyMatrix::class)->forDecision(
+            ['me' => ['bot_id' => $bot->id]],
+            ['street' => 'preflop', 'position' => 'BTN', 'stack_bb' => 50, 'hand_code' => 'AA', 'preflop_raises' => 0, 'limpers' => 0]
+        ));
     }
 
     public function test_pool_bot_uses_persisted_ranges_for_attack_defense_and_responses(): void

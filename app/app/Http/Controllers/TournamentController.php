@@ -7,6 +7,7 @@ use App\Models\Tournament;
 use App\Models\TournamentEvent;
 use App\Models\TournamentHand;
 use App\Models\TournamentPlayer;
+use App\Services\Bots\BotFreezer;
 use App\Services\Bots\Brain\BrainRepository;
 use App\Services\TableManagementService;
 use App\Services\Tournament\TournamentRoundService;
@@ -318,16 +319,21 @@ class TournamentController extends Controller
         }
 
         // Crear jugadores bots (si un bot se repite, se numera: Setminer, Setminer 2…)
-        // Cada jugador hereda el cerebro de su bot tal como está ahora (snapshot congelado)
+        // Cada jugador hereda el cerebro de su bot tal como está ahora (snapshot congelado) y juega con una COPIA CONGELADA
+        // de su perfil (estadísticas y rangos): importar, editar o borrar el perfil después no afecta a este torneo.
+        // bot_id es la copia; source_bot_id, el perfil vivo del que salió.
         $brains = app(BrainRepository::class);
+        $freezer = app(BotFreezer::class);
         $snapshots = [];
+        $frozen = [];
         $seen = [];
         foreach ($bots as $bot) {
             $seen[$bot->id] = ($seen[$bot->id] ?? 0) + 1;
             $baseName = $bot->nombre ?? $bot->name;
             TournamentPlayer::create([
                 'tournament_id' => $tournament->id,
-                'bot_id' => $bot->id,
+                'bot_id' => ($frozen[$bot->id] ??= $freezer->frozenFor($bot))->id,
+                'source_bot_id' => $bot->id,
                 'user_id' => null,
                 'brain_snapshot_id' => $snapshots[$bot->id] ??= $brains->snapshotFor($bot),
                 'name' => $seen[$bot->id] > 1 ? $baseName.' '.$seen[$bot->id] : $baseName,

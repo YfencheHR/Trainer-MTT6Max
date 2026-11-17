@@ -22,13 +22,14 @@ class RangeFilter
     /**
      * Inicializa los rangos para un jugador al inicio de la mano
      */
-    public function initializeHandRanges(TournamentHand $hand, TournamentPlayer $player): void
+    public function initializeHandRanges(TournamentHand $hand, TournamentPlayer $player, ?string $position = null): void
     {
         $bot = $player->bot;
         if (!$bot) return; // Solo para bots
 
-        // Crear entrada inicial con los rangos preflop del bot
-        $ranges = $this->getPreflopRanges($bot, $player->position ?? 'BTN');
+        // Crear entrada inicial con los rangos preflop del bot según su posición en la mano
+        $position = $position ?: 'BTN';
+        $ranges = $this->getPreflopRanges($bot, $position);
 
         HandActionRange::updateOrCreate(
             [
@@ -40,7 +41,7 @@ class RangeFilter
             [
                 'ranges' => $ranges,
                 'metadata' => [
-                    'position' => $player->position,
+                    'position' => $position,
                     'stack' => $player->stack,
                 ],
             ]
@@ -60,6 +61,10 @@ class RangeFilter
         $bot = $player->bot;
         if (!$bot) return;
 
+        // El fold no cambia el rango mostrado: se conserva el de la última acción previa.
+        // Un bot que foldea sin haber entrado en la mano no genera ningún rango visible.
+        if ($action === 'fold') return;
+
         // Cargar el rango anterior
         $previous = HandActionRange::where([
             'hand_id' => $hand->id,
@@ -67,7 +72,7 @@ class RangeFilter
             'street' => $street,
         ])->latest('id')->first();
 
-        $previousRanges = $previous?->ranges ?? $this->getPreflopRanges($bot, $player->position ?? 'BTN');
+        $previousRanges = $previous?->ranges ?? $this->getPreflopRanges($bot, $context['position'] ?? 'BTN');
 
         // Filtrar el rango según la acción tomada
         $filteredRanges = $this->filterByAction($previousRanges, $action, $context);
@@ -135,6 +140,11 @@ class RangeFilter
                 // excepto si es 0% (no la jugaría nunca)
                 $actionKey = $this->mapActionToKey($action);
                 $frequency = (float) ($handData[$actionKey] ?? 0);
+
+                // Un raise puede ser una apertura (open), un 3-bet de defensa o un resubir (raise): vale cualquiera de los tres.
+                if ($actionKey === 'raise') {
+                    $frequency = max($frequency, (float) ($handData['open'] ?? 0), (float) ($handData['defense_3bet'] ?? 0));
+                }
 
                 // If primary key has 0 frequency, try defense variant for defensive actions
                 if ($frequency === 0 && $action === 'call' && isset($handData['defense_call'])) {
@@ -211,6 +221,32 @@ class RangeFilter
         $actors = $context['actors_count'] ?? 1;
 
         return "{$street}_{$action}_{$actionCount}";
+    }
+
+    /**
+     * Rangos de los jugadores que ya han entrado en la mano (han hecho alguna acción
+     * distinta de fold). Devuelve [player_id => ['ranges' => [...], 'action' => 'call']]
+     * con el rango de su última acción. No incluye los rangos 'initial'.
+     */
+    public function getEnteredRanges(TournamentHand $hand, array $playerIds): array
+    {
+        if (empty($playerIds)) return [];
+
+        $rows = HandActionRange::where('hand_id', $hand->id)
+            ->whereIn('player_id', $playerIds)
+            ->where('sequence', '!=', 'initial')
+            ->orderBy('id')
+            ->get();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[$row->player_id] = [
+                'ranges' => $row->ranges ?? [],
+                'action' => $row->metadata['action'] ?? null,
+            ];
+        }
+
+        return $out;
     }
 
     /**

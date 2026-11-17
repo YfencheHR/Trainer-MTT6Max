@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Bot extends Model
 {
@@ -31,8 +33,41 @@ class Bot extends Model
         'profesional' => 'boolean',
         'vpip' => 'integer',
         'pfr' => 'integer',
-        'tilt_risk' => 'integer'
+        'tilt_risk' => 'integer',
+        'archived_at' => 'datetime',
     ];
+
+    /**
+     * Los bots archivados (perfiles Pool que ya tenían torneos al recalcular una importación, y copias congeladas de los
+     * torneos) no salen en listas, importaciones ni selección de torneos. Quien los necesite (el juego, que los lee por
+     * su id) debe pedirlos con Bot::withoutGlobalScope('active') o a través de la relación TournamentPlayer::bot().
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('active', function (Builder $query) {
+            // Durante una instalación nueva, migraciones anteriores a la que crea la columna usan este modelo: hasta que
+            // exista no se filtra (solo se recuerda el "sí", así que no se vuelve a consultar el esquema).
+            if (! self::$hasArchivedColumn) {
+                self::$hasArchivedColumn = Schema::hasColumn('bots', 'archived_at');
+            }
+            if (self::$hasArchivedColumn) {
+                $query->whereNull($query->getModel()->getTable() . '.archived_at');
+            }
+        });
+    }
+
+    private static bool $hasArchivedColumn = false;
+
+    /** Olvida si existe la columna archived_at (lo invoca AppServiceProvider: al arrancar y al empezar cada migración). */
+    public static function forgetArchivedColumn(): void
+    {
+        self::$hasArchivedColumn = false;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
 
     /**
      * Relación a estadísticas HUD
@@ -55,7 +90,19 @@ class Bot extends Model
         return $this->hasMany(BotPreflopHandStat::class, 'bot_id');
     }
 
+    public function preflopVsOpenerStats(): HasMany
+    {
+        return $this->hasMany(BotPreflopVsOpenerStat::class, 'bot_id');
+    }
+
+    /** Tabla preflop general del perfil (la editable y la de respaldo); las de cada tramo de stack: stackPreflopRanges(). */
     public function preflopHandRanges(): HasMany
+    {
+        return $this->hasMany(BotPreflopHandRange::class, 'bot_id')->where('stack_bucket', 'all');
+    }
+
+    /** Todas las filas de tablas preflop del bot, de todos los tramos de stack. */
+    public function allPreflopHandRanges(): HasMany
     {
         return $this->hasMany(BotPreflopHandRange::class, 'bot_id');
     }

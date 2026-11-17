@@ -37,7 +37,9 @@ class Pt4ImportCommand extends Command
                 }
                 $this->info($imp->restore($this->argument('file')) . ' tablas restauradas');
             }
-            $r = $imp->import((int) $this->option('min-hands'), (bool) $this->option('dry'), (int) $this->option('bot-hands'), (bool) $this->option('reset'));
+            // Todo lo que escribe la importación en la base de datos va en UNA transacción: si falla a mitad (archivo dañado,
+            // falta una columna...) se deshace entero y los perfiles anteriores quedan como estaban, en vez de perderse.
+            $r = DB::transaction(fn() => $imp->import((int) $this->option('min-hands'), (bool) $this->option('dry'), (int) $this->option('bot-hands'), (bool) $this->option('reset')));
         } catch (\Throwable $e) {
             $this->error($e->getMessage());
 

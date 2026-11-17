@@ -1,123 +1,52 @@
 @props(['handId'])
 
-<div x-data="botsActionRanges({{ $handId }})" class="bg-slate-900 rounded-lg border border-slate-700 p-4">
-    <h3 class="text-sm font-semibold text-slate-200 mb-4">Rivales en Accion - Rangos</h3>
+{{-- Rangos de los rivales que han entrado en la mano. Mismo contenedor que el registro de la mano. --}}
+<div x-data="botsActionRanges({{ $handId }})" style="background-color: #1a212a; border: 1px solid #2e3a48; border-radius: 0.5rem; padding: 0.75rem;">
+  <p style="color: #d1d5db; font-weight: 600; margin: 0 0 0.5rem; font-size: 0.8rem; text-transform: uppercase;">
+    🎯 Rivales en acción · rangos
+  </p>
 
-    <div x-show="activeBots.length === 0" class="text-slate-400 text-sm">
-        Esperando accion de bots...
+  <div x-show="activeBots.length === 0" style="color: #9ca3af; font-size: 0.8rem;">
+    Esperando acción de los rivales...
+  </div>
+
+  <div x-show="activeBots.length > 0" style="display: flex; flex-direction: column; gap: 0.75rem;">
+    <div style="display: flex; flex-wrap: wrap; gap: 0.6rem; font-size: 0.65rem; color: #9ca3af;">
+      <span><span style="display:inline-block;width:0.6rem;height:0.6rem;background:#4b5563;border-radius:2px;"></span> Fold</span>
+      <span><span style="display:inline-block;width:0.6rem;height:0.6rem;background:#1d4ed8;border-radius:2px;"></span> Call</span>
+      <span><span style="display:inline-block;width:0.6rem;height:0.6rem;background:#b91c1c;border-radius:2px;"></span> Raise</span>
+      <span><span style="display:inline-block;width:0.6rem;height:0.6rem;background:#15803d;border-radius:2px;"></span> Check</span>
     </div>
 
-    <div x-show="activeBots.length > 0" class="space-y-3">
-        <template x-for="bot in activeBots" :key="bot.id">
-            <div class="border border-slate-700 rounded p-2">
-                <!-- Bot Header -->
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-slate-100 text-sm" x-text="bot.name"></span>
-                        <span class="text-xs bg-slate-700 px-1.5 py-0.5 rounded" x-text="bot.position"></span>
-                    </div>
-                    <div class="flex gap-1">
-                        <span x-show="bot.action" class="text-xs bg-blue-900 text-blue-200 px-1.5 py-0.5 rounded" x-text="bot.action.toUpperCase()"></span>
-                        <span x-show="bot.is_folded" class="text-xs bg-red-900 text-red-200 px-1.5 py-0.5 rounded">FOLD</span>
-                        <span x-show="bot.is_all_in && !bot.is_folded" class="text-xs bg-orange-900 text-orange-200 px-1.5 py-0.5 rounded">ALL-IN</span>
-                    </div>
-                </div>
+    <template x-for="bot in activeBots" :key="bot.id">
+      <div style="border-top: 1px solid #2e3a48; padding-top: 0.5rem;" :style="{ opacity: bot.is_folded ? 0.55 : 1 }">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.4rem; min-width: 0;">
+            <span style="color: #e5e7eb; font-size: 0.8rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="bot.name"></span>
+            <span style="font-size: 0.65rem; background: #2e3a48; color: #d1d5db; padding: 0 0.35rem; border-radius: 0.25rem;" x-text="bot.position"></span>
+          </div>
+          <div style="display: flex; gap: 0.25rem; flex-shrink: 0;">
+            <span x-show="bot.action" style="font-size: 0.65rem; background: #1e3a8a; color: #bfdbfe; padding: 0 0.35rem; border-radius: 0.25rem;" x-text="(bot.action || '').toUpperCase()"></span>
+            <span x-show="bot.is_folded" style="font-size: 0.65rem; background: #7f1d1d; color: #fecaca; padding: 0 0.35rem; border-radius: 0.25rem;">FOLD</span>
+            <span x-show="bot.is_all_in && !bot.is_folded" style="font-size: 0.65rem; background: #7c2d12; color: #fed7aa; padding: 0 0.35rem; border-radius: 0.25rem;">ALL-IN</span>
+          </div>
+        </div>
 
-                <!-- Range Matrix -->
-                <div x-show="bot.ranges && Object.keys(bot.ranges).length > 0" class="overflow-x-auto text-xs">
-                    <table class="w-full">
-                        <tbody>
-                            <template x-for="(range, hand) in bot.ranges" :key="hand">
-                                <tr class="border-b border-slate-800 hover:bg-slate-800" :class="{'opacity-40': bot.is_folded}">
-                                    <td class="px-1 py-0.5 font-mono text-slate-300" x-text="hand"></td>
-                                    <td class="text-center px-1 py-0.5">
-                                        <span x-show="range.fold > 0" class="text-red-400 font-semibold">F</span>
-                                        <span x-show="range.call > 0" class="text-yellow-400 font-semibold">C</span>
-                                        <span x-show="range.raise > 0" class="text-green-400 font-semibold">R</span>
-                                        <span x-show="range.check > 0" class="text-blue-400 font-semibold">K</span>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
+        <div x-show="bot.ranges && Object.keys(bot.ranges).length > 0">
+        <div style="display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 1px;">
+          <template x-for="c in cells(bot)" :key="c.hand">
+            <div :title="c.title" :style="{ background: c.bg, opacity: c.active ? 1 : 0.35 }"
+              style="aspect-ratio: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.5rem; font-weight: 600; text-shadow: 0 1px 2px #000; border-radius: 2px; overflow: hidden; user-select: none;"
+              x-text="c.hand"></div>
+          </template>
+        </div>
+        </div>
 
-                <!-- No Ranges -->
-                <div x-show="!bot.ranges || Object.keys(bot.ranges).length === 0" class="text-slate-400 text-xs py-1">
-                    <span x-show="bot.action === 'fold'">Se fue preflop</span>
-                    <span x-show="!bot.action || bot.action !== 'fold'">Esperando rango...</span>
-                </div>
-            </div>
-        </template>
-    </div>
+        <div x-show="!bot.ranges || Object.keys(bot.ranges).length === 0" style="color: #9ca3af; font-size: 0.75rem;">
+          <span x-show="bot.is_folded">Se fue (fold)</span>
+          <span x-show="!bot.is_folded">Esperando rango...</span>
+        </div>
+      </div>
+    </template>
+  </div>
 </div>
-
-<script>
-function botsActionRanges(handId) {
-    return {
-        handId: handId,
-        activeBots: [],
-
-        init() {
-            console.log('Init botsActionRanges para hand', this.handId);
-
-            this.$watch(
-                () => ({
-                    players: this.$store.handStatistics.data.players,
-                    dynamicRanges: this.$store.gameState.dynamicRanges,
-                }),
-                (newData) => {
-                    console.log('Watch triggered:', newData);
-                    this.updateBots();
-                },
-                { deep: true }
-            );
-
-            setTimeout(() => {
-                console.log('Initial update');
-                this.updateBots();
-            }, 100);
-        },
-
-        updateBots() {
-            const players = this.$store.handStatistics.data.players || [];
-            const dynamicRanges = this.$store.gameState.dynamicRanges;
-
-            console.log('updateBots - players:', players);
-            console.log('updateBots - dynamicRanges:', dynamicRanges);
-
-            const botsMap = new Map(this.activeBots.map(b => [b.id, b]));
-            const newActiveBots = [];
-
-            players.forEach(player => {
-                if (!player.is_bot) return;
-
-                const botData = {
-                    id: player.id,
-                    name: player.name,
-                    position: player.position,
-                    is_folded: player.is_folded,
-                    is_all_in: player.is_all_in,
-                    action: null,
-                    ranges: null
-                };
-
-                if (dynamicRanges && dynamicRanges.player_id === player.id) {
-                    botData.ranges = dynamicRanges.ranges;
-                    botData.action = 'rango actual';
-                } else {
-                    const existingBot = botsMap.get(player.id);
-                    if (existingBot && existingBot.ranges) {
-                        botData.ranges = existingBot.ranges;
-                    }
-                }
-
-                newActiveBots.push(botData);
-            });
-
-            console.log('newActiveBots:', newActiveBots);
-            this.activeBots = newActiveBots;
-        }
-    };
-}
-</script>
