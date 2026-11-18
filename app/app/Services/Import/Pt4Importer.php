@@ -456,9 +456,50 @@ class Pt4Importer
             DB::table('bet_size_prior_model')->delete();
         }
         $this->accumulate('bet_size_population', [], $rows);
+        $this->storeFoldBySize();
 
         // Con muestra insuficiente (p. ej. una importación pequeña en modo suma) se conserva el modelo anterior
         BluffPriorModel::saveModels($this->fitBluffModels());
+    }
+
+    /**
+     * Respuesta de la población a la PRIMERA apuesta de cada calle según su tamaño (tabla fold_to_bet_size_population).
+     * Comprobado contra DB0.backup: amt_*_bet_facing > 0 marca al jugador que se enfrenta a esa apuesta y val_*_bet_facing_pct es
+     * apuesta/(bote+apuesta), que se pasa a % del bote anterior. Se excluye a quien apostó él mismo (se enfrentaría a una subida).
+     * Abandona = fold sin haber pagado ni subido en la calle; sube = alguna subida.
+     */
+    private function storeFoldBySize(): void
+    {
+        if (! $this->merge) {
+            DB::table('fold_to_bet_size_population')->delete();
+        }
+        $now = now();
+        foreach (BetTier::STREETS as $street => $boardCards) {
+            $l = ['flop' => 'f', 'turn' => 't', 'river' => 'r'][$street];
+            $rows = $this->tmp()->select("
+                select case when q <= 25 then '25' when q <= 40 then '40' when q <= 60 then '60' when q <= 85 then '85' else 'max' end as bucket,
+                       count(*) as faced,
+                       sum((fo and r = 0 and c = 0)::int) as folded,
+                       sum((r > 0)::int) as raised
+                from (select 100 * s.val_{$l}_bet_facing_pct / nullif(100 - s.val_{$l}_bet_facing_pct, 0) as q,
+                             s.flg_{$l}_fold as fo, s.cnt_{$l}_raise as r, s.cnt_{$l}_call as c
+                      from fresh_stats s
+                      where not s.flg_hero and s.amt_{$l}_bet_facing > 0 and s.val_{$l}_bet_facing_pct > 0 and s.val_{$l}_bet_facing_pct < 100
+                        and not s.flg_{$l}_bet) x
+                where q is not null
+                group by 1");
+            foreach ($rows as $row) {
+                $where = ['street' => $street, 'bucket' => $row->bucket];
+                $add = ['faced' => (int) $row->faced, 'folded' => (int) $row->folded, 'raised' => (int) $row->raised];
+                $updated = DB::table('fold_to_bet_size_population')->where($where)->update([
+                    'faced' => DB::raw('faced + ' . $add['faced']), 'folded' => DB::raw('folded + ' . $add['folded']),
+                    'raised' => DB::raw('raised + ' . $add['raised']), 'updated_at' => $now,
+                ]);
+                if (! $updated) {
+                    DB::table('fold_to_bet_size_population')->insert($where + $add + ['created_at' => $now, 'updated_at' => $now]);
+                }
+            }
+        }
     }
 
     /**

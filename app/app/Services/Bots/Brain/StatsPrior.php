@@ -37,13 +37,13 @@ class StatsPrior
 
         // Un proyecto cuenta como una mano más fuerte para CONTINUAR: abandona menos que el aire con su misma fuerza
         $qEff = $q * (1 - self::DRAW_CONTINUE * $d);
-        $fold = (float) ($f['own_f2bet'] ?? 30) * $this->weak($qEff) * ($mods['fold_mult'] ?? 1.0);
+        $fold = (float) ($f['own_f2bet'] ?? 30) * $this->weak($qEff) * ($mods['fold_mult'] ?? 1.0) * (float) ($f['size_fold_mult'] ?? 1.0);
         $fold = $this->clamp($fold, 0, 100);
 
         // Subir lo empujan las manos fuertes (valor) Y los proyectos (semifarol); la agresión de sus estadísticas multiplica el semifarol
         $raiseBase = (float) ($f['own_raise_vs_bet'] ?? 0);
         $raiseWeight = $this->strong($q) + self::SEMIBLUFF_RAISE * $d * $this->aggMult($f);
-        $raise = (100 - $fold) * ($raiseBase / 100) * $raiseWeight * ($mods['raise_mult'] ?? 1.0);
+        $raise = (100 - $fold) * ($raiseBase / 100) * $raiseWeight * ($mods['raise_mult'] ?? 1.0) * (float) ($f['size_raise_mult'] ?? 1.0);
         $raise *= $this->clamp(((float) ($f['opponent_call_frequency'] ?? 50.0)) / 50.0, 0.75, 1.25);
         $raise = $this->clamp($raise, 0, 100 - $fold);
 

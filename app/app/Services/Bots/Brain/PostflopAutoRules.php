@@ -79,8 +79,8 @@ class PostflopAutoRules
 
         // ---------------------------------------------------------------- hay una apuesta que igualar
         $mods = [
-            ['lead' => 'face_mod_apuesta_grande', 'when' => self::c('bet_vs_pot', '>=', 80), 'mod' => ['fold_mult' => 1.5], 'name' => 'Apuesta grande: abandona más'],
-            ['lead' => 'face_mod_apuesta_pequena', 'when' => self::c('bet_vs_pot', '<=', 33), 'mod' => ['fold_mult' => 0.5], 'name' => 'Apuesta pequeña: abandona menos'],
+            // El tamaño de la apuesta ya NO es una regla fija: size_fold_mult / size_raise_mult (Perceiver, FoldBySize) salen de la
+            // respuesta real de la población de PokerTracker por tramo de tamaño y los aplica StatsPrior::facingBet.
             ['lead' => 'face_mod_precio_bueno', 'when' => ['f' => 'range_equity', 'op' => '>=', 'v' => ['ref' => 'pot_odds', 'add' => 15]], 'mod' => ['fold_mult' => 0.3], 'name' => 'Su equity contra el rango del rival supera con holgura el precio: casi nunca abandona'],
             ['lead' => 'face_mod_precio_malo', 'when' => ['f' => 'range_equity', 'op' => '<', 'v' => ['ref' => 'pot_odds', 'add' => -10]], 'mod' => ['fold_mult' => 1.4], 'name' => 'Su equity contra el rango del rival no llega al precio: abandona más'],
             // Subir exige una mano fuerte en términos absolutos, no solo estar arriba de su rango

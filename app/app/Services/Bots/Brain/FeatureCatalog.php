@@ -43,6 +43,8 @@ class FeatureCatalog
             'spr' => ['float', 'stack / bote'],
             'spr_after_call' => ['float', 'SPR efectivo que queda después de igualar'],
             'effective_stack_bb' => ['float', 'menor stack inicial efectivo entre el bot y los rivales que siguen en la mano'],
+            'size_fold_mult' => ['float', 'multiplicador de fold según el tamaño de la apuesta rival (datos de PokerTracker; 1 = lo habitual de la calle)'],
+            'size_raise_mult' => ['float', 'multiplicador de subida según el tamaño de la apuesta rival (datos de PokerTracker)'],
             'bet_size_factor' => ['float', 'ajuste del tamaño de apuesta por valor según la respuesta estimada de los rivales'],
             // Mano de salida
             'hand_pair' => ['bool', 'pareja de bolsillo'],

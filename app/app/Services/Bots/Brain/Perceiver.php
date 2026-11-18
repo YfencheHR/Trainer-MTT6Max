@@ -2,6 +2,8 @@
 
 namespace App\Services\Bots\Brain;
 
+use App\Services\Bots\BetTier;
+use App\Services\Bots\FoldBySize;
 use App\Services\Ev\EquityCalculator;
 use App\Services\Ev\FastHandEvaluator as F;
 use Random\Randomizer;
@@ -37,7 +39,7 @@ class Perceiver
     private const POSITION_GROUP = ['UTG' => 'early', 'HJ' => 'middle', 'CO' => 'late', 'BTN' => 'late', 'SB' => 'blinds', 'BB' => 'blinds'];
     private const POSITION_FACTOR = ['early' => 0.8, 'middle' => 0.95, 'late' => 1.25, 'blinds' => 1.0];
 
-    public function __construct(private PreflopRanking $ranking, private EquityCalculator $equity)
+    public function __construct(private PreflopRanking $ranking, private EquityCalculator $equity, private FoldBySize $foldBySize)
     {
     }
 
@@ -328,6 +330,12 @@ class Perceiver
         // En posición / fuera de posición y papel (agresor o defensor): si el bot tiene cifras específicas para esa
         // situación (importadas de PokerTracker) sustituyen a las generales de la calle
         $f['in_position'] = $this->inPosition($me['position'], $others, $ctx['players'] ?? []);
+        // Cuánto abandona / sube la población ante una apuesta de ESE tamaño (datos de PokerTracker, relativo a la media de la calle)
+        $bySize = $f['facing_bet'] && isset(BetTier::STREETS[$street])
+            ? $this->foldBySize->multipliers($street, (float) $f['bet_vs_pot'])
+            : ['fold' => 1.0, 'raise' => 1.0];
+        $f['size_fold_mult'] = round($bySize['fold'], 3);
+        $f['size_raise_mult'] = round($bySize['raise'], 3);
         $f['bet_size_factor'] = 1.0;
         if ($street === 'river' && $f['in_position'] && ($f['value_combo_pct'] ?? 100) <= 20) {
             $f['bet_size_factor'] = round($this->clamp(
