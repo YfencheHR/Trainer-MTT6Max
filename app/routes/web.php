@@ -66,6 +66,7 @@ Route::prefix('mtt-simulator/hand')->group(function () {
 Route::get('/import', [ImportController::class, 'index'])->name('import.index');
 Route::post('/import/upload', [ImportController::class, 'chunk'])->name('import.upload');
 Route::get('/import/status/{run}', [ImportController::class, 'status'])->name('import.status');
+Route::post('/import/simulate', [\App\Http\Controllers\SimulationController::class, 'run'])->name('import.simulate');
 
 // Historial del torneo (todas las mesas, ronda a ronda)
 Route::get('/mtt-simulator/{tournament}/history', [TournamentHistoryController::class, 'index'])->name('mtt-simulator.history');

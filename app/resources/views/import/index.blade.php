@@ -134,7 +134,72 @@
     <p x-show="state === 'failed'" style="margin: 0.75rem 0 0; color: #f87171; font-weight: 600;">✗ La importación ha fallado (mira el registro)</p>
     <pre x-show="log" x-text="log" style="margin: 0.75rem 0 0; padding: 0.75rem; background: #11161c; border: 1px solid #2e3a48; border-radius: 0.4rem; font-size: 0.75rem; max-height: 22rem; overflow: auto; white-space: pre;"></pre>
   </section>
+
+  <section x-data="pt4Simulate()" style="margin-top: 1.25rem; background: #1a212a; border: 1px solid #2e3a48; border-radius: 0.5rem; padding: 1.25rem;">
+    <h2 style="margin: 0 0 0.5rem; font-size: 1rem;">{{ __('simulation.title') }}</h2>
+    <p style="margin: 0 0 0.9rem; font-size: 0.85rem; color: #9ca3af; max-width: 760px;">{{ __('simulation.intro') }}</p>
+    <div class="pt4-import-controls">
+      <label style="font-size: 0.8rem; color: #9ca3af;">{{ __('simulation.players') }}
+        <input class="pt4-min-hands-input" type="number" x-model.number="players" min="12" max="600" :disabled="busy">
+      </label>
+      <label style="font-size: 0.8rem; color: #9ca3af;">{{ __('simulation.speed') }}
+        <select class="pt4-min-hands-input" x-model="speed" :disabled="busy">
+          @foreach (\App\Services\Tournament\SimulationLauncher::SPEEDS as $s)
+            <option value="{{ $s }}">{{ __('simulation.speed_' . $s) }}</option>
+          @endforeach
+        </select>
+      </label>
+      <button type="button" @click="start()" :disabled="busy" class="pt4-import-button"
+        x-text="busy ? @js(__('simulation.working')) : @js(__('simulation.button'))"></button>
+    </div>
+    <p style="margin: 0.6rem 0 0; font-size: 0.75rem; color: #9ca3af;">{{ __('simulation.replaces') }}</p>
+    <p style="margin: 0.4rem 0 0; font-size: 0.75rem; color: #9ca3af;">{{ __('simulation.how_to_read') }}</p>
+    <p x-show="error" x-text="error" style="margin: 0.75rem 0 0; color: #f87171;"></p>
+    <p x-show="state === 'done'" style="margin: 0.75rem 0 0; color: #34d399; font-weight: 600;">{{ __('simulation.done') }}</p>
+    <p x-show="state === 'failed'" style="margin: 0.75rem 0 0; color: #f87171; font-weight: 600;">{{ __('simulation.failed') }}</p>
+    <pre x-show="log" x-text="log" style="margin: 0.75rem 0 0; padding: 0.75rem; background: #11161c; border: 1px solid #2e3a48; border-radius: 0.4rem; font-size: 0.75rem; max-height: 30rem; overflow: auto; white-space: pre;"></pre>
+  </section>
 </div>
+
+<script>
+  function pt4Simulate() {
+    return {
+      players: 600, speed: 'tipica', busy: false, error: null, state: null, log: '',
+      csrf: document.querySelector('meta[name=csrf-token]').content,
+
+      async start() {
+        this.error = null; this.state = null; this.log = ''; this.busy = true;
+        try {
+          const r = await fetch(@json(route('import.simulate')), {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf },
+            body: JSON.stringify({ players: this.players, speed: this.speed }),
+          });
+          const j = await r.json();
+          if (!r.ok || !j.success) {
+            if (j.run) { await this.poll(j.run); }
+            throw new Error(j.message || Object.values(j.errors || {}).flat().join(' ') || 'Error');
+          }
+          await this.poll(j.run);
+        } catch (e) {
+          this.error = e.message;
+        } finally {
+          this.busy = false;
+        }
+      },
+
+      async poll(run) {
+        const url = @json(route('import.status', ['run' => '__RUN__'])).replace('__RUN__', run);
+        for (;;) {
+          const j = await (await fetch(url, { headers: { 'Accept': 'application/json' } })).json();
+          this.log = j.log; this.state = j.state;
+          if (j.state !== 'running') return;
+          await new Promise(r => setTimeout(r, 5000));
+        }
+      },
+    };
+  }
+</script>
 
 <script>
   function pt4Import() {

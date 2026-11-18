@@ -17,6 +17,7 @@ La aplicación permite crear y configurar bots con diferentes perfiles, jugar to
 - Explorar matrices de manos y escenarios de manos hechas.
 - Importar historiales de PokerTracker 4 y generar perfiles de bots, con sus tablas de decisión preflop, a partir de esos datos.
 - Ver, durante la mano, los rangos de los rivales que han entrado en el bote.
+- Simular torneos completos solo de bots (hasta 600 jugadores) y analizar cómo jugó cada perfil frente a sus estadísticas, desde `/import`.
 - Consultar bots mediante endpoints JSON.
 
 El importador de PokerTracker está implementado. Procesa una copia de la base de datos en un entorno temporal y elimina esa copia al terminar. Los resultados se pueden revisar y ajustar desde la aplicación.
@@ -54,6 +55,10 @@ Hay más ideas y mejoras planteadas que se irán definiendo durante el desarroll
 En `/import` se puede subir una copia comprimida de una base de PokerTracker 4. El sistema la procesa en una base temporal, calcula estadísticas de los jugadores y las distribuye entre perfiles de bot. Cuando un jugador no encaja en los perfiles disponibles, se puede generar un bot nuevo. Después de importar, los perfiles se pueden revisar y configurar en la aplicación.
 
 Las estadísticas se calculan en general, por posición y por tramo de stack, y con ellas se generan las tablas de decisión de cada perfil. También se guarda una matriz de apuestas (tipo de mano y tamaño, por calle) que se consulta con `php artisan bots:bet-matrix`. Con los datos de los showdown se ajusta qué tipo de manos juega cada perfil, y las estadísticas extremas se acotan para evitar rangos irreales (por ejemplo, que un rival foldee AA).
+
+### Simular un torneo y comprobar cómo juegan los bots
+
+En la misma página `/import`, bajo la importación, hay otra acción: **Simular y analizar**. Juega un torneo completo solo de bots, sin pantalla y con todas las mesas a la vez (600 jugadores por defecto: stack 10.000, ciega grande 100, ante progresivo), con los perfiles importados repartidos a partes iguales. Al terminar analiza las decisiones postflop: frecuencias reales frente a las estadísticas de cada perfil (fold ante apuesta, apuesta de continuación…), fugas concretas y peores decisiones. Sirve para comprobar, tras importar, que los bots juegan como se espera. Cada simulación borra las simuladas anteriores; los torneos que creas tú no se tocan. Desde la consola: `php artisan tournament:simulate` y `php artisan bots:audit-postflop --only-simulated` (detalle en `Trainer-MTT-DOCS/10-Simulador-sin-cabeza-y-auditoria.md`).
 
 Al reimportar con "Recalcular desde cero", los perfiles que ya participan en torneos se archivan en lugar de borrarse, y la importación es atómica: si falla, los perfiles anteriores quedan como estaban. Cada torneo juega con una copia congelada de sus rivales, así que reimportar o editar un perfil después no cambia los torneos ya creados.
 
@@ -159,7 +164,7 @@ Para revisar los rangos que se generan para los rivales importados: `docker comp
 - `/mtt-simulator` — torneos MTT.
 - `/hand-matrix` — matriz de manos.
 - `/made-hands` — escenarios de manos hechas.
-- `/import` — importación de PokerTracker 4.
+- `/import` — importación de PokerTracker 4 y simulación de torneos de bots con su análisis.
 - `/api/bots` y `/api/bots/{id}` — datos de bots en JSON.
 
 ## Configuración y datos locales
