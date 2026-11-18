@@ -4,12 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Bot;
 use App\Models\Tournament;
-use App\Models\TournamentEvent;
 use App\Models\TournamentHand;
-use App\Models\TournamentPlayer;
-use App\Services\Bots\BotFreezer;
-use App\Services\Bots\Brain\BrainRepository;
-use App\Services\TableManagementService;
+use App\Services\Tournament\TournamentFactory;
 use App\Services\Tournament\TournamentRoundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -134,46 +130,12 @@ class TournamentController extends Controller
 
         // Rivales = jugadores totales - el héroe (si existe), repartidos según el % de cada bot
         $hasHero = $validated['hero_player'] ?? true;
-        $allBots = $poolBots;
         $opponents = $hasHero ? max(1, (int) $validated['num_players'] - 1) : (int) $validated['num_players'];
-        $totalWeight = array_sum($botPercentages);
 
-        $shares = [];
-        foreach ($botPercentages as $botId => $percentage) {
-            if ($allBots->find($botId)) {
-                $raw = $opponents * $percentage / $totalWeight;
-                $shares[$botId] = ['count' => (int) floor($raw), 'rest' => $raw - floor($raw)];
-            }
-        }
-        // Método del mayor resto: que la suma sea exactamente el nº de rivales
-        $missing = $opponents - array_sum(array_column($shares, 'count'));
-        uasort($shares, fn ($x, $y) => $y['rest'] <=> $x['rest']);
-        foreach (array_keys($shares) as $botId) {
-            if ($missing-- <= 0) {
-                break;
-            }
-            $shares[$botId]['count']++;
-        }
-
-        $botsToAdd = [];
-        foreach ($shares as $botId => $share) {
-            for ($i = 0; $i < $share['count']; $i++) {
-                $botsToAdd[] = $allBots->find($botId);
-            }
-        }
-        shuffle($botsToAdd);
-        $num_players = count($botsToAdd) + ($hasHero ? 1 : 0);
-
-        $config = $this->buildTournamentConfig($validated, $botsToAdd, $num_players);
-
-        $tournament = Tournament::create([
-            'title' => Tournament::generateTitle(),
-            'status' => 'pending',
-            'config' => $config,
-        ]);
-
-        // Crear jugadores del torneo
-        $this->createTournamentPlayers($tournament, $botsToAdd, $validated['starting_stack'], $hasHero);
+        $factory = app(TournamentFactory::class);
+        $botsToAdd = $factory->allocateBots($poolBots, $botPercentages, $opponents);
+        $hero = $hasHero ? ['user_id' => auth()->id(), 'name' => auth()->user()->name ?? 'Player'] : null;
+        $tournament = $factory->create($validated, $botsToAdd, $hero);
 
         return redirect()->route('mtt-simulator.show', $tournament)
             ->with('success', __('tournaments.created_successfully'));
@@ -257,29 +219,7 @@ class TournamentController extends Controller
             return back()->with('error', __('tournaments.cannot_start'));
         }
 
-        $tournament->update([
-            'status' => 'in_progress',
-            'started_at' => now(),
-        ]);
-
-        // Distribuir jugadores en mesas
-        $tableService = new TableManagementService;
-        $tableService->distributePlayers($tournament);
-
-        // Historial: reparto inicial de asientos (necesario para poder reproducir el torneo)
-        $seating = [];
-        foreach ($tournament->tables()->orderBy('table_number')->get() as $table) {
-            $seats = DB::table('table_players')
-                ->join('tournament_players', 'tournament_players.id', '=', 'table_players.tournament_player_id')
-                ->where('table_players.table_id', $table->id)->orderBy('table_players.seat_number')
-                ->get(['table_players.seat_number as seat', 'tournament_players.id as player_id', 'tournament_players.name', 'tournament_players.bot_id', 'tournament_players.starting_stack as stack']);
-            $seating[] = ['table_id' => $table->id, 'number' => $table->table_number, 'seats' => $seats->all()];
-        }
-        TournamentEvent::record(
-            $tournament, 'tournament_started',
-            'Torneo iniciado: '.$tournament->players()->count().' jugadores en '.count($seating).' mesas',
-            0, ['tables' => $seating, 'config' => $tournament->config]
-        );
+        app(TournamentFactory::class)->start($tournament);
 
         return redirect()->route('mtt-simulator.play', $tournament)
             ->with('success', __('tournaments.started'));
@@ -300,102 +240,4 @@ class TournamentController extends Controller
             ->with('success', __('tournaments.ended'));
     }
 
-    private function createTournamentPlayers(Tournament $tournament, $bots, $starting_stack, bool $hasHero = true): void
-    {
-        $position = 0;
-
-        // Crear jugador humano (usuario actual) solo si está habilitado
-        if ($hasHero) {
-            TournamentPlayer::create([
-                'tournament_id' => $tournament->id,
-                'user_id' => auth()->id(),
-                'bot_id' => null,
-                'name' => auth()->user()->name ?? 'Player',
-                'starting_stack' => $starting_stack,
-                'current_stack' => $starting_stack,
-                'is_bot' => false,
-                'position' => $position++,
-            ]);
-        }
-
-        // Crear jugadores bots (si un bot se repite, se numera: Setminer, Setminer 2…)
-        // Cada jugador hereda el cerebro de su bot tal como está ahora (snapshot congelado) y juega con una COPIA CONGELADA
-        // de su perfil (estadísticas y rangos): importar, editar o borrar el perfil después no afecta a este torneo.
-        // bot_id es la copia; source_bot_id, el perfil vivo del que salió.
-        $brains = app(BrainRepository::class);
-        $freezer = app(BotFreezer::class);
-        $snapshots = [];
-        $frozen = [];
-        $seen = [];
-        foreach ($bots as $bot) {
-            $seen[$bot->id] = ($seen[$bot->id] ?? 0) + 1;
-            $baseName = $bot->nombre ?? $bot->name;
-            TournamentPlayer::create([
-                'tournament_id' => $tournament->id,
-                'bot_id' => ($frozen[$bot->id] ??= $freezer->frozenFor($bot))->id,
-                'source_bot_id' => $bot->id,
-                'user_id' => null,
-                'brain_snapshot_id' => $snapshots[$bot->id] ??= $brains->snapshotFor($bot),
-                'name' => $seen[$bot->id] > 1 ? $baseName.' '.$seen[$bot->id] : $baseName,
-                'starting_stack' => $starting_stack,
-                'current_stack' => $starting_stack,
-                'is_bot' => true,
-                'position' => $position++,
-            ]);
-        }
-    }
-
-    private function buildTournamentConfig(array $data, $bots, int $num_players): array
-    {
-        $players = [
-            [
-                'seat' => 1,
-                'name' => __('tournaments.you'),
-                'type' => 'human',
-                'starting_stack' => $data['starting_stack'],
-                'status' => 'active',
-            ],
-        ];
-
-        $seat = 2;
-        foreach ($bots as $bot) {
-            $players[] = [
-                'seat' => $seat,
-                'name' => $bot->nombre ?? $bot->name,
-                'type' => 'bot',
-                'bot_id' => $bot->id,
-                'starting_stack' => $data['starting_stack'],
-                'status' => 'active',
-            ];
-            $seat++;
-        }
-
-        $gameSettings = config('game-settings');
-
-        return [
-            'tournament_type' => 'mtt',
-            'format' => '6-max',
-            'basic_settings' => [
-                'starting_stack' => $data['starting_stack'],
-                'num_players' => $num_players,
-                'big_blind' => $data['big_blind'],
-            ],
-            'blind_structure' => [
-                'speed' => $data['speed'],
-                'hands_per_level' => $data['hands_per_level'],
-                'antes' => $data['ante_by_level'] ?? [0],
-            ],
-            'players' => $players,
-            'hand_types' => $data['hand_types'],
-            'game_settings' => array_merge($gameSettings, [
-                'show_all_cards' => $data['show_all_cards'] ?? false,
-                'no_hud_data' => $data['no_hud_data'] ?? false,
-            ]),
-            'player_time_settings' => [
-                'mode' => $data['player_time_mode'] ?? 'unlimited',
-                'time_per_decision_seconds' => $data['time_per_decision_seconds'] ?? 30,
-                'bank_time_seconds' => $data['bank_time_seconds'] ?? 300,
-            ],
-        ];
-    }
 }

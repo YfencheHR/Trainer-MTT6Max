@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\TournamentController;
 use App\Models\Bot;
 use App\Models\BotHudStat;
 use App\Models\BotPreflopHandRange;
@@ -14,10 +13,10 @@ use App\Services\Bots\BotFreezer;
 use App\Services\Bots\Brain\PreflopStrategyMatrix;
 use App\Services\Bots\RivalPreflopTables;
 use App\Services\Import\PoolBotRetirer;
+use App\Services\Tournament\TournamentFactory;
 use Database\Seeders\BotHudStatsSeeder;
 use Database\Seeders\BotSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -53,8 +52,7 @@ class FrozenBotsTest extends TestCase
     /** Crea los jugadores como lo hace el controlador al crear un torneo. */
     private function seat(Tournament $tournament, array $bots): void
     {
-        (new ReflectionMethod(TournamentController::class, 'createTournamentPlayers'))
-            ->invoke(app(TournamentController::class), $tournament, $bots, 1000, false);
+        app(TournamentFactory::class)->seatPlayers($tournament, $bots, 1000, null);
     }
 
     // ------------------------------------------------------------------ B. copias congeladas

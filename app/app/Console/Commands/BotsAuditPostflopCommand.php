@@ -25,6 +25,7 @@ class BotsAuditPostflopCommand extends Command
 {
     protected $signature = 'bots:audit-postflop
         {--tournament= : id de un torneo (por defecto, todos)}
+        {--only-simulated : solo torneos del simulador sin cabeza}
         {--min-samples=15 : decisiones mínimas de un nodo para compararlo con la estadística}
         {--gap=15 : diferencia (puntos) observado/estadística a partir de la cual se marca}
         {--worst=10 : peores decisiones a listar}';
@@ -77,6 +78,9 @@ class BotsAuditPostflopCommand extends Command
                 a.decision::jsonb #>> '{brain,features,draw_type}' as draw,
                 a.decision::jsonb #>> '{brain,distribution}' as distribution");
 
+        if ($this->option('only-simulated')) {
+            $query->join('tournaments as t', 't.id', '=', 'h.tournament_id')->whereRaw("(t.config::jsonb ->> 'simulated') = 'true'");
+        }
         if ($this->option('tournament')) {
             $query->where('h.tournament_id', (int) $this->option('tournament'));
         }
