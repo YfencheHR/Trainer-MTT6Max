@@ -3,6 +3,7 @@
 namespace App\Services\Bots;
 
 use App\Models\Bot;
+use App\Models\BotBetSizeCount;
 use App\Models\BotPreflopHandRange;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -61,6 +62,7 @@ class BotFreezer
             'hud' => $sorted($bot->hudStats()->get()),
             'ranges' => $sorted($bot->ranges()->get()),
             'preflop' => $sorted($bot->allPreflopHandRanges()->get()),
+            'bets' => $sorted(BotBetSizeCount::where('bot_id', $bot->id)->get()),
         ]));
     }
 
@@ -89,6 +91,14 @@ class BotFreezer
         )->all();
         foreach (array_chunk($rows, 200) as $chunk) {
             BotPreflopHandRange::insert($chunk);
+        }
+
+        // Matriz de apuestas (conteos)
+        $bets = BotBetSizeCount::where('bot_id', $bot->id)->get()->map(
+            fn($r) => ['bot_id' => $copy->id, 'street' => $r->street, 'tier' => $r->tier, 'bucket' => $r->bucket, 'n' => $r->n, 'created_at' => $now, 'updated_at' => $now]
+        )->all();
+        if ($bets) {
+            BotBetSizeCount::insert($bets);
         }
 
         return $copy;

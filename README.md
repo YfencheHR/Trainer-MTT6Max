@@ -53,7 +53,7 @@ Hay más ideas y mejoras planteadas que se irán definiendo durante el desarroll
 
 En `/import` se puede subir una copia comprimida de una base de PokerTracker 4. El sistema la procesa en una base temporal, calcula estadísticas de los jugadores y las distribuye entre perfiles de bot. Cuando un jugador no encaja en los perfiles disponibles, se puede generar un bot nuevo. Después de importar, los perfiles se pueden revisar y configurar en la aplicación.
 
-Las estadísticas se calculan en general, por posición y por tramo de stack, y con ellas se generan las tablas de decisión de cada perfil. Con los datos de los showdown se ajusta qué tipo de manos juega cada perfil, y las estadísticas extremas se acotan para evitar rangos irreales (por ejemplo, que un rival foldee AA).
+Las estadísticas se calculan en general, por posición y por tramo de stack, y con ellas se generan las tablas de decisión de cada perfil. También se guarda una matriz de apuestas (tipo de mano y tamaño, por calle) que se consulta con `php artisan bots:bet-matrix`. Con los datos de los showdown se ajusta qué tipo de manos juega cada perfil, y las estadísticas extremas se acotan para evitar rangos irreales (por ejemplo, que un rival foldee AA).
 
 Al reimportar con "Recalcular desde cero", los perfiles que ya participan en torneos se archivan en lugar de borrarse, y la importación es atómica: si falla, los perfiles anteriores quedan como estaban. Cada torneo juega con una copia congelada de sus rivales, así que reimportar o editar un perfil después no cambia los torneos ya creados.
 

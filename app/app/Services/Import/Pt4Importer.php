@@ -4,6 +4,7 @@ namespace App\Services\Import;
 
 use App\Models\Bot;
 use App\Models\BotHudStat;
+use App\Services\Bots\BetTier;
 use App\Services\Bots\Brain\BotProfile;
 use App\Services\Bots\Brain\PreflopRanking;
 use Illuminate\Database\Connection;
@@ -364,6 +365,7 @@ class Pt4Importer
             'postflop' => $postflop,
             'postflop_pot' => $this->postflopByPot($in),
             'stack_buckets' => $this->stackBuckets($in, $general),
+            'bet_matrix' => $this->betCounts('s.id_player = any(?)', [$in]),
             'bb100' => $bb,
         ];
     }
@@ -375,6 +377,100 @@ class Pt4Importer
     private const STACK_SHRINK_HANDS = 800;
 
     private ?array $popRatios = null;
+
+    /** ¿Ya se guardó, en esta importación, la matriz de apuestas de toda la población? */
+    private bool $popBetsStored = false;
+
+    /**
+     * Matriz de apuestas: conteo de las PRIMERAS apuestas de cada calle con cartas conocidas (las que llegan a showdown),
+     * por tipo de mano (BetTier) y tramo de tamaño (% del bote antes de apostar: val_*_bet_made_pct).
+     * Las cartas de las apuestas que se retiran no se ven, pero eso apenas sesga: con las manos del héroe, que se conocen todas,
+     * la proporción de aire sale con ~1 punto de error usando solo lo que llega a showdown (el rival decide sin ver la mano).
+     *
+     * @param string $filter condición SQL sobre fresh_stats s (con ? para $bindings)
+     * @return array<string, array<string, array<string, int>>> calle => tipo => tramo => n
+     */
+    private function betCounts(string $filter, array $bindings): array
+    {
+        $out = [];
+        foreach (BetTier::STREETS as $street => $boardCards) {
+            $l = ['flop' => 'f', 'turn' => 't', 'river' => 'r'][$street];
+            $rows = $this->tmp()->select("
+                select s.holecard_1 h1, s.holecard_2 h2, m.card_1 b1, m.card_2 b2, m.card_3 b3, m.card_4 b4, m.card_5 b5,
+                       s.val_{$l}_bet_made_pct pct
+                from fresh_stats s join tourney_hand_summary m using (id_hand)
+                where $filter and s.flg_{$l}_bet and s.amt_{$l}_bet_made > 0 and s.val_{$l}_bet_made_pct > 0
+                  and s.holecard_1 between 1 and 52 and s.holecard_2 between 1 and 52 and m.card_{$boardCards} between 1 and 52", $bindings);
+
+            foreach ($rows as $row) {
+                $board = [];
+                for ($i = 1; $i <= $boardCards; $i++) {
+                    $board[] = $this->pt4CardCode((int) $row->{"b$i"});
+                }
+                $tier = BetTier::tier([$this->pt4CardCode((int) $row->h1), $this->pt4CardCode((int) $row->h2)], $board);
+                $bucket = BetTier::bucket((float) $row->pct);
+                $out[$street][$tier][$bucket] = ($out[$street][$tier][$bucket] ?? 0) + 1;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Guarda (sumando) los conteos de la matriz de apuestas de un perfil. */
+    private function storeBetMatrix(Bot $bot, array $counts): void
+    {
+        $rows = $this->betRows($counts);
+        if (! $rows) {
+            return;
+        }
+        if (! $this->merge) {
+            DB::table('bot_bet_size_counts')->where('bot_id', $bot->id)->delete();
+        }
+        // Los conteos nuevos se acumulan sobre lo que hubiera (como las estadísticas por mano)
+        $this->accumulate('bot_bet_size_counts', ['bot_id' => $bot->id], $rows);
+    }
+
+    /** Guarda (una vez por importación) la matriz de apuestas de TODA la población: el prior de cada perfil. */
+    private function storePopulationBets(): void
+    {
+        if ($this->popBetsStored) {
+            return;
+        }
+        $this->popBetsStored = true;
+        $rows = $this->betRows($this->betCounts('not s.flg_hero', []));
+        if (! $this->merge) {
+            DB::table('bet_size_population')->delete();
+        }
+        $this->accumulate('bet_size_population', [], $rows);
+    }
+
+    /** @return array<int, array{street:string,tier:string,bucket:string,n:int}> */
+    private function betRows(array $counts): array
+    {
+        $rows = [];
+        foreach ($counts as $street => $byTier) {
+            foreach ($byTier as $tier => $byBucket) {
+                foreach ($byBucket as $bucket => $n) {
+                    $rows[] = ['street' => $street, 'tier' => $tier, 'bucket' => (string) $bucket, 'n' => $n];
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    /** Suma $rows a los conteos existentes de la tabla (crea las filas que falten). $keys: columnas fijas (p. ej. bot_id). */
+    private function accumulate(string $table, array $keys, array $rows): void
+    {
+        $now = now();
+        foreach ($rows as $row) {
+            $where = $keys + ['street' => $row['street'], 'tier' => $row['tier'], 'bucket' => $row['bucket']];
+            $updated = DB::table($table)->where($where)->update(['n' => DB::raw('n + ' . (int) $row['n']), 'updated_at' => $now]);
+            if (! $updated) {
+                DB::table($table)->insert($where + ['n' => $row['n'], 'created_at' => $now, 'updated_at' => $now]);
+            }
+        }
+    }
 
     /**
      * Cuánto cambia cada estadística en cada tramo de stack respecto al total, para TODOS los jugadores (bucket / total).
@@ -1050,6 +1146,7 @@ class Pt4Importer
             from tourney_hand_player_statistics s join fresh_hands f using (id_hand)
             left join tourney_blinds b on b.id_blinds = s.id_blinds');
         $this->popRatios = null;
+        $this->popBetsStored = false;
         $t->statement('create index on fresh_stats (id_player)');
         $this->buildPotTable();
 
@@ -1191,6 +1288,10 @@ class Pt4Importer
         }
 
         $this->storePreflopHandStats($bot, $agg['preflop_hands'] ?? []);
+
+        // Matriz de apuestas del perfil y, la primera vez de la importación, la de toda la población (su prior)
+        $this->storePopulationBets();
+        $this->storeBetMatrix($bot, $agg['bet_matrix'] ?? []);
 
         // Estadísticas por tramo de stack: filas accion = 'stack' y rango_ciegas = tramo (las usa RivalPreflopTables)
         foreach ($agg['stack_buckets'] ?? [] as $bucket => $r) {
