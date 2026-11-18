@@ -44,3 +44,10 @@ python/.venv
 .AppleDouble
 .LSOverride
 Thumbs.db
+
+# Laravel: vistas compiladas y cachés generadas
+app/storage/framework/views/*
+!app/storage/framework/views/.gitignore
+app/storage/framework/cache/*
+app/storage/framework/sessions/*
+app/storage/framework/testing/*
