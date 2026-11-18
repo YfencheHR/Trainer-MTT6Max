@@ -25,7 +25,7 @@ Las pruebas de juego de torneos realizadas hasta ahora han dado resultados acept
 
 ## Captura de la aplicación
 
-![Mesa de torneo MTT con el registro de mano y los datos de la partida](screenshots/tournament-simulator.png)
+![Mesa de torneo MTT con los rangos de los rivales en acción y el registro de la mano](screenshots/tournament-simulator.png)
 
 ## Estado actual y aspectos por pulir
 
