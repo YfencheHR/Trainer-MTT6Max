@@ -24,6 +24,9 @@ class RangeFilter
      */
     public function initializeHandRanges(TournamentHand $hand, TournamentPlayer $player, ?string $position = null): void
     {
+        if ($this->isSimulated($hand)) {
+            return;
+        }
         $bot = $player->bot;
         if (!$bot) return; // Solo para bots
 
@@ -49,6 +52,17 @@ class RangeFilter
     }
 
     /**
+     * En los torneos del simulador sin cabeza no se guardan los rangos por acción: solo los usa el panel de la mesa y son
+     * ~169 manos por decisión (casi la mitad del espacio que ocupaba un torneo simulado).
+     */
+    private function isSimulated(TournamentHand $hand): bool
+    {
+        static $cache = [];
+
+        return $cache[$hand->tournament_id] ??= (bool) data_get(\App\Models\Tournament::find($hand->tournament_id)?->config, 'simulated');
+    }
+
+    /**
      * Actualiza el rango tras una acción del bot (fold, call, raise, etc.)
      */
     public function updateAfterAction(
@@ -58,6 +72,9 @@ class RangeFilter
         string $street,
         array $context = []
     ): void {
+        if ($this->isSimulated($hand)) {
+            return;
+        }
         $bot = $player->bot;
         if (!$bot) return;
 

@@ -71,9 +71,29 @@ class HandHistoryRecorder
             'stack_before' => $extra['stack_before'] ?? null,
             'to_call' => $extra['to_call'] ?? 0,
             'players_active' => $extra['players_active'] ?? null,
-            'decision' => isset($extra['decision']) ? json_encode($extra['decision']) : null,
+            'decision' => isset($extra['decision']) ? json_encode($this->isSimulated($hand) ? $this->slim($extra['decision']) : $extra['decision']) : null,
             'created_at' => now(),
         ]);
+    }
+
+    /** ¿Es un torneo del simulador sin cabeza (config.simulated)? Se consulta una vez por torneo. */
+    private function isSimulated(TournamentHand $hand): bool
+    {
+        static $cache = [];
+
+        return $cache[$hand->tournament_id] ??= (bool) data_get(\App\Models\Tournament::find($hand->tournament_id)?->config, 'simulated');
+    }
+
+    /**
+     * En los torneos simulados (decenas de miles de manos) se guarda la decisión sin lo más voluminoso (las estadísticas de
+     * todos los jugadores de la mesa y las tiradas de percepción): quedan la mano, el tablero, las características que
+     * vio el bot, la distribución y las reglas, que es lo que usa la auditoría.
+     */
+    private function slim(array $decision): array
+    {
+        unset($decision['context']['players'], $decision['brain']['perception']);
+
+        return $decision;
     }
 
     /**
