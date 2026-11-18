@@ -375,29 +375,14 @@ class HandPlayService
             'pfr' => $bot->pfr ?? $general->pfr ?? 15,
         ];
 
-        // Stats por calle para postflop decisions
+        // Estadísticas postflop por calle, con las claves que lee el Perceiver (f2bet, af, cbet/bet, donk, cr, raise_vs_bet,
+        // f2raise y el desglose ip/oop). Antes se leían columnas que no existen (p. ej. "f2bet"): su fold ante apuesta y su
+        // subida salían siempre vacíos y el bot caía en valores por defecto (fold 30 %) en vez de los de su perfil.
+        $post = \App\Services\Bots\Brain\BotProfile::postflop($bot->templateTipo(), $general, [], $bot->hudStats);
         foreach (['flop', 'turn', 'river'] as $street) {
-            $stats[$street] = [
-                'f2bet' => $general->f2bet,
-                'af' => match($street) {
-                    'flop' => $general->af_flop,
-                    'turn' => $general->af_turn,
-                    'river' => $general->af_river,
-                    default => null,
-                },
-                'cbet' => $general->cbet,
-                'donk' => $general->donk,
-                'raise_vs_bet' => $general->raise_vs_bet,
-                'cr' => match($street) {
-                    'flop' => $general->cr_flop,
-                    'turn' => $general->cr_turn,
-                    default => null,
-                },
-                'vb_ratio' => $general->vb_ratio,
-            ];
+            $stats[$street] = $post[$street];
+            $stats[$street]['vb_ratio'] = $post['vb_ratio'];
         }
-
-        $stats['river']['vb_ratio'] = $general->vb_ratio ?? 2.0;
 
         return $stats;
     }
