@@ -128,9 +128,23 @@ class StatsPrior
         return $this->clamp(((float) ($f['own_af'] ?? 2.0)) / 2.0, 0.25, 2.0);
     }
 
+    /** Peso de lo que ofrece el precio (equity contra el rango rival frente a las pot odds) en la fuerza de la mano. */
+    private const PRICE_WEIGHT = 0.4;
+
+    /**
+     * Fuerza de la mano (0 = lo mejor de su rango, 1 = lo peor). Mezcla su posición en su rango con lo que ofrece el precio: si su equity
+     * contra el rango rival supera las pot odds se comporta como una mano más fuerte, y si no, como una más débil.
+     * Antes el precio entraba además como multiplicador del fold (×0,3 / ×1,4): contaba dos veces la misma información (fuerza de la mano),
+     * dejaba el fold casi determinista por la mano y las estadísticas del perfil apenas lo movían.
+     */
     private function q(array $f): float
     {
         $rank = $this->clamp(((float) ($f['range_rank'] ?? 50)) / 100, 0, 1);
+        if (isset($f['range_equity'], $f['pot_odds']) && ($f['street'] ?? '') !== 'preflop') {
+            $edge = (float) $f['range_equity'] - (float) $f['pot_odds'];
+            $price = $this->clamp(0.55 - $edge / 120, 0, 1);
+            $rank = (1 - self::PRICE_WEIGHT) * $rank + self::PRICE_WEIGHT * $price;
+        }
         if (($f['street'] ?? '') === 'river' && isset($f['value_combo_pct'])) {
             $comboStrength = $this->clamp((float) $f['value_combo_pct'] / 100, 0, 1);
 

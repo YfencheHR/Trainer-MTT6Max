@@ -81,8 +81,6 @@ class PostflopAutoRules
         $mods = [
             // El tamaño de la apuesta ya NO es una regla fija: size_fold_mult / size_raise_mult (Perceiver, FoldBySize) salen de la
             // respuesta real de la población de PokerTracker por tramo de tamaño y los aplica StatsPrior::facingBet.
-            ['lead' => 'face_mod_precio_bueno', 'when' => ['f' => 'range_equity', 'op' => '>=', 'v' => ['ref' => 'pot_odds', 'add' => 15]], 'mod' => ['fold_mult' => 0.3], 'name' => 'Su equity contra el rango del rival supera con holgura el precio: casi nunca abandona'],
-            ['lead' => 'face_mod_precio_malo', 'when' => ['f' => 'range_equity', 'op' => '<', 'v' => ['ref' => 'pot_odds', 'add' => -10]], 'mod' => ['fold_mult' => 1.4], 'name' => 'Su equity contra el rango del rival no llega al precio: abandona más'],
             // Subir exige una mano fuerte en términos absolutos, no solo estar arriba de su rango
             // (los proyectos fuertes quedan fuera: pueden subir de semifarol, y cuánto lo hacen lo marcan sus estadísticas)
             ['lead' => 'face_mod_no_subir_con_media', 'when' => ['all' => [self::c('perceived_rank', '>', 25), self::c('draw_outs', '<', 8)]], 'mod' => ['raise_mult' => 0.15], 'name' => 'Mano media sin proyecto: casi nunca sube'],

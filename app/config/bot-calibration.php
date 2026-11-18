@@ -11,9 +11,9 @@
  */
 return [
     'fold_gain' => [
-        'flop' => 1.5,
-        'turn' => 1.6,
-        'river' => 1.55,
+        'flop' => 1.35,
+        'turn' => 1.65,
+        'river' => 1.35,
     ],
 ];
 
