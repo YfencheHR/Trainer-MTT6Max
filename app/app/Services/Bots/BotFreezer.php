@@ -63,6 +63,7 @@ class BotFreezer
             'ranges' => $sorted($bot->ranges()->get()),
             'preflop' => $sorted($bot->allPreflopHandRanges()->get()),
             'bets' => $sorted(BotBetSizeCount::where('bot_id', $bot->id)->get()),
+            'bet_prior' => DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->orderBy('street')->get(['street', 'air_share'])->map(fn($r) => (array) $r)->all(),
         ]));
     }
 
@@ -99,6 +100,9 @@ class BotFreezer
         )->all();
         if ($bets) {
             BotBetSizeCount::insert($bets);
+        }
+        foreach (DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->get() as $prior) {
+            DB::table('bot_bet_size_prior')->insert(['bot_id' => $copy->id, 'street' => $prior->street, 'air_share' => $prior->air_share, 'created_at' => $now, 'updated_at' => $now]);
         }
 
         return $copy;

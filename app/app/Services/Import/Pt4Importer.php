@@ -5,6 +5,7 @@ namespace App\Services\Import;
 use App\Models\Bot;
 use App\Models\BotHudStat;
 use App\Services\Bots\BetTier;
+use App\Services\Bots\BluffPriorModel;
 use App\Services\Bots\Brain\BotProfile;
 use App\Services\Bots\Brain\PreflopRanking;
 use Illuminate\Database\Connection;
@@ -393,10 +394,24 @@ class Pt4Importer
     private function betCounts(string $filter, array $bindings): array
     {
         $out = [];
+        foreach ($this->betObservations($filter, $bindings) as [$street, , $tier, $bucket]) {
+            $out[$street][$tier][$bucket] = ($out[$street][$tier][$bucket] ?? 0) + 1;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Cada primera apuesta de una calle con cartas conocidas: [calle, id del jugador, tipo de mano, tramo de tamaño].
+     *
+     * @return \Generator<int, array{0: string, 1: int, 2: string, 3: string}>
+     */
+    private function betObservations(string $filter, array $bindings): \Generator
+    {
         foreach (BetTier::STREETS as $street => $boardCards) {
             $l = ['flop' => 'f', 'turn' => 't', 'river' => 'r'][$street];
-            $rows = $this->tmp()->select("
-                select s.holecard_1 h1, s.holecard_2 h2, m.card_1 b1, m.card_2 b2, m.card_3 b3, m.card_4 b4, m.card_5 b5,
+            $rows = $this->tmp()->cursor("
+                select s.id_player pid, s.holecard_1 h1, s.holecard_2 h2, m.card_1 b1, m.card_2 b2, m.card_3 b3, m.card_4 b4, m.card_5 b5,
                        s.val_{$l}_bet_made_pct pct
                 from fresh_stats s join tourney_hand_summary m using (id_hand)
                 where $filter and s.flg_{$l}_bet and s.amt_{$l}_bet_made > 0 and s.val_{$l}_bet_made_pct > 0
@@ -408,12 +423,10 @@ class Pt4Importer
                     $board[] = $this->pt4CardCode((int) $row->{"b$i"});
                 }
                 $tier = BetTier::tier([$this->pt4CardCode((int) $row->h1), $this->pt4CardCode((int) $row->h2)], $board);
-                $bucket = BetTier::bucket((float) $row->pct);
-                $out[$street][$tier][$bucket] = ($out[$street][$tier][$bucket] ?? 0) + 1;
+
+                yield [$street, (int) $row->pid, $tier, BetTier::bucket((float) $row->pct)];
             }
         }
-
-        return $out;
     }
 
     /** Guarda (sumando) los conteos de la matriz de apuestas de un perfil. */
@@ -430,7 +443,7 @@ class Pt4Importer
         $this->accumulate('bot_bet_size_counts', ['bot_id' => $bot->id], $rows);
     }
 
-    /** Guarda (una vez por importación) la matriz de apuestas de TODA la población: el prior de cada perfil. */
+    /** Guarda (una vez por importación) la matriz de apuestas de TODA la población y el modelo de farol por PFR: el prior de cada perfil. */
     private function storePopulationBets(): void
     {
         if ($this->popBetsStored) {
@@ -440,8 +453,55 @@ class Pt4Importer
         $rows = $this->betRows($this->betCounts('not s.flg_hero', []));
         if (! $this->merge) {
             DB::table('bet_size_population')->delete();
+            DB::table('bet_size_prior_model')->delete();
         }
         $this->accumulate('bet_size_population', [], $rows);
+
+        // Con muestra insuficiente (p. ej. una importación pequeña en modo suma) se conserva el modelo anterior
+        BluffPriorModel::saveModels($this->fitBluffModels());
+    }
+
+    /**
+     * Ajusta, por calle, el % de apuestas con aire en función del PFR del jugador (BluffPriorModel). Cada jugador aporta pocas
+     * apuestas con cartas conocidas, así que se agrupan por PFR en vez de ajustar jugador a jugador.
+     *
+     * @return array<string, array{intercept: float, slope: float, r2: float, n: int}>
+     */
+    private function fitBluffModels(): array
+    {
+        $pfr = [];
+        foreach ($this->tmp()->select('select id_player, 100.0 * avg((cnt_p_raise > 0)::int) as pfr from fresh_stats where not flg_hero group by id_player having count(*) >= 25') as $row) {
+            $pfr[(int) $row->id_player] = (float) $row->pfr;
+        }
+
+        $points = [];
+        foreach ($this->betObservations('not s.flg_hero', []) as [$street, $playerId, $tier]) {
+            if (isset($pfr[$playerId])) {
+                $points[$street][] = [$pfr[$playerId], $tier === 'air' ? 1 : 0];
+            }
+        }
+
+        $models = [];
+        foreach (array_keys(BetTier::STREETS) as $street) {
+            if ($model = BluffPriorModel::fit($points[$street] ?? [])) {
+                $models[$street] = $model;
+            }
+        }
+
+        return $models;
+    }
+
+    /** Guarda el % de aire que le corresponde al perfil por calle según su PFR (viaja con su copia congelada). */
+    private function storeBluffPrior(Bot $bot, float $pfr): void
+    {
+        $models = BluffPriorModel::models();
+        $now = now();
+        foreach ($models as $street => $model) {
+            DB::table('bot_bet_size_prior')->updateOrInsert(
+                ['bot_id' => $bot->id, 'street' => $street],
+                ['air_share' => round(BluffPriorModel::predict($model, $pfr), 2), 'updated_at' => $now, 'created_at' => $now]
+            );
+        }
     }
 
     /** @return array<int, array{street:string,tier:string,bucket:string,n:int}> */
@@ -1292,6 +1352,7 @@ class Pt4Importer
         // Matriz de apuestas del perfil y, la primera vez de la importación, la de toda la población (su prior)
         $this->storePopulationBets();
         $this->storeBetMatrix($bot, $agg['bet_matrix'] ?? []);
+        $this->storeBluffPrior($bot, (float) ($bot->pfr ?? $g['pfr'] ?? 15));
 
         // Estadísticas por tramo de stack: filas accion = 'stack' y rango_ciegas = tramo (las usa RivalPreflopTables)
         foreach ($agg['stack_buckets'] ?? [] as $bucket => $r) {

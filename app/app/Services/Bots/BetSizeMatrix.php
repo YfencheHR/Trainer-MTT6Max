@@ -38,6 +38,7 @@ class BetSizeMatrix
         }
 
         $mine = $this->counts(DB::table('bot_bet_size_counts')->where('bot_id', $bot->id)->get());
+        $prior = DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->pluck('air_share', 'street')->map(fn($v) => (float) $v)->all();
         $pop = $this->population();
         if (! $mine && ! $pop) {
             return $this->cache[$bot->id] = null;
@@ -45,7 +46,7 @@ class BetSizeMatrix
 
         $out = [];
         foreach (array_keys(BetTier::STREETS) as $street) {
-            $out[$street] = $this->street($mine[$street] ?? [], $pop[$street] ?? []);
+            $out[$street] = $this->street($mine[$street] ?? [], $pop[$street] ?? [], $prior[$street] ?? null);
         }
 
         return $this->cache[$bot->id] = $out;
@@ -68,7 +69,26 @@ class BetSizeMatrix
         return $out;
     }
 
-    private function street(array $mine, array $pop): array
+    /**
+     * Parte de un tipo de mano en el rango de apuesta ANTES de ver las apuestas del perfil: la de la población o, si el perfil
+     * tiene un prior por estadísticas ($airPrior = % de aire que le toca por su PFR), ese % de aire y el resto repartido entre
+     * pareja y mano fuerte como en la población.
+     */
+    private function priorShare(string $tier, callable $tierTotal, array $pop, int $popTotal, ?float $airPrior): float
+    {
+        if ($airPrior === null) {
+            return $popTotal > 0 ? $tierTotal($pop, $tier) / $popTotal : 1 / count(BetTier::TIERS);
+        }
+        if ($tier === 'air') {
+            return $airPrior / 100;
+        }
+        $made = $tierTotal($pop, 'pair') + $tierTotal($pop, 'strong');
+        $ofMade = $made > 0 ? $tierTotal($pop, $tier) / $made : 0.5;
+
+        return (1 - $airPrior / 100) * $ofMade;
+    }
+
+    private function street(array $mine, array $pop, ?float $airPrior = null): array
     {
         $buckets = array_keys(BetTier::BUCKETS);
         $tierTotal = fn(array $byTier, string $tier) => array_sum($byTier[$tier] ?? []);
@@ -79,7 +99,7 @@ class BetSizeMatrix
         // Composición del rango de apuesta
         $share = [];
         foreach (BetTier::TIERS as $tier) {
-            $popShare = $popTotal > 0 ? $tierTotal($pop, $tier) / $popTotal : 1 / count(BetTier::TIERS);
+            $popShare = $this->priorShare($tier, $tierTotal, $pop, $popTotal, $airPrior);
             $share[$tier] = ($tierTotal($mine, $tier) + self::SHRINK_SHARE * $popShare) / ($myTotal + self::SHRINK_SHARE);
         }
         $sum = array_sum($share);
