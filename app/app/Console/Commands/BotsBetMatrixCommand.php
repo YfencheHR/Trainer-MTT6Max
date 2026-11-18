@@ -30,8 +30,10 @@ class BotsBetMatrixCommand extends Command
             if (! $m) {
                 continue;
             }
-            $rows[] = [$bot->id, mb_substr($bot->nombre, 0, 28)]
-                + array_merge(...array_map(fn($s) => [$m[$s]['n'], $m[$s]['bluff_share'] . '%'], array_keys(BetTier::STREETS)));
+            $rows[] = array_merge(
+                [$bot->id, mb_substr($bot->nombre, 0, 28)],
+                ...array_map(fn($s) => [$m[$s]['n'], $m[$s]['bluff_share'] . '%'], array_keys(BetTier::STREETS))
+            );
         }
         if (! $rows) {
             $this->warn('No hay matriz de apuestas: importa un historial de PokerTracker.');
