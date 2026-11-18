@@ -44,7 +44,7 @@ class BotsAuditPostflopCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->info($rows->count() . ' decisiones postflop de ' . $rows->pluck('name')->unique()->count() . ' bots, en ' . $rows->pluck('hand_id')->unique()->count() . ' manos.');
+        $this->info($rows->count() . ' decisiones postflop de ' . $rows->pluck('name')->map(fn($n) => $this->profile($n))->unique()->count() . ' perfiles, en ' . $rows->pluck('hand_id')->unique()->count() . ' manos.');
 
         $this->frequencies($rows);
         $this->leaks($rows);
@@ -88,6 +88,12 @@ class BotsAuditPostflopCommand extends Command
         return $query->get();
     }
 
+    /** Perfil de un jugador: su nombre sin el número con el que se distingue cuando el perfil se repite en un torneo ("Pool 5 · 48/1 (W) 10" → "Pool 5 · 48/1 (W)"). */
+    private function profile(string $name): string
+    {
+        return preg_replace('/ \d+$/', '', $name);
+    }
+
     private function isAggressive(object $row): bool
     {
         return in_array($row->type, self::AGGRESSIVE, true);
@@ -120,7 +126,7 @@ class BotsAuditPostflopCommand extends Command
         $table = [];
         $flags = [];
 
-        foreach ($rows->groupBy('name') as $name => $mine) {
+        foreach ($rows->groupBy(fn($r) => $this->profile($r->name)) as $name => $mine) {
             $stats = $this->stats($mine->first()->bot_id);
             $cbetOpp = $mine->filter(fn($r) => $r->street === 'flop' && ! $this->facingBet($r) && $r->pf_aggressor === 'true');
             $cbets = $cbetOpp->filter(fn($r) => $this->isAggressive($r))->count();
