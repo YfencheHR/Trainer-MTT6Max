@@ -38,6 +38,8 @@ class StatsPrior
         // Un proyecto cuenta como una mano más fuerte para CONTINUAR: abandona menos que el aire con su misma fuerza
         $qEff = $q * (1 - self::DRAW_CONTINUE * $d);
         $fold = (float) ($f['own_f2bet'] ?? 30) * $this->weak($qEff) * ($mods['fold_mult'] ?? 1.0) * (float) ($f['size_fold_mult'] ?? 1.0);
+        // Las reglas de situación no conservan la media del fold: la ganancia por calle (config/bot-calibration.php) la devuelve al nivel de sus estadísticas
+        $fold *= (float) config('bot-calibration.fold_gain.' . ($f['street'] ?? ''), 1.0);
         $fold = $this->clamp($fold, 0, 100);
 
         // Subir lo empujan las manos fuertes (valor) Y los proyectos (semifarol); la agresión de sus estadísticas multiplica el semifarol
