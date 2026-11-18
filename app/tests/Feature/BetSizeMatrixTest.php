@@ -78,6 +78,30 @@ class BetSizeMatrixTest extends TestCase
         $this->assertNull((new BetSizeMatrix())->forBot($bot));
     }
 
+    public function test_it_samples_a_size_from_the_matrix_of_the_hand_type(): void
+    {
+        $matrix = new BetSizeMatrix();
+        $data = ['river' => ['sizes' => ['air' => ['25' => 0, '40' => 0, '60' => 0, '85' => 0, 'max' => 100], 'pair' => ['25' => 80, '40' => 0, '60' => 20, '85' => 0, 'max' => 0]]]];
+
+        $this->assertSame(1.1, $matrix->sampleFraction($data, 'river', 'air', 0.5), 'El aire de este perfil siempre apuesta grande');
+        $this->assertSame(0.2, $matrix->sampleFraction($data, 'river', 'pair', 0.5));
+        $this->assertSame(0.5, $matrix->sampleFraction($data, 'river', 'pair', 0.9));
+        $this->assertNull($matrix->sampleFraction($data, 'flop', 'pair', 0.5), 'Sin datos de esa calle');
+    }
+
+    public function test_own_data_only_skips_bots_without_counts_or_prior(): void
+    {
+        $this->populate();
+        $none = Bot::create(['nombre' => 'Sin datos propios', 'tipo' => 'pool', 'metadata' => ['source' => 'pt4_import']]);
+        $with = Bot::create(['nombre' => 'Con datos propios', 'tipo' => 'pool', 'metadata' => ['source' => 'pt4_import']]);
+        BotBetSizeCount::create(['bot_id' => $with->id, 'street' => 'river', 'tier' => 'air', 'bucket' => '60', 'n' => 5]);
+
+        $matrix = new BetSizeMatrix();
+        $this->assertNull($matrix->forId($none->id, true));
+        $this->assertNotNull($matrix->forId($with->id, true));
+        $this->assertNotNull($matrix->forId($none->id), 'Sin la restricción sí cae a la población');
+    }
+
     public function test_frozen_copies_keep_the_bet_matrix(): void
     {
         $bot = Bot::create(['nombre' => 'Con matriz', 'tipo' => 'pool', 'metadata' => ['source' => 'pt4_import']]);

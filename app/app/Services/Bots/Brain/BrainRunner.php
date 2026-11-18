@@ -2,6 +2,8 @@
 
 namespace App\Services\Bots\Brain;
 
+use App\Services\Bots\BetSizeMatrix;
+use App\Services\Bots\BetTier;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 
@@ -40,6 +42,7 @@ class BrainRunner
         private ActionCatalog $catalog,
         private PreflopStrategyMatrix $preflopStrategies,
         private PreflopOpponentDanger $preflopDanger,
+        private BetSizeMatrix $bets,
     ) {}
 
     /**
@@ -77,8 +80,12 @@ class BrainRunner
         $roll = $rng->getInt(0, 9999) / 100;
         $cell = $matrix->pick($roll);
 
+        // Tamaño de la apuesta según la matriz de su perfil (solo al abrir la acción postflop, que es lo que mide la matriz)
+        $sizing = $this->betSizing($cell, $ctx, $rng);
+
         // 6) Traducción a una acción legal
         $resolved = $this->catalog->resolve($cell, [
+            'size_fraction' => $sizing['fraction'] ?? null,
             'legal' => $ctx['legal'],
             'pot' => $ctx['pot'],
             'to_call' => $ctx['to_call'],
@@ -127,9 +134,39 @@ class BrainRunner
                 'preflop_danger' => $danger,
                 'lapse_pct' => $lapse,
                 'draw' => ['roll' => $roll, 'action' => $cell],
+                'bet_sizing' => $sizing,
                 'resolved' => ['action' => $resolved['action'], 'amount' => $resolved['amount'], 'tag' => $resolved['tag']],
             ],
         ];
+    }
+
+    /**
+     * Tamaño de una apuesta con la matriz de apuestas del perfil (de PokerTracker): según el tipo de mano real del bot
+     * (aire / pareja / fuerte) y la calle, sortea un tramo de tamaño. Solo para bots con datos propios y cuando abre la acción.
+     *
+     * @return array{tier: string, street: string, fraction: float}|null
+     */
+    private function betSizing(string $cell, array $ctx, Randomizer $rng): ?array
+    {
+        $street = (string) ($ctx['street'] ?? '');
+        $botId = $ctx['me']['bot_id'] ?? null;
+        if (! $botId || ! in_array($cell, ActionCatalog::BET_ACTIONS, true) || ! isset(BetTier::STREETS[$street])
+            || (float) $ctx['to_call'] > 0 || ($ctx['legal']['raise'] ?? null) === null) {
+            return null;
+        }
+        $board = (array) ($ctx['board'] ?? []);
+        $hole = (array) ($ctx['me']['hole_cards'] ?? []);
+        if (count($board) !== BetTier::STREETS[$street] || count($hole) !== 2) {
+            return null;
+        }
+        $matrix = $this->bets->forId((int) $botId, true);
+        if (! $matrix) {
+            return null;
+        }
+        $tier = BetTier::tier($hole, $board);
+        $fraction = $this->bets->sampleFraction($matrix, $street, $tier, $rng->getInt(0, 9999) / 10000);
+
+        return $fraction === null ? null : ['tier' => $tier, 'street' => $street, 'fraction' => $fraction];
     }
 
     /** Matriz resultante sin sortear (para el laboratorio y las pruebas). */

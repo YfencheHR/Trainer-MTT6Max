@@ -28,7 +28,10 @@ class ActionCatalog
     private const OPEN_BB = ['open_2bb' => 2.0, 'open_2_5bb' => 2.5, 'open_3bb' => 3.0];
     private const RAISE_MULT = ['raise_x2_2' => 2.2, 'raise_x3' => 3.0, 'raise_x4' => 4.0];
 
-    public const SPECIALS = ['slowplay', 'check_raise', 'float_call', 'bluff_raise'];
+    /** Acciones de apuesta por fracción del bote (las que puede dimensionar la matriz de apuestas). */
+    public const BET_ACTIONS = ['bet_third', 'bet_half', 'bet_twothirds', 'bet_pot', 'bet_overbet'];
+
+    public const SPECIALS =['slowplay', 'check_raise', 'float_call', 'bluff_raise'];
 
     /** @return array<string, array{label:string, family:string, special:bool}> */
     public static function all(): array
@@ -146,8 +149,11 @@ class ActionCatalog
         $current = (float) $ctx['current_bet'];
 
         if (isset(self::POT_FRACTIONS[$id])) {
-            $sizeFactor = $this->clamp((float) ($ctx['bet_size_factor'] ?? 1.0), 0.8, 1.3);
-            $target = $current + self::POT_FRACTIONS[$id] * $sizeFactor * ($pot + $toCall);
+            // Con matriz de apuestas del perfil, el tamaño sale de ella (según su tipo de mano); si no, el de la acción
+            $fraction = isset($ctx['size_fraction'])
+                ? (float) $ctx['size_fraction']
+                : self::POT_FRACTIONS[$id] * $this->clamp((float) ($ctx['bet_size_factor'] ?? 1.0), 0.8, 1.3);
+            $target = $current + $fraction * ($pot + $toCall);
         } elseif (isset(self::OPEN_BB[$id])) {
             if ((int) ($ctx['preflop_raises'] ?? 0) > 0) {
                 $target = $current * 3.0; // ya hay una subida: se interpreta como 3-bet

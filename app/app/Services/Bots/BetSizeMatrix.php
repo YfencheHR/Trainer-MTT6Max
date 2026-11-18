@@ -33,15 +33,25 @@ class BetSizeMatrix
     /** @return array<string, array{share: array<string,float>, bluff_share: float, sizes: array<string, array<string,float>>, n: int}>|null null si no hay datos */
     public function forBot(Bot $bot): ?array
     {
-        if (array_key_exists($bot->id, $this->cache)) {
-            return $this->cache[$bot->id];
+        return $this->forId($bot->id);
+    }
+
+    /**
+     * Igual que forBot, por id. Con $ownDataOnly solo devuelve la matriz de bots que tienen conteos o prior propios
+     * (los perfiles creados a mano, sin importación, no la tienen y siguen con sus reglas).
+     */
+    public function forId(int $botId, bool $ownDataOnly = false): ?array
+    {
+        $key = $botId.($ownDataOnly ? 'o' : '');
+        if (array_key_exists($key, $this->cache)) {
+            return $this->cache[$key];
         }
 
-        $mine = $this->counts(DB::table('bot_bet_size_counts')->where('bot_id', $bot->id)->get());
-        $prior = DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->pluck('air_share', 'street')->map(fn($v) => (float) $v)->all();
+        $mine = $this->counts(DB::table('bot_bet_size_counts')->where('bot_id', $botId)->get());
+        $prior = DB::table('bot_bet_size_prior')->where('bot_id', $botId)->pluck('air_share', 'street')->map(fn($v) => (float) $v)->all();
         $pop = $this->population();
-        if (! $mine && ! $pop) {
-            return $this->cache[$bot->id] = null;
+        if (($ownDataOnly && ! $mine && ! $prior) || (! $mine && ! $pop)) {
+            return $this->cache[$key] = null;
         }
 
         $out = [];
@@ -49,7 +59,32 @@ class BetSizeMatrix
             $out[$street] = $this->street($mine[$street] ?? [], $pop[$street] ?? [], $prior[$street] ?? null);
         }
 
-        return $this->cache[$bot->id] = $out;
+        return $this->cache[$key] = $out;
+    }
+
+    /** Fracción del bote que representa cada tramo al apostar (centro del tramo; el último, una apuesta algo mayor al bote). */
+    public const BUCKET_FRACTION = ['25' => 0.2, '40' => 0.33, '60' => 0.5, '85' => 0.75, 'max' => 1.1];
+
+    /**
+     * Sortea el tamaño de una apuesta (fracción del bote) de un perfil con un tipo de mano en una calle, según su matriz.
+     * $u es un número uniforme en [0,1).
+     */
+    public function sampleFraction(array $matrix, string $street, string $tier, float $u): ?float
+    {
+        $row = $matrix[$street]['sizes'][$tier] ?? null;
+        $total = $row ? array_sum($row) : 0;
+        if ($total <= 0) {
+            return null;
+        }
+        $acc = 0.0;
+        foreach ($row as $bucket => $pct) {
+            $acc += $pct / $total;
+            if ($u < $acc) {
+                return self::BUCKET_FRACTION[$bucket] ?? null;
+            }
+        }
+
+        return self::BUCKET_FRACTION[array_key_last($row)] ?? null;
     }
 
     /** Matriz de la población sola (la de referencia para comparar perfiles). */
