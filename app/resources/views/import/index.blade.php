@@ -154,6 +154,13 @@
     </div>
     <p style="margin: 0.6rem 0 0; font-size: 0.75rem; color: #9ca3af;">{{ __('simulation.replaces') }}</p>
     <p style="margin: 0.4rem 0 0; font-size: 0.75rem; color: #9ca3af;">{{ __('simulation.how_to_read') }}</p>
+    <div x-show="busy && progress" x-cloak style="margin-top: 0.9rem;">
+      <p x-text="phaseText()" style="margin: 0 0 0.4rem; font-size: 0.85rem; color: #e5e7eb; font-weight: 600;"></p>
+      <div style="height: 0.6rem; background: #11161c; border-radius: 0.3rem; overflow: hidden;">
+        <div :style="`height: 100%; background: #10b981; transition: width 0.6s; width: ${progress ? progress.percent : 0}%`"></div>
+      </div>
+      <p x-text="detailText()" style="margin: 0.4rem 0 0; font-size: 0.78rem; color: #9ca3af;"></p>
+    </div>
     <p x-show="error" x-text="error" style="margin: 0.75rem 0 0; color: #f87171;"></p>
     <p x-show="state === 'done'" style="margin: 0.75rem 0 0; color: #34d399; font-weight: 600;">{{ __('simulation.done') }}</p>
     <p x-show="state === 'failed'" style="margin: 0.75rem 0 0; color: #f87171; font-weight: 600;">{{ __('simulation.failed') }}</p>
@@ -164,11 +171,24 @@
 <script>
   function pt4Simulate() {
     return {
-      players: 600, speed: 'tipica', busy: false, error: null, state: null, log: '',
+      players: 600, speed: 'tipica', busy: false, error: null, state: null, log: '', progress: null,
+      text: @json(__('simulation.progress')),
       csrf: document.querySelector('meta[name=csrf-token]').content,
 
+      phaseText() {
+        const p = this.progress;
+        return p ? `${this.text.phase} ${p.phase}/3 · ${this.text[p.phase_name] || p.phase_name} · ${p.percent}%` : '';
+      },
+
+      detailText() {
+        const p = this.progress;
+        if (!p || p.round === null) { return this.text.waiting; }
+        const m = Math.floor(p.seconds / 60), s = p.seconds % 60;
+        return `${this.text.round} ${p.round} · ${p.alive} / ${p.total} ${this.text.players} · ${p.tables} ${this.text.tables} · ${m} min ${s} s`;
+      },
+
       async start() {
-        this.error = null; this.state = null; this.log = ''; this.busy = true;
+        this.error = null; this.state = null; this.log = ''; this.progress = null; this.busy = true;
         try {
           const r = await fetch(@json(route('import.simulate')), {
             method: 'POST',
@@ -192,9 +212,9 @@
         const url = @json(route('import.status', ['run' => '__RUN__'])).replace('__RUN__', run);
         for (;;) {
           const j = await (await fetch(url, { headers: { 'Accept': 'application/json' } })).json();
-          this.log = j.log; this.state = j.state;
+          this.log = j.log; this.state = j.state; this.progress = j.progress;
           if (j.state !== 'running') return;
-          await new Promise(r => setTimeout(r, 5000));
+          await new Promise(r => setTimeout(r, 3000));
         }
       },
     };

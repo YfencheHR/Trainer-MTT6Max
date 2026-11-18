@@ -77,7 +77,8 @@ class TournamentSimulateCommand extends Command
             $this->line("<info>[{$i}/{$total}]</info> {$tournament->title}: " . count($bots) . ' jugadores');
             $last = 0;
             $result = $simulator->run($tournament, function (int $round, int $alive, int $tables) use (&$last, $started) {
-                if ($round - $last >= 20) {
+                // Cada pocas rondas (la página de importación lee estas líneas para mostrar el avance al usuario)
+                if ($round - $last >= 5) {
                     $last = $round;
                     $this->line(sprintf('   ronda %d: %d jugadores, %d mesas · %d s · %d MB', $round, $alive, $tables, microtime(true) - $started, memory_get_peak_usage(true) / 1048576));
                 }

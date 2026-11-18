@@ -169,6 +169,8 @@ class ImportController extends Controller
             'state' => $state,
             'log' => trim(str_replace(['__DONE__', '__FAIL__'], '', preg_replace('/\e\[[\d;]*m/', '', $text))),
             'ours' => ['bots' => Bot::count(), 'hud_stats' => BotHudStat::count(), 'pool' => Bot::where('tipo', 'pool')->count()],
+            // Solo en las simulaciones de torneo (la página las muestra con una barra de avance)
+            'progress' => \App\Services\Tournament\SimulationLauncher::progress($text),
         ]);
     }
 }

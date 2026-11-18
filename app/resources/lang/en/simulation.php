@@ -14,5 +14,15 @@ return [
     'already_running' => 'A simulation is already running. Wait for it to finish.',
     'done' => '✔ Simulation and analysis finished',
     'failed' => '✗ The simulation failed (see the log)',
+    'progress' => [
+        'phase' => 'Step',
+        'preparando' => 'Preparing',
+        'simulando' => 'Playing the tournament',
+        'analizando' => 'Analysing the decisions',
+        'waiting' => 'Creating the tournament and seating the players…',
+        'round' => 'Round',
+        'players' => 'players',
+        'tables' => 'tables',
+    ],
     'how_to_read' => 'Reading the analysis: "frequencies" compares what the bots did with their profile stats (large gaps are flagged); "leaks" are single decisions with poor equity; "worst decisions" are those that lost the most EV.',
 ];

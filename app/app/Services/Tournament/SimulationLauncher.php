@@ -41,8 +41,9 @@ class SimulationLauncher
         file_put_contents($log, "Simulación de {$players} jugadores en marcha…\n");
 
         $php = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(base_path('artisan'));
+        // Las líneas «FASE n/3» las lee progress() para decir en qué paso está
         $script = sprintf(
-            '%1$s tournament:simulate --purge && %1$s tournament:simulate --players=%2$d --speed=%3$s && %1$s bots:audit-postflop --only-simulated',
+            'echo "FASE 1/3 preparando" && %1$s tournament:simulate --purge && echo "FASE 2/3 simulando" && %1$s tournament:simulate --players=%2$d --speed=%3$s && echo "FASE 3/3 analizando" && %1$s bots:audit-postflop --only-simulated',
             $php, $players, escapeshellarg($speed)
         );
         $cmd = sprintf(
@@ -50,6 +51,39 @@ class SimulationLauncher
             escapeshellarg(sprintf('(%s) >> %s 2>&1 && echo __DONE__ >> %s || echo __FAIL__ >> %s', $script, escapeshellarg($log), escapeshellarg($log), escapeshellarg($log)))
         );
         Process::fromShellCommandline($cmd)->run();
+    }
+
+    /**
+     * Avance de una simulación a partir de su registro, para que la página muestre que el proceso sigue vivo:
+     * fase (1 a 3), % de jugadores eliminados, ronda, jugadores que quedan, mesas y segundos. null si el registro no es de una simulación.
+     *
+     * @return array{phase: int, phase_name: string, percent: int, round: ?int, alive: ?int, total: ?int, tables: ?int, seconds: ?int}|null
+     */
+    public static function progress(string $log): ?array
+    {
+        if (! preg_match_all('/^FASE (\d)\/3 (\w+)/m', $log, $phases, PREG_SET_ORDER) && ! str_starts_with($log, 'Simulación de')) {
+            return null;
+        }
+        $phase = $phases ? (int) end($phases)[1] : 1;
+        $total = preg_match('/^\[\d+\/\d+\] .*: (\d+) jugadores$/m', $log, $m) ? (int) $m[1] : null;
+
+        $round = $alive = $tables = $seconds = null;
+        if (preg_match_all('/^   ronda (\d+): (\d+) jugadores, (\d+) mesas · (\d+) s/m', $log, $rows, PREG_SET_ORDER)) {
+            [, $round, $alive, $tables, $seconds] = array_map('intval', end($rows));
+        }
+
+        $percent = match (true) {
+            $phase >= 3 => 100,
+            $phase === 2 && $total && $alive !== null => (int) min(99, max(1, round(100 * ($total - $alive) / max(1, $total - 1)))),
+            default => $phase === 2 ? 1 : 0,
+        };
+
+        return [
+            'phase' => $phase,
+            'phase_name' => $phases ? end($phases)[2] : 'preparando',
+            'percent' => $percent,
+            'round' => $round, 'alive' => $alive, 'total' => $total, 'tables' => $tables, 'seconds' => $seconds,
+        ];
     }
 
     private function dir(string $sub = ''): string

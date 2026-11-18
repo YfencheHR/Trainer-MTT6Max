@@ -14,5 +14,15 @@ return [
     'already_running' => 'Ya hay una simulación en marcha. Espera a que termine.',
     'done' => '✔ Simulación y análisis terminados',
     'failed' => '✗ La simulación ha fallado (mira el registro)',
+    'progress' => [
+        'phase' => 'Paso',
+        'preparando' => 'Preparando',
+        'simulando' => 'Jugando el torneo',
+        'analizando' => 'Analizando las decisiones',
+        'waiting' => 'Creando el torneo y repartiendo los jugadores en las mesas…',
+        'round' => 'Ronda',
+        'players' => 'jugadores',
+        'tables' => 'mesas',
+    ],
     'how_to_read' => 'Cómo leer el análisis: «frecuencias» compara lo que hicieron los bots con las estadísticas de su perfil (marca las diferencias grandes); «fugas» son decisiones concretas con mala equity; «peores decisiones» las que más EV perdieron.',
 ];
