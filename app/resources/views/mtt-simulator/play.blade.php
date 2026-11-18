@@ -33,23 +33,22 @@
         <x-game-log />
       </div>
 
-      <!-- Mesa de Juego (3/4) -->
+      <!-- Mesa de Juego (3/4) con la información debajo: así no se desplaza hacia abajo cuando crece la columna de rangos -->
       <div class="w-full lg:w-3/4" style="min-width: 0;">
         <x-game-table :hand="$hand" :currentUser="auth()->user()" :no-hud-data="$noHudData" />
-      </div>
-    </div>
 
-    <!-- Módulos Adicionales (debajo) -->
-    <div style="max-width: 1400px; margin: 0 auto;" class="px-4 sm:px-6 lg:px-8 py-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Otras Mesas en Juego -->
-        <x-active-tables />
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 1rem; margin-top: 1rem; align-items: start;">
+          <!-- Otras Mesas en Juego -->
+          <x-active-tables />
 
-        <!-- Estadísticas de Mano -->
-        <x-hand-statistics />
+          <!-- Estadísticas de Mano -->
+          <x-hand-statistics />
 
-        <!-- Historial de eliminaciones por puesto -->
-        <x-elimination-history />
+          <!-- Historial de eliminaciones por puesto -->
+          <div style="grid-column: 1 / -1;">
+            <x-elimination-history />
+          </div>
+        </div>
       </div>
     </div>
   </div>

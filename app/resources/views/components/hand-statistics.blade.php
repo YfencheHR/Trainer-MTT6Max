@@ -35,7 +35,7 @@
     📈 {{ __('tournaments.hand_statistics') }}
   </p>
 
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; align-items: start;">
     <section style="background: #0f1419; border: 1px solid #2e3a48; border-radius: 0.4rem; padding: 0.75rem;">
       <p style="color: #d1d5db; font-size: 0.75rem; font-weight: 700; margin: 0 0 0.65rem; text-transform: uppercase;">
         {{ __('tournaments.player_statistics') }}
@@ -116,7 +116,7 @@
       <p x-show="!table" style="color: #9ca3af; font-size: 0.72rem; margin: 0;">{{ __('tournaments.no_table_information') }}</p>
     </section>
 
-    <section style="background: #0f1419; border: 1px solid #2e3a48; border-radius: 0.4rem; padding: 0.75rem;">
+    <section style="background: #0f1419; border: 1px solid #2e3a48; border-radius: 0.4rem; padding: 0.75rem; grid-column: 1 / -1;">
       <p style="color: #d1d5db; font-size: 0.75rem; font-weight: 700; margin: 0 0 0.65rem; text-transform: uppercase;">
         {{ __('tournaments.tournament_statistics') }}
       </p>
