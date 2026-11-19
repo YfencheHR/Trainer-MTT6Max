@@ -31,6 +31,20 @@ class DecisionContractTest extends TestCase
         $this->assertSame(DecisionContract::VERSION, $row['state']['contract']);
     }
 
+    public function test_the_player_personality_is_its_stats_and_the_model_only_decides_postflop(): void
+    {
+        $c = new DecisionContract;
+        $hand = $this->hand();
+        $profiles = ['Fofito2003' => ['preflop_stats' => ['vpip' => 28], 'postflop_stats' => ['flop' => ['fold_to_cbet' => 55]]]];
+
+        $row = $c->fromHistory($hand, 2, $profiles);
+
+        $this->assertSame(['vpip' => 28], $row['state']['profile']['preflop']);
+        $this->assertSame(55, $row['state']['profile']['postflop']['flop']['fold_to_cbet']);
+        $this->assertFalse($c->supports($row['state']), 'preflop sigue con la tabla del perfil');
+        $this->assertTrue($c->supports(['street' => 'turn']));
+    }
+
     public function test_real_amounts_become_the_nearest_vocabulary_action(): void
     {
         $c = new DecisionContract;

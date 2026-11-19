@@ -8,6 +8,9 @@ use Random\Randomizer;
 /**
  * Contrato entre el motor de Laravel y la IA que decide por los bots.
  *
+ * El bot es un PERFIL: la IA decide con el estado de la mano + las estadísticas por situación del jugador (su personalidad) + las de los
+ * rivales. No ve las reglas ni su resultado, y no se espera que acierte siempre: decide como lo haría ese perfil.
+ *
  *   ENTRADA  → un «estado» (array JSON): solo lo que el bot puede saber, con cantidades en ciegas grandes.
  *   SALIDA   → una distribución de probabilidad sobre ACTIONS (suma 1), no una acción única.
  *   SORTEO   → lo hace Laravel con la semilla de la decisión (`sample`), como hoy: la misma semilla + el mismo estado
@@ -43,13 +46,13 @@ class DecisionContract
             if ($p['id'] === $me['id'] || ! empty($p['folded'])) {
                 continue;
             }
-            $stats = $p['preflop_stats'] ?? $p['stats'] ?? [];
             $rivals[] = [
                 'position' => $p['position'], 'stack_bb' => round($p['stack'] / $bb, 1), 'bet_bb' => round(($p['bet'] ?? 0) / $bb, 1),
                 'all_in' => ! empty($p['all_in']),
-                'vpip' => $stats['vpip'] ?? null, 'pfr' => $stats['pfr'] ?? null, 'three_bet' => $stats['three_bet'] ?? null,
+                'profile' => $this->profile($p),
             ];
         }
+        $mine = collect($ctx['players'])->firstWhere('id', $me['id']) ?? [];
 
         return $this->state([
             'street' => $ctx['street'],
@@ -62,8 +65,23 @@ class DecisionContract
             'players_left' => 1 + count($rivals),
             'raises_this_street' => $this->raisesThisStreet($ctx['history'] ?? [], $ctx['street']),
             'rivals' => $rivals,
-            'my_stats' => ['vpip' => $me['stats']['vpip'] ?? null, 'pfr' => $me['stats']['pfr'] ?? null],
+            'profile' => $this->profile($mine + ['preflop_stats' => $me['stats'] ?? []]),
         ]);
+    }
+
+    /** El modelo solo decide en postflop (el preflop sigue con la tabla del perfil hasta que se demuestre que la IA lo mejora). */
+    public function supports(array $state): bool
+    {
+        return in_array($state['street'], ['flop', 'turn', 'river'], true);
+    }
+
+    /**
+     * La personalidad del jugador: sus estadísticas por situación (preflop y postflop). Es lo único que distingue a un bot de otro;
+     * el modelo no recibe reglas ni la decisión de las reglas.
+     */
+    private function profile(array $player): array
+    {
+        return ['preflop' => $player['preflop_stats'] ?? $player['stats'] ?? [], 'postflop' => $player['postflop_stats'] ?? []];
     }
 
     /**
@@ -73,7 +91,7 @@ class DecisionContract
      * @param  int    $index   posición de la acción dentro de $hand['actions']
      * @return array{state: array, action: string}|null  null si el jugador no tiene cartas conocidas (el estado sería incompleto)
      */
-    public function fromHistory(array $hand, int $index): ?array
+    public function fromHistory(array $hand, int $index, array $profiles = []): ?array
     {
         $a = $hand['actions'][$index] ?? null;
         $me = $a ? collect($hand['players'])->firstWhere('name', $a['player']) : null;
@@ -86,7 +104,7 @@ class DecisionContract
         $rivals = [];
         foreach ($hand['players'] as $p) {
             if ($p['name'] !== $a['player'] && ! in_array($p['name'], $folded, true)) {
-                $rivals[] = ['position' => $p['position'], 'stack_bb' => round($p['stack'] / $bb, 1), 'bet_bb' => 0.0, 'all_in' => false, 'vpip' => null, 'pfr' => null, 'three_bet' => null];
+                $rivals[] = ['position' => $p['position'], 'stack_bb' => round($p['stack'] / $bb, 1), 'bet_bb' => 0.0, 'all_in' => false, 'profile' => $this->profile($profiles[$p['name']] ?? [])];
             }
         }
 
@@ -101,7 +119,7 @@ class DecisionContract
             'players_left' => $a['players_left'],
             'raises_this_street' => count(array_filter($left, fn ($x) => $x['street'] === $a['street'] && $x['action'] === 'raise')),
             'rivals' => $rivals,
-            'my_stats' => ['vpip' => null, 'pfr' => null],
+            'profile' => $this->profile($profiles[$a['player']] ?? []),
         ]);
 
         return ['state' => $state, 'action' => $this->actionLabel($a, $bb)];
