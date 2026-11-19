@@ -72,6 +72,24 @@ if ($LASTEXITCODE -ne 0) {
     Stop-Install 'Docker esta instalado pero no esta en marcha. Abre Docker Desktop, espera a que arranque y vuelve a ejecutar .\init.ps1'
 }
 
+Write-Step 'Comprobando el equipo para la IA de los bots'
+. (Join-Path $PSScriptRoot 'scripts\ai-hardware.ps1')
+$catalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'app\resources\ai\models.json') -Raw | ConvertFrom-Json
+$hardware = Get-HardwareProfile $PSScriptRoot
+$gpuText = if ($hardware.gpus.Count) { ($hardware.gpus | ForEach-Object { "$($_.name) ($($_.vram_gb) GB)" }) -join ', ' } else { 'sin tarjeta NVIDIA' }
+Write-Host "Memoria: $($hardware.ram_gb) GB | Procesador: $($hardware.cpu_threads) hilos | Tarjeta: $gpuText | Disco libre: $($hardware.disk_free_gb) GB"
+$usable = Get-UsableModels $catalog $hardware
+$minimum = $catalog.models | Where-Object { $_.id -eq $catalog.minimum } | Select-Object -First 1
+if (-not (Get-ModelFit $minimum $hardware)) {
+    Stop-Install ("Este equipo no cumple los requisitos minimos de Poker Trainer MTT. El modelo de IA minimo ($($minimum.name)) necesita " +
+        "$($minimum.ram_gb) GB de memoria (o $($minimum.vram_gb) GB en una tarjeta NVIDIA) y $($minimum.disk_gb) GB de disco libre.")
+}
+Write-Host 'Modelos que este equipo puede ejecutar:'
+foreach ($m in $usable) { Write-Host ("  - {0} ({1})" -f $m.name, $(if ($m.runs_on -eq 'gpu') { 'tarjeta grafica' } else { 'procesador, mas lento' })) }
+$aiDir = Join-Path $PSScriptRoot 'app\storage\app\ai'
+New-Item -ItemType Directory -Force -Path $aiDir | Out-Null
+$hardware | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $aiDir 'hardware.json') -Encoding UTF8
+
 Write-Step 'Preparando la clave de la aplicacion'
 $result = Set-AppKey (Join-Path $PSScriptRoot '.env')
 Write-Host "Clave de aplicacion: $result"

@@ -1,0 +1,10 @@
+{
+  "_note": "Candidatos gratuitos. Tamanos aproximados (cuantizacion Q4_K_M): se verifican al descargar. 'ram_gb' = memoria para ejecutar en procesador; 'vram_gb' = memoria de la tarjeta NVIDIA para ejecutar en GPU. El minimo es provisional hasta el banco de pruebas.",
+  "minimum": "qwen3:8b",
+  "models": [
+    { "id": "qwen3:8b",  "name": "Qwen3 8B",  "license": "Apache-2.0", "params_b": 8,  "disk_gb": 5.2,  "ram_gb": 10,  "vram_gb": 7 },
+    { "id": "phi4",      "name": "Phi-4 14B", "license": "MIT",        "params_b": 14, "disk_gb": 9.1,  "ram_gb": 14,  "vram_gb": 11 },
+    { "id": "qwen3:14b", "name": "Qwen3 14B", "license": "Apache-2.0", "params_b": 14, "disk_gb": 9.3,  "ram_gb": 14,  "vram_gb": 11 },
+    { "id": "qwen3:32b", "name": "Qwen3 32B", "license": "Apache-2.0", "params_b": 32, "disk_gb": 20.0, "ram_gb": 28,  "vram_gb": 23 }
+  ]
+}
