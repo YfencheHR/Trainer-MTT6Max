@@ -1,0 +1,10 @@
+# Da la tarjeta grafica NVIDIA al modelo de IA. El instalador lo activa solo si detecta una tarjeta NVIDIA (COMPOSE_FILE en el .env).
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

@@ -136,22 +136,31 @@ services:
     working_dir: /app
     environment:
       - PYTHONUNBUFFERED=1
-      # Ollama corre en el equipo (no en Docker) para poder usar la tarjeta grafica
-      - OLLAMA_URL=http://host.docker.internal:11434
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - OLLAMA_URL=http://ollama:11434
     volumes:
       - ./python:/app
     ports:
       - "127.0.0.1:5001:5000"
     depends_on:
       - app
+      - ollama
+    networks:
+      - trainer-network
+
+  # Modelo de IA local que decide por los bots. Todo dentro de Docker; la tarjeta NVIDIA se le da con docker-compose.gpu.yml
+  ollama:
+    image: ollama/ollama:latest
+    container_name: trainer-mtt-ia-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
     networks:
       - trainer-network
 
 volumes:
   postgres_data:
   redis_data:
+  ollama_data:
 
 networks:
   trainer-network:
