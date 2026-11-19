@@ -238,11 +238,12 @@ class Perceiver
                 $street,
                 $hist
             );
-            $outs = $f['draw_outs'] ?? 0;
-            $drawEquity = count($board) < 5 ? $outs * (count($board) === 3 ? 4 : 2) : 0;
+            // La equity contra el rango ya sale de una simulación que reparte las cartas que faltan: incluye todas las salidas (color,
+            // escalera, overcards, backdoors). Antes se le SUMABA además outs × 4 (flop) o × 2 (turn): los proyectos contaban dos veces
+            // (un color +36 puntos, una escalera abierta +32) y el bot creía tener mejor precio del real.
             $f['range_equity'] = round($this->clamp(
                 $opponentModel['equity'] - $this->gauss($rng) * ($noise['equity_sigma'] ?? 0)
-                - ($noise['equity_bias'] ?? 0) + $drawEquity, 0, 100), 1);
+                - ($noise['equity_bias'] ?? 0), 0, 100), 1);
             $f['opponent_range_pct'] = round($opponentModel['range_pct'], 1);
             $f['value_combo_pct'] = round($opponentModel['value_combo_pct'], 1);
             $f['value_combos'] = $opponentModel['value_combos'];

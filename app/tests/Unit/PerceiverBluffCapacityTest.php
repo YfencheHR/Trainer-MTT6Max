@@ -42,6 +42,7 @@ class PerceiverBluffCapacityTest extends TestCase
                 'bet' => 0,
                 'hole_cards' => ['A♠', 'K♦'],
                 'flags' => [],
+                'stats' => ['vpip' => 30, 'pfr' => 20], // el bot siempre llega con sus estadísticas en el contexto
             ],
             'players' => [
                 [
