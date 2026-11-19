@@ -69,11 +69,15 @@ class BrainRunner
             $this->rules->apply($brain['rules'] ?? [], $features, $matrix, $rng, $fired);
         }
 
-        // 4) Ajuste de fold por la presión de los rivales que aún pueden actuar
-        $danger = $this->preflopDanger->apply($matrix, $ctx, $features, $ctx['me']['stats'] ?? []);
+        // Cuando manda la tabla preflop del perfil (calculada con SUS estadísticas) la tabla ES la decisión: ni la presión de los rivales ni la
+        // imprecisión la tocan. Antes movían de 1 a 14 puntos a errores (call/fold/bet_pot/all-in) y hasta 9 puntos a fold, y el bot jugaba
+        // manos que su propia matriz no recoge (p. ej. un 3-bet «bet_pot» con 43o desde la ciega grande o un fold de 87o desde el botón abriendo al 100 %).
+        $danger = $strategy
+            ? ['operator_pct' => 0.0, 'moved_pct' => 0.0, 'players' => []]
+            : $this->preflopDanger->apply($matrix, $ctx, $features, $ctx['me']['stats'] ?? []); // 4) presión de los rivales que aún pueden actuar
 
         // 5) Imprecisión de la habilidad
-        $lapse = $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
+        $lapse = $strategy ? 0.0 : $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
 
         // 6) Sorteo: un único número de 0 a 100 con dos decimales
         $distribution = $matrix->distribution();
@@ -184,8 +188,12 @@ class BrainRunner
         } else {
             $this->rules->apply($brain['rules'] ?? [], $perception['features'], $matrix, $rng, $fired);
         }
-        $danger = $this->preflopDanger->apply($matrix, $ctx, $perception['features'], $ctx['me']['stats'] ?? []);
-        $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
+        $danger = $strategy
+            ? ['operator_pct' => 0.0, 'moved_pct' => 0.0, 'players' => []]
+            : $this->preflopDanger->apply($matrix, $ctx, $perception['features'], $ctx['me']['stats'] ?? []);
+        if (! $strategy) {
+            $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
+        }
 
         return [
             'matrix' => $matrix,

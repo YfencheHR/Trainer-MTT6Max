@@ -183,6 +183,14 @@ class PreflopStrategyMatrixTest extends TestCase
         $this->assertEqualsWithDelta(40, $decision['distribution']['open_2_5bb'], 0.001);
         $this->assertArrayNotHasKey('allin', $decision['distribution']);
 
+        // La tabla es la decisión: la imprecisión del cerebro no la toca (antes movía hasta 14 puntos a call/fold/bet_pot/all-in)
+        $noisy = $brain;
+        $noisy['imprecision'] = ['rate' => 14, 'mistakes' => ['fold' => 25, 'call' => 25, 'bet_pot' => 25, 'allin' => 25], 'protect' => []];
+        $withNoise = app(BrainRunner::class)->matrixFor($decisionContext, $noisy, 17);
+        $this->assertEqualsWithDelta(40, $withNoise['distribution']['open_2_5bb'], 0.001);
+        $this->assertArrayNotHasKey('bet_pot', $withNoise['distribution']);
+        $this->assertArrayNotHasKey('allin', $withNoise['distribution']);
+
         $decisionContext['current_bet'] = 300;
         $decisionContext['to_call'] = 200;
         $decisionContext['me']['bet'] = 100;
