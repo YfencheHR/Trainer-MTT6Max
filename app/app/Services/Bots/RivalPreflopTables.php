@@ -686,6 +686,12 @@ class RivalPreflopTables
             foreach ($hands as $hand) {
                 $score = $this->bluffScore($hand);
                 $inValueZone = $percentiles[$hand] <= $valueTarget + $width / 2;
+                // Con un 3-bet muy alto (Maníaco: 46-54 %) los faroles buenos (A5s-A2s, conectadas suited) no bastan: también resube manos con
+                // algo de jugabilidad (todo menos el 30 % más débil). Antes el techo era ~35 % y el perfil resubía menos de lo que marca su estadística.
+                $wideBluff = $threeBetTarget >= 20.0 && $score <= 0 && $percentiles[$hand] <= 70.0;
+                if ($wideBluff) {
+                    $score = 1.0;
+                }
                 $scores[$hand] = $inValueZone ? -1000.0 : $score;
                 $neverBluff[$hand] = $score <= 0 && ! $inValueZone;
                 $candidateWeights[$hand] = ($score > 0 && ! $inValueZone) ? $weights[$hand] : 0.0;
@@ -714,10 +720,29 @@ class RivalPreflopTables
             $defendScores[$hand] = $this->defendScore($hand, $percentiles[$hand]);
         }
         $callPercentiles = $this->cumulativePercentiles($defendScores, $callWeights, array_sum($weights), false);
-        $call = $this->softTop($callPercentiles, $callTarget, $width, $weights);
-        $call = $this->calibrate($call, $callTarget, $weights, array_map(fn($freq) => 100.0 - $freq, $threeBet));
+        $callCaps = array_map(fn($freq) => 100.0 - $freq, $threeBet);
+        $sumWeights = array_sum($weights);
 
-        return [$threeBet, $this->closeGaps($hands, $percentiles, $threeBet, $call, $premiumBoundary)];
+        // closeGaps pasa a call las manos fuertes que el orden por jugabilidad dejaba en fold, y eso SUMA al call objetivo (+4-5 puntos en
+        // casi todos los perfiles). Se descuenta lo añadido y se vuelve a repartir (2-3 vueltas bastan).
+        $target = $callTarget;
+        $closed = [];
+        for ($i = 0; $i < 4; $i++) {
+            $call = $this->softTop($callPercentiles, $target, $width, $weights);
+            $call = $this->calibrate($call, $target, $weights, $callCaps);
+            $closed = $this->closeGaps($hands, $percentiles, $threeBet, $call, $premiumBoundary);
+            $total = 0.0;
+            foreach ($hands as $hand) {
+                $total += $weights[$hand] * $closed[$hand];
+            }
+            $excess = $total / $sumWeights - $callTarget;
+            if ($target <= 0.0 || abs($excess) < 0.75) {
+                break;
+            }
+            $target = max(0.0, $target - $excess);
+        }
+
+        return [$threeBet, $closed];
     }
 
     /**

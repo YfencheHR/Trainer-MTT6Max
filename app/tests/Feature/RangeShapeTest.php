@@ -50,4 +50,31 @@ class RangeShapeTest extends TestCase
         // Las manos de valor se resuben más que los faroles
         $this->assertGreaterThan($defense['A5s']['three_bet'], $defense['AA']['three_bet']);
     }
+
+    public function test_generated_defense_matches_the_profile_targets(): void
+    {
+        $this->seed(BotSeeder::class);
+        $combos = fn(string $h) => strlen($h) === 2 ? 6 : (str_ends_with($h, 's') ? 4 : 12);
+
+        foreach (['tag', 'lag', 'calling_station', 'nit'] as $tipo) {
+            $bot = Bot::where('tipo', $tipo)->firstOrFail();
+            $profile = \App\Services\Bots\Brain\BotProfile::forBot($bot);
+            $tables = (new RivalPreflopTables(new PreflopRanking()))->generate($bot);
+
+            foreach (['CO', 'BTN', 'SB', 'BB'] as $position) {
+                $defense = collect($tables[$position]['defense'])->keyBy('hand');
+                $total = $three = $call = 0.0;
+                foreach ($defense as $hand => $row) {
+                    $total += $combos($hand);
+                    $three += $combos($hand) * $row['three_bet'];
+                    $call += $combos($hand) * $row['call'];
+                }
+                $target = $profile['positions'][$position]['vs_open'];
+
+                // closeGaps pasaba a call las manos fuertes sin descontarlo: el call salía 4-5 puntos por encima de la estadística
+                $this->assertEqualsWithDelta($target['call'], $call / $total, 2.5, "$tipo $position call");
+                $this->assertEqualsWithDelta($target['three_bet'], $three / $total, 2.5, "$tipo $position 3-bet");
+            }
+        }
+    }
 }
