@@ -113,6 +113,7 @@ class BotProfile
             foreach ([
                 'vpip', 'pfr', 'three_bet', 'fold_to_3bet', 'four_bet', 'fold_to_4bet', 'af_preflop',
                 'limp', 'limp_raise', 'limp_push', 'call_vs_3bet', 'reraise_vs_3bet', 'cold3_fold', 'cold3_call', 'cold3_raise',
+                'bb_defense', 'sb_defense',
             ] as $k) {
                 if ($general->{$k} !== null) {
                     $global[$k] = (float) $general->{$k};
@@ -250,7 +251,10 @@ class BotProfile
             ?? max(($g['vpip'] - $g['pfr']) * 0.7, $three * 0.8);
 
         // Las ciegas defienden más ancho
-        $defense = $stat($pos, 'defense_bb', 'bb_defense') ?? $stat($pos, null, 'bb_defense') ?? ($pos === 'SB' ? $stat($pos, null, 'sb_defense') : null);
+        // Si en la ciega no hay datos propios se usa la defensa GENERAL del jugador (100 − fold al robo, que sí se calcula): sin ella la
+        // ciega grande se inventaba con vpip × 0,9 − 3-bet (un Pool 8 con 70 % de defensa real defendía solo el 55 %)
+        $defense = $stat($pos, 'defense_bb', 'bb_defense') ?? $stat($pos, null, 'bb_defense') ?? ($pos === 'SB' ? $stat($pos, null, 'sb_defense') : null)
+            ?? ($pos === 'BB' ? ($g['bb_defense'] ?? null) : ($pos === 'SB' ? ($g['sb_defense'] ?? null) : null));
         if ($defense !== null && in_array($pos, ['BB', 'SB'], true)) {
             $call = max(0.0, $defense - $three);
         } elseif ($pos === 'BB') {
