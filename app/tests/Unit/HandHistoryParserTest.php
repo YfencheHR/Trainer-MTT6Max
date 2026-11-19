@@ -105,6 +105,28 @@ TXT;
         $this->assertSame(2178, $fold['to_call']);
     }
 
+    public function test_it_reads_winamax_hands_too(): void
+    {
+        $text = "Winamax Poker - Tournament \"Expresso\" buyIn: 0.23€ + 0.02€ level: 6 - HandId: #4592864724412006401-39-1772033120 - Holdem no limit (50/100) - 2026/02/25 15:25:20 UTC\n"
+            ."Table: 'Expresso(1069359650)#0' 3-max (real money) Seat #2 is the button\nSeat 2: JbHickok (140)\nSeat 3: DiimiiK (1360)\n*** ANTE/BLINDS ***\n"
+            ."JbHickok posts small blind 50\nDiimiiK posts big blind 100\nDealt to JbHickok [7c 9d]\n*** PRE-FLOP ***\nJbHickok raises 40 to 140 and is all-in\nDiimiiK calls 40\n"
+            ."*** FLOP *** [3s 6h 8c]\n*** TURN *** [3s 6h 8c][7d]\n*** RIVER *** [3s 6h 8c 7d][2d]\n*** SHOW DOWN ***\nDiimiiK shows [Jd 4d] (High card : Jack)\n"
+            ."JbHickok shows [7c 9d] (One pair : 7)\nJbHickok collected 280 from pot\n*** SUMMARY ***\nTotal pot 280 | No rake\nBoard: [3s 6h 8c 7d 2d]\n";
+
+        $hand = (new HandHistoryParser)->parse($text);
+
+        $this->assertSame('1069359650', $hand['tourney_id']);
+        $this->assertSame(100, $hand['big_blind']);
+        $this->assertSame('JbHickok', $hand['hero']);
+        $this->assertSame(['3♠', '6♥', '8♣', '7♦', '2♦'], $hand['board']);
+        $this->assertCount(2, $hand['actions']);
+        $this->assertSame('raise', $hand['actions'][0]['action']);
+        $this->assertSame(90, $hand['actions'][0]['amount'], 'sube hasta 140 con 50 ya puestos');
+        $this->assertTrue($hand['actions'][0]['all_in']);
+        $this->assertSame('DiimiiK', $hand['actions'][1]['player']);
+        $this->assertSame(40, $hand['actions'][1]['amount']);
+    }
+
     public function test_it_ignores_text_that_is_not_a_tournament_hand(): void
     {
         $this->assertNull((new HandHistoryParser)->parse('nada que ver'));
