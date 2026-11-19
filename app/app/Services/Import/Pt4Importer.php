@@ -244,6 +244,10 @@ class Pt4Importer
             // Call contra apertura POR OPORTUNIDAD (como three_bet), no sobre todas las manos. flg_p_ccall coincide exactamente con
             // pagar una apertura fuera de ciegas sin haber limpeado (comprobado en datos reales) y nunca es true en las ciegas.
             'cold_call' => $pctMin('(flg_p_ccall and flg_p_3bet_opp and not flg_p_limp)::int', '(flg_p_3bet_opp and not flg_p_limp and s.position not in (8, 9))::int', 30),
+            // DEFENSA DE LAS CIEGAS por posición (solo SB y BB): % de veces que continúa (paga o resube) ante una apertura, por oportunidad.
+            // Es el dato que faltaba para la ciega grande, que no tiene VPIP/RFI/cold call propios. En la fila general lo sustituye la defensa
+            // frente a robos (100 − fold al robo, ver aggregate()).
+            'bb_defense' => $pctMin('(flg_vpip and flg_p_3bet_opp and not flg_p_limp and s.position in (8, 9))::int', '(flg_p_3bet_opp and not flg_p_limp and s.position in (8, 9))::int', 30),
             'af_flop' => 'round(1.0 * sum(flg_f_bet::int + cnt_f_raise) / nullif(sum(cnt_f_call), 0), 2)',
             'cbet' => $pct('flg_f_cbet::int', 'flg_f_cbet_opp::int'),
             'f2cbet' => $pct("(enum_f_cbet_action = 'F')::int", 'flg_f_cbet_def_opp::int'),
@@ -1366,6 +1370,7 @@ class Pt4Importer
             'opening' => ['vpip', 'pfr', 'rfi', 'limp', 'limp_raise', 'limp_push'],
             'vs_open' => ['three_bet'],
             'cold_call' => ['cold_call'],
+            'defense_bb' => ['bb_defense'], // defensa de la SB y la BB ante una apertura (BotProfile::derive la busca con este nombre)
             'vs_3bet' => ['fold_to_3bet', 'four_bet', 'call_vs_3bet', 'reraise_vs_3bet'],
             'squeeze' => ['squeeze'],
         ];

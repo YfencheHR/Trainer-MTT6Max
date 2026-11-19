@@ -35,6 +35,15 @@ class BlindDefenseProfileTest extends TestCase
         $this->assertEqualsWithDelta(40 - 15 * 1.3, $profile['positions']['SB']['vs_open']['call'], 0.01, 'SB: defensa 40 % − su 3-bet (15 % × 1,3)');
     }
 
+    public function test_the_defense_stored_for_the_blind_position_wins_over_the_general_one(): void
+    {
+        $bot = $this->bot(['vpip' => 61, 'pfr' => 34, 'three_bet' => 15, 'bb_defense' => 70], ['three_bet' => 10]);
+        // Lo que guarda el importador para la ciega grande: defensa ante una apertura (paga o resube), por oportunidad
+        BotHudStat::create(['bot_id' => $bot->id, 'nivel' => 1, 'posicion' => 'BB', 'accion' => 'defense_bb', 'bb_defense' => 52]);
+
+        $this->assertEqualsWithDelta(42, BotProfile::forBot($bot)['positions']['BB']['vs_open']['call'], 0.01, '52 % de defensa − 3-bet 10 %');
+    }
+
     public function test_without_any_defense_stat_it_falls_back_to_the_old_estimate(): void
     {
         $bot = $this->bot(['vpip' => 61, 'pfr' => 34, 'three_bet' => 15], ['three_bet' => 23]);
