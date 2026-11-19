@@ -136,6 +136,10 @@ services:
     working_dir: /app
     environment:
       - PYTHONUNBUFFERED=1
+      # Ollama corre en el equipo (no en Docker) para poder usar la tarjeta grafica
+      - OLLAMA_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./python:/app
     ports:
