@@ -24,7 +24,7 @@ param(
 $ErrorActionPreference = 'Continue'
 Set-Location -LiteralPath $PSScriptRoot
 
-$Url = 'http://localhost:8000'
+$Url = 'http://localhost:8001'
 
 function Write-Step([string]$Text) { Write-Host "`n>> $Text" -ForegroundColor Cyan }
 function Stop-Install([string]$Text) { Write-Host "`nERROR: $Text" -ForegroundColor Red; exit 1 }
