@@ -45,8 +45,8 @@ def legal_or_all(legal_actions):
     return legal
 
 
-def build_messages(state, legal_actions=None):
-    """Mensajes para el modelo: instrucciones fijas + estado y perfil en JSON compacto + acciones permitidas."""
+def build_messages(state, legal_actions=None, focus=''):
+    """Mensajes para el modelo: instrucciones fijas (+ el enfoque de la calle) + estado y perfil en JSON compacto + acciones permitidas."""
     legal = legal_or_all(legal_actions)
     allowed = '\n'.join(f'- {a}: {ACTION_HELP.get(a, a)}' for a in legal)
     user = (
@@ -55,7 +55,8 @@ def build_messages(state, legal_actions=None):
         f'ALLOWED ACTIONS:\n{allowed}\n\n'
         'Return the probability of each allowed action as JSON.'
     )
-    return [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': user}]
+    system = SYSTEM + ('\n\n' + focus if focus else '')
+    return [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]
 
 
 def response_schema(legal_actions):
@@ -119,9 +120,9 @@ class OllamaClient:
         return body.get('message', {}).get('content', '')
 
 
-def decide(state, model, legal_actions=None, client=None, seed=None):
+def decide(state, model, legal_actions=None, client=None, seed=None, focus=''):
     """Distribución de acciones del perfil para este estado, según el modelo."""
     legal = legal_or_all(legal_actions)
     client = client or OllamaClient()
-    text = client.chat(model, build_messages(state, legal), response_schema(legal), seed)
+    text = client.chat(model, build_messages(state, legal, focus), response_schema(legal), seed)
     return {'model': model, 'distribution': parse_distribution(text, legal)}

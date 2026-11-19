@@ -2,6 +2,7 @@
 
 namespace App\Services\Bots;
 
+use App\Services\Ai\AiBrain;
 use App\Services\Bots\Brain\BrainRepository;
 use App\Services\Bots\Brain\BrainRunner;
 
@@ -19,20 +20,35 @@ use App\Services\Bots\Brain\BrainRunner;
  */
 class BotDecisionService
 {
-    public function __construct(private BrainRepository $brains, private BrainRunner $runner)
+    public function __construct(private BrainRepository $brains, private BrainRunner $runner, private AiBrain $ai)
     {
     }
 
     public function decide(array $ctx): array
     {
+        // Bots con motor IA en una calle que la IA ya decide: la IA. Si el servicio falla, esa decisión cae a las reglas para no parar la partida.
+        $aiNote = null;
+        try {
+            if ($this->ai->covers($ctx)) {
+                return $this->ai->decide($ctx);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $aiNote = 'IA no disponible ('.$e->getMessage().') → reglas';
+        }
+
         try {
             $brain = $this->brains->forPlayer($ctx['me']['id']);
+            $decision = $this->runner->decide($ctx, $brain);
+            if ($aiNote) {
+                $decision['reason'] = $aiNote.' · '.$decision['reason'];
+            }
 
-            return $this->runner->decide($ctx, $brain);
+            return $decision;
         } catch (\Throwable $e) {
             report($e); // un cerebro roto nunca debe parar la partida
             $fallback = $this->fallback($ctx);
-            $fallback['reason'] = 'FALLBACK (' . $e->getMessage() . '): ' . $fallback['reason'];
+            $fallback['reason'] = ($aiNote ? $aiNote . ' · ' : '') . 'FALLBACK (' . $e->getMessage() . '): ' . $fallback['reason'];
 
             return $fallback;
         }

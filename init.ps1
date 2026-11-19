@@ -91,12 +91,16 @@ if (-not $chosen) { Stop-Install "El modelo '$Model' no esta entre los que este 
 Write-Host "Modelo elegido: $($chosen.name) ($(if ($chosen.runs_on -eq 'gpu') { 'tarjeta grafica' } else { 'procesador' }))"
 $aiDir = Join-Path $PSScriptRoot 'app\storage\app\ai'
 New-Item -ItemType Directory -Force -Path $aiDir | Out-Null
-$hardware | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $aiDir 'hardware.json') -Encoding UTF8
-[ordered]@{ model = $chosen.id; name = $chosen.name; runs_on = $chosen.runs_on } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $aiDir 'model.json') -Encoding UTF8
+$utf8 = New-Object System.Text.UTF8Encoding($false)   # sin marca BOM
+[System.IO.File]::WriteAllText((Join-Path $aiDir 'hardware.json'), ($hardware | ConvertTo-Json -Depth 4), $utf8)
+[System.IO.File]::WriteAllText((Join-Path $aiDir 'model.json'), ([ordered]@{ model = $chosen.id; name = $chosen.name; runs_on = $chosen.runs_on } | ConvertTo-Json), $utf8)
 
 Write-Step 'Preparando la clave de la aplicacion'
 $result = Set-AppKey (Join-Path $PSScriptRoot '.env')
 Write-Host "Clave de aplicacion: $result"
+# Laravel busca app\.env aunque las variables lleguen por Docker: sin el, cada arranque y cada test avisan de que no existe
+$appEnv = Join-Path $PSScriptRoot 'app\.env'
+if (-not (Test-Path -LiteralPath $appEnv)) { Set-Content -LiteralPath $appEnv -Value '# Las variables de entorno llegan desde docker-compose.yml y el .env de la raiz' -Encoding ASCII }
 $useGpu = ($hardware.gpus.Count -gt 0)
 Set-ComposeFiles (Join-Path $PSScriptRoot '.env') $useGpu
 

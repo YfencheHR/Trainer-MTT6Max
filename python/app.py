@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from math import isfinite
 from equity_simulator import EquitySimulator
 import ai_decision
+import streets
 
 app = Flask(__name__)
 simulator = EquitySimulator()
@@ -303,14 +304,24 @@ def ai_health():
         return jsonify({'status': 'unavailable', 'message': str(error)}), 503
 
 
+@app.route('/ai/streets', methods=['GET'])
+def ai_streets():
+    """Calles que ya decide la IA (una por servicio)."""
+    return jsonify({'streets': streets.available()})
+
+
 @app.route('/ai/decide', methods=['POST'])
 def ai_decide():
     """Estado + perfil -> distribución de probabilidad de cada acción. El sorteo lo hace quien llama (con su semilla)."""
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or not isinstance(data.get('state'), dict) or not isinstance(data.get('model'), str):
         return jsonify({'status': 'error', 'message': 'state (object) and model (string) are required'}), 400
+    street = data['state'].get('street')
+    service = streets.service_for(street)
+    if service is None:
+        return jsonify({'status': 'not_available', 'message': f"No AI service for street '{street}' yet", 'streets': streets.available()}), 501
     try:
-        result = ai_decision.decide(data['state'], data['model'], data.get('legal_actions'), _ollama(), data.get('seed'))
+        result = service.decide(data['state'], data['model'], data.get('legal_actions'), _ollama(), data.get('seed'))
     except ValueError as error:
         return jsonify({'status': 'error', 'message': str(error)}), 422
     except ConnectionError as error:

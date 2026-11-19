@@ -64,9 +64,58 @@ class DecisionContract
             'stack_bb' => $me['stack'] / $bb,
             'players_left' => 1 + count($rivals),
             'raises_this_street' => $this->raisesThisStreet($ctx['history'] ?? [], $ctx['street']),
+            'in_position' => $this->inPosition($me['position'], array_column($rivals, 'position'), count($ctx['players']) === 2),
+            'history' => $this->compactHistory($ctx['history'] ?? [], array_column($ctx['players'], 'position', 'id'), $bb),
             'rivals' => $rivals,
             'profile' => $this->profile($mine + ['preflop_stats' => $me['stats'] ?? []]),
         ]);
+    }
+
+    /**
+     * Acciones legales → vocabulario permitido ahora. Postflop: fold/call ante una apuesta, check si es gratis, y las apuestas
+     * por fracción del bote y el all-in cuando se puede subir.
+     *
+     * @return list<string>
+     */
+    public function allowedActions(array $legal, string $street): array
+    {
+        $out = [];
+        if (! empty($legal['fold'])) {
+            $out[] = 'fold';
+        }
+        if (! empty($legal['check'])) {
+            $out[] = 'check';
+        }
+        if (($legal['call'] ?? null) !== null) {
+            $out[] = 'call';
+        }
+        if ($street !== 'preflop' && ($legal['raise'] ?? null) !== null) {
+            $out = array_merge($out, array_keys(self::POSTFLOP_FRACTION));
+        }
+        if (($legal['allin'] ?? null) !== null) {
+            $out[] = 'allin';
+        }
+
+        return $out;
+    }
+
+    /** Orden de actuación postflop: la ciega pequeña habla primero y el botón el último (en heads-up el botón es la «SB» y habla el último). */
+    private function inPosition(string $me, array $rivals, bool $headsUp): bool
+    {
+        $rank = ['SB' => 0, 'BB' => 1, 'UTG' => 2, 'HJ' => 3, 'CO' => 4, 'BTN' => 5];
+        if ($headsUp) {
+            $rank['SB'] = 6;
+        }
+
+        return $rivals !== [] && ($rank[$me] ?? 0) > max(array_map(fn ($p) => $rank[$p] ?? 0, $rivals));
+    }
+
+    /** Historia de la mano para el modelo: [calle, posición, acción, importe en ciegas]. */
+    private function compactHistory(array $history, array $positionById, int $bb): array
+    {
+        return array_map(fn ($h) => [
+            $h['street'] ?? '', $positionById[$h['player_id'] ?? 0] ?? '?', $h['action'] ?? '', round(((float) ($h['amount'] ?? 0)) / $bb, 1),
+        ], $history);
     }
 
     /** El modelo solo decide en postflop (el preflop sigue con la tabla del perfil hasta que se demuestre que la IA lo mejora). */
@@ -118,6 +167,8 @@ class DecisionContract
             'stack_bb' => $a['stack_before'] / $bb,
             'players_left' => $a['players_left'],
             'raises_this_street' => count(array_filter($left, fn ($x) => $x['street'] === $a['street'] && $x['action'] === 'raise')),
+            'in_position' => $this->inPosition($a['position'], array_column($rivals, 'position'), count($hand['players']) === 2),
+            'history' => array_values(array_map(fn ($x) => [$x['street'], $x['position'], $x['action'], round($x['amount'] / $bb, 1)], $left)),
             'rivals' => $rivals,
             'profile' => $this->profile($profiles[$a['player']] ?? []),
         ]);
@@ -184,6 +235,7 @@ class DecisionContract
                 $action === 'fold' => ! empty($legal['fold']),
                 $action === 'check' => ! empty($legal['check']),
                 $action === 'call' => $legal['call'] !== null || ! empty($legal['check']),
+                $action === 'allin' => ($legal['allin'] ?? $legal['raise'] ?? null) !== null,
                 default => ($legal['raise'] ?? null) !== null,
             };
             if ($ok && $p > 0) {
