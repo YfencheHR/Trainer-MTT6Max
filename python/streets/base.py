@@ -16,6 +16,8 @@ class StreetService:
     street = ''
     # Qué significan las estadísticas de esta calle y qué se espera del modelo en ella (se añade a las instrucciones generales)
     focus = ''
+    # Si el modelo debe valorar la mano antes de dar las probabilidades (así la mano reparte la tendencia del perfil)
+    assess = False
 
     def relevant_profile(self, profile):
         """Recorta el perfil a lo que importa en esta calle. Por defecto: todo el preflop y la parte de esta calle del postflop."""
@@ -36,4 +38,4 @@ class StreetService:
     def decide(self, state, model, legal_actions=None, client=None, seed=None):
         if state.get('street') != self.street:
             raise ValueError(f"This service decides the {self.street}, not '{state.get('street')}'")
-        return ai_decision.decide(self.prepare_state(state), model, legal_actions, client, seed, focus=self.focus)
+        return ai_decision.decide(self.prepare_state(state), model, legal_actions, client, seed, focus=self.focus, assess=self.assess)

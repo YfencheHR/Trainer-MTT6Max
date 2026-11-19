@@ -59,14 +59,21 @@ def build_messages(state, legal_actions=None, focus=''):
     return [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]
 
 
-def response_schema(legal_actions):
-    """Esquema JSON que obliga al modelo a dar un número por cada acción permitida y nada más."""
-    return {
-        'type': 'object',
-        'properties': {a: {'type': 'number', 'minimum': 0, 'maximum': 1} for a in legal_actions},
-        'required': list(legal_actions),
-        'additionalProperties': False,
-    }
+HAND_LEVELS = ['air', 'weak_pair_or_draw', 'medium_pair', 'strong_pair', 'two_pair_or_better', 'monster']
+
+
+def response_schema(legal_actions, assess=False):
+    """Esquema JSON que obliga al modelo a dar un número por cada acción permitida y nada más.
+
+    Con `assess`, antes de las probabilidades debe valorar la mano (campo que se ignora al leer): así la mano concreta
+    reparte las probabilidades alrededor de la tendencia del perfil en vez de copiar el objetivo para todas las manos.
+    """
+    properties = {a: {'type': 'number', 'minimum': 0, 'maximum': 1} for a in legal_actions}
+    required = list(legal_actions)
+    if assess:
+        properties = {'hand_strength': {'type': 'string', 'enum': HAND_LEVELS}, **properties}
+        required = ['hand_strength'] + required
+    return {'type': 'object', 'properties': properties, 'required': required, 'additionalProperties': False}
 
 
 def parse_distribution(text, legal_actions):
@@ -120,9 +127,9 @@ class OllamaClient:
         return body.get('message', {}).get('content', '')
 
 
-def decide(state, model, legal_actions=None, client=None, seed=None, focus=''):
+def decide(state, model, legal_actions=None, client=None, seed=None, focus='', assess=False):
     """Distribución de acciones del perfil para este estado, según el modelo."""
     legal = legal_or_all(legal_actions)
     client = client or OllamaClient()
-    text = client.chat(model, build_messages(state, legal, focus), response_schema(legal), seed)
+    text = client.chat(model, build_messages(state, legal, focus), response_schema(legal, assess), seed)
     return {'model': model, 'distribution': parse_distribution(text, legal)}
