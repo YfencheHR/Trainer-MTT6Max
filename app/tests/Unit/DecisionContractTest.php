@@ -45,6 +45,30 @@ class DecisionContractTest extends TestCase
         $this->assertTrue($c->supports(['street' => 'turn']));
     }
 
+    public function test_the_simulator_state_names_the_first_postflop_bet_a_bet_and_caps_the_call_to_the_stack(): void
+    {
+        $ctx = [
+            'street' => 'flop', 'big_blind' => 100, 'pot' => 900, 'to_call' => 300, 'board' => ['K♣', '7♥', '2♦'],
+            'me' => ['id' => 1, 'position' => 'BTN', 'stack' => 200, 'hole_cards' => ['A♠', 'K♦'], 'stats' => []],
+            'players' => [
+                ['id' => 1, 'position' => 'BTN', 'stack' => 200, 'bet' => 0, 'folded' => false],
+                ['id' => 2, 'position' => 'BB', 'stack' => 5000, 'bet' => 300, 'folded' => false],
+            ],
+            'history' => [
+                ['player_id' => 2, 'street' => 'preflop', 'action' => 'raise', 'amount' => 250],
+                ['player_id' => 2, 'street' => 'flop', 'action' => 'raise', 'amount' => 300],
+                ['player_id' => 1, 'street' => 'flop', 'action' => 'raise', 'amount' => 900],
+            ],
+        ];
+
+        $state = (new DecisionContract)->fromBotContext($ctx);
+
+        $this->assertSame(['preflop', 'BB', 'raise', 2.5], $state['history'][0], 'preflop la primera subida sigue siendo raise');
+        $this->assertSame(['flop', 'BB', 'bet', 3.0], $state['history'][1]);
+        $this->assertSame(['flop', 'BTN', 'raise', 9.0], $state['history'][2]);
+        $this->assertSame(2.0, $state['to_call_bb'], 'con 200 de stack solo puede igualar 200');
+    }
+
     public function test_real_amounts_become_the_nearest_vocabulary_action(): void
     {
         $c = new DecisionContract;

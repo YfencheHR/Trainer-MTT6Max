@@ -65,6 +65,20 @@ class AiBrainTest extends TestCase
         });
     }
 
+    public function test_a_bot_adapts_to_the_rival_as_much_as_its_skill_allows(): void
+    {
+        $this->mock(\App\Services\Bots\Brain\BrainRepository::class, function ($mock) {
+            $mock->shouldReceive('forPlayer')->with(7)->andReturn(['skill' => ['tier' => 'pro']]);
+            $mock->shouldReceive('forPlayer')->with(8)->andReturn(['skill' => ['tier' => 'whale']]);
+            $mock->shouldReceive('forPlayer')->with(9)->andThrow(new \RuntimeException('sin cerebro'));
+        });
+        $brain = app(\App\Services\Ai\AiBrain::class);
+
+        $this->assertSame(1.0, $brain->adaptationFor(['me' => ['id' => 7]]));
+        $this->assertSame(0.1, $brain->adaptationFor(['me' => ['id' => 8]]));
+        $this->assertSame(0.5, $brain->adaptationFor(['me' => ['id' => 9]]), 'sin cerebro conocido, el valor por defecto');
+    }
+
     public function test_the_model_file_written_by_powershell_with_a_bom_is_read(): void
     {
         file_put_contents(config('ai.model_file'), "\xEF\xBB\xBF".json_encode(['model' => 'con-bom']));

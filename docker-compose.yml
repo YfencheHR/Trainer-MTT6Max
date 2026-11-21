@@ -10,10 +10,11 @@ services:
     working_dir: /app
     # Al arrancar prepara sola la base de datos (migraciones pendientes + datos base si está vacía): ni al instalar ni
     # al actualizar hay que abrir una consola. Si algo falla, el aviso queda en los logs y la aplicación arranca igualmente.
+    # --no-reload: sin esto, si existe app/.env el servidor descarta las variables del contenedor (APP_KEY incluida) y toda página da 500
     command:
       - sh
       - -c
-      - "php artisan db:initialize || echo 'ATENCION - fallo al preparar la base de datos, revisa el log'; exec php artisan serve --host=0.0.0.0 --port=8000"
+      - "php artisan db:initialize || echo 'ATENCION - fallo al preparar la base de datos, revisa el log'; exec php artisan serve --host=0.0.0.0 --port=8000 --no-reload"
     volumes:
       - ./app:/app
     environment:

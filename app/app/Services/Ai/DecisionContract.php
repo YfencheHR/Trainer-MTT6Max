@@ -36,8 +36,12 @@ class DecisionContract
     private const OPEN_BB = ['open_2bb' => 2.0, 'open_2_5bb' => 2.5, 'open_3bb' => 3.0];
     private const RAISE_MULT = ['raise_x2_2' => 2.2, 'raise_x3' => 3.0, 'raise_x4' => 4.0];
 
-    /** Estado a partir de una decisión del simulador. */
-    public function fromBotContext(array $ctx): array
+    /**
+     * Estado a partir de una decisión del simulador.
+     *
+     * @param  array<int, array<string, float>>  $ranges  rango con el que cada jugador llega a la calle (FlopRanges): [id => [mano => peso]]
+     */
+    public function fromBotContext(array $ctx, array $ranges = []): array
     {
         $bb = max(1, (int) $ctx['big_blind']);
         $me = $ctx['me'];
@@ -50,7 +54,7 @@ class DecisionContract
                 'position' => $p['position'], 'stack_bb' => round($p['stack'] / $bb, 1), 'bet_bb' => round(($p['bet'] ?? 0) / $bb, 1),
                 'all_in' => ! empty($p['all_in']),
                 'profile' => $this->profile($p),
-            ];
+            ] + (isset($ranges[$p['id']]) ? ['range' => $ranges[$p['id']]] : []);
         }
         $mine = collect($ctx['players'])->firstWhere('id', $me['id']) ?? [];
 
@@ -60,7 +64,7 @@ class DecisionContract
             'hole_cards' => $me['hole_cards'],
             'board' => $ctx['board'] ?? [],
             'pot_bb' => $ctx['pot'] / $bb,
-            'to_call_bb' => $ctx['to_call'] / $bb,
+            'to_call_bb' => min($ctx['to_call'], $me['stack']) / $bb, // si no le llega el stack, solo puede igualar lo que tiene
             'stack_bb' => $me['stack'] / $bb,
             'players_left' => 1 + count($rivals),
             'raises_this_street' => $this->raisesThisStreet($ctx['history'] ?? [], $ctx['street']),
@@ -68,7 +72,7 @@ class DecisionContract
             'history' => $this->compactHistory($ctx['history'] ?? [], array_column($ctx['players'], 'position', 'id'), $bb),
             'rivals' => $rivals,
             'profile' => $this->profile($mine + ['preflop_stats' => $me['stats'] ?? []]),
-        ]);
+        ] + (isset($ranges[$me['id']]) ? ['range' => $ranges[$me['id']]] : []));
     }
 
     /**
@@ -113,9 +117,22 @@ class DecisionContract
     /** Historia de la mano para el modelo: [calle, posición, acción, importe en ciegas]. */
     private function compactHistory(array $history, array $positionById, int $bb): array
     {
-        return array_map(fn ($h) => [
-            $h['street'] ?? '', $positionById[$h['player_id'] ?? 0] ?? '?', $h['action'] ?? '', round(((float) ($h['amount'] ?? 0)) / $bb, 1),
-        ], $history);
+        $opened = [];
+        $out = [];
+        foreach ($history as $h) {
+            $street = $h['street'] ?? '';
+            $action = $h['action'] ?? '';
+            if (in_array($action, ['raise', 'bet', 'allin'], true)) {
+                // El motor llama «raise» a toda subida; en las manos reales (PokerTracker) la primera apuesta postflop es un «bet»
+                if ($action === 'raise' && $street !== 'preflop' && empty($opened[$street])) {
+                    $action = 'bet';
+                }
+                $opened[$street] = true;
+            }
+            $out[] = [$street, $positionById[$h['player_id'] ?? 0] ?? '?', $action, round(((float) ($h['amount'] ?? 0)) / $bb, 1)];
+        }
+
+        return $out;
     }
 
     /** El modelo solo decide en postflop (el preflop sigue con la tabla del perfil hasta que se demuestre que la IA lo mejora). */

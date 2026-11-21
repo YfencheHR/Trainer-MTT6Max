@@ -4,6 +4,7 @@ namespace App\Services\Ai;
 
 use App\Models\Bot;
 use App\Services\Bots\Brain\ActionCatalog;
+use App\Services\Bots\Brain\BrainRepository;
 
 /**
  * Decide por un bot con la IA en las calles que tienen servicio (config/ai.php → streets). Mismo formato de salida que BrainRunner.
@@ -12,8 +13,26 @@ use App\Services\Bots\Brain\ActionCatalog;
  */
 class AiBrain
 {
-    public function __construct(private DecisionContract $contract, private ActionCatalog $catalog, private AiClient $client)
+    public function __construct(
+        private DecisionContract $contract,
+        private ActionCatalog $catalog,
+        private AiClient $client,
+        private FlopRanges $ranges,
+        private BrainRepository $brains,
+    ) {
+    }
+
+    /** Cuánto se adapta este bot al rival según su habilidad (nivel de su cerebro); sin cerebro conocido, el valor por defecto. */
+    public function adaptationFor(array $ctx): float
     {
+        $levels = (array) config('ai.adaptation');
+        try {
+            $tier = $this->brains->forPlayer((int) $ctx['me']['id'])['skill']['tier'] ?? null;
+        } catch (\Throwable) {
+            $tier = null;
+        }
+
+        return (float) ($levels[$tier] ?? $levels['default'] ?? 0.5);
     }
 
     /** ¿Decide la IA esta decisión? Calle cubierta y bot con motor 'ai'. */
@@ -34,7 +53,7 @@ class AiBrain
     public function decide(array $ctx, ?int $seed = null): array
     {
         $seed ??= random_int(1, 2147483646);
-        $state = $this->contract->fromBotContext($ctx);
+        $state = $this->contract->fromBotContext($ctx, $this->ranges->forHand($ctx)) + ['adaptation' => $this->adaptationFor($ctx)];
         $allowed = $this->contract->allowedActions($ctx['legal'], $ctx['street']);
         if (! $allowed) {
             throw new \RuntimeException('No hay ninguna acción permitida');
@@ -65,9 +84,23 @@ class AiBrain
             'flags' => $resolved['flags'],
             'trace' => [
                 'engine' => 'ai', 'street' => $ctx['street'], 'seed' => $seed, 'model' => $this->client->model(),
-                'state' => $state, 'allowed' => $allowed, 'distribution' => $distribution, 'draw' => ['action' => $cell],
+                'state' => $this->withoutRanges($state), 'allowed' => $allowed, 'distribution' => $distribution, 'draw' => ['action' => $cell],
                 'resolved' => ['action' => $resolved['action'], 'amount' => $resolved['amount'], 'tag' => $resolved['tag']],
             ],
         ];
+    }
+
+    /** Los rangos son ~169 manos por jugador: en la traza de la decisión solo se deja cuántas manos tenía cada uno. */
+    private function withoutRanges(array $state): array
+    {
+        $count = fn (?array $range) => $range === null ? null : count($range);
+        $state['range_hands'] = $count($state['range'] ?? null);
+        unset($state['range']);
+        foreach ($state['rivals'] as &$rival) {
+            $rival['range_hands'] = $count($rival['range'] ?? null);
+            unset($rival['range']);
+        }
+
+        return $state;
     }
 }
