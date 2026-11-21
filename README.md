@@ -42,6 +42,23 @@ Preflop, cada rival decide con unas tablas por mano, posición y tramo de stack 
 
 Está en proceso de pulido. Quedan por hacer, entre otras cosas, que el postflop use los rangos de los rivales y tablas más finas por posición del abridor.
 
+### IA local en el flop (rama `feature/ia-bots`, en pruebas)
+
+En esta rama los bots pueden decidir el flop con un modelo de lenguaje local (Qwen3 32B por defecto, servido por Ollama dentro de Docker; con tarjeta NVIDIA opcional mediante `docker-compose.gpu.yml`). El modelo se elige al instalar. El interruptor es por bot (`metadata.engine` = `ai` o `rules`) y, si el servicio falla, cada decisión vuelve a las reglas.
+
+Principios del diseño:
+
+- El bot es un **perfil** (estadísticas por situación). Hay un solo modelo, sin entrenar, y decide de forma imperfecta, como una persona.
+- **Todo cálculo lo hacen herramientas** (en `python/trainer_mtt/poker`): mano hecha, proyectos, overcards, equity hasta el river contra el rango del rival, precio del bote, qué apuesta el rival (valor, proyectos o farol) y tipo de rival. **La IA solo decide** con esos resultados y reparte probabilidades entre las acciones.
+- Cada situación del flop (ante una apuesta, ante una subida, con iniciativa, sin iniciativa) tiene su propio servicio y cuestionario (`python/trainer_mtt/ai/streets/flop`).
+- El rango con el que llega el bot al flop sale de sus tablas preflop y se reparte en zonas (apostar, pagar, tirar) según el board.
+- Se adapta al villano (agresión, tendencia a foldear) en la medida que permite la habilidad del bot.
+- El objetivo de continuation bet usa la posición y si el bote es heads-up o multiway.
+
+Medición con 150 decisiones reales de un jugador de PokerTracker (`php artisan ai:evaluate-flop`, pérdida log, menor es mejor): solo el perfil 0,526; IA con mano 0,461; con rango 0,446; con rango y adaptación 0,443. Detalle en `Trainer-MTT-DOCS/13-IA-ejemplo-de-comprobacion.md`.
+
+Pendiente: turn y river, que el importador guarde el cbet por heads-up/multiway, medir la adaptación con rivales extremos y el contexto de torneo (ICM, ciegas). Por ahora solo decide el flop.
+
 ### Reproducción de torneos
 
 Se pueden consultar y exportar historiales, pero todavía falta poder cargar un torneo ya jugado y recrearlo paso a paso para repetir la partida y analizar sus decisiones.
@@ -69,7 +86,7 @@ Importa únicamente datos que tengas derecho a utilizar. La base temporal de tra
 - **Aplicación web:** Laravel 13, PHP 8.3 o superior y Blade. Los recursos CSS y JavaScript se sirven como archivos estáticos.
 - **Interfaz:** Blade con Tailwind CSS y Alpine.js. Los archivos servidos por Laravel están en `app/public/assets`; se generan con Vite (`npm run build` desde `app/`, solo para desarrollar: el código fuente está en `app/resources`).
 - **Persistencia:** la configuración incluida en Docker usa PostgreSQL 15.
-- **Servicios del entorno Docker:** Redis 7, Laravel Reverb (actualizaciones de la mesa en tiempo real) y un servicio Python/Flask para simulación de equity y generación de tablas.
+- **Servicios del entorno Docker:** Redis 7, Laravel Reverb (actualizaciones de la mesa en tiempo real) un servicio Python/Flask para simulación de equity, generación de tablas y herramientas de la IA, y (en esta rama) Ollama para el modelo local.
 
 La lógica del juego y de los bots vive principalmente en `app/app/Services`; los modelos y controladores Laravel están en `app/app`, las páginas Blade en `app/resources/views` y las rutas en `app/routes`.
 
