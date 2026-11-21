@@ -1,7 +1,10 @@
 import unittest
 
 from app import app
-from equity_simulator import Card, EquitySimulator, HandEvaluator
+from trainer_mtt.equity.simulator import EquitySimulator
+from trainer_mtt.equity.tables import PreflopTables
+from trainer_mtt.poker.cards import Card
+from trainer_mtt.poker.evaluator import HandEvaluator
 
 
 class EquitySimulatorTest(unittest.TestCase):
@@ -9,9 +12,9 @@ class EquitySimulatorTest(unittest.TestCase):
         self.simulator = EquitySimulator(seed=17)
 
     def test_starting_hand_classes_expand_to_the_correct_physical_combos(self):
-        self.assertEqual(len(self.simulator._hand_combinations("AA")), 6)
-        self.assertEqual(len(self.simulator._hand_combinations("AKs")), 4)
-        self.assertEqual(len(self.simulator._hand_combinations("AKo")), 12)
+        self.assertEqual(len(self.simulator.hands.combinations("AA")), 6)
+        self.assertEqual(len(self.simulator.hands.combinations("AKs")), 4)
+        self.assertEqual(len(self.simulator.hands.combinations("AKo")), 12)
 
     def test_evaluator_orders_known_hand_categories_and_wheels(self):
         royal_flush = [Card.from_string(card) for card in ("As", "Ks", "Qs", "Js", "Ts")]
@@ -84,7 +87,7 @@ class EquitySimulatorTest(unittest.TestCase):
         self.assertEqual(heads_up.json["villain_range_size"], 1)
 
     def test_generate_attack_table_returns_valid_structure(self):
-        result = self.simulator.generate_attack_table(50, iterations=100)
+        result = PreflopTables(self.simulator).attack(50, iterations=100)
 
         self.assertIsInstance(result, dict)
         self.assertGreater(len(result), 0)
@@ -98,8 +101,8 @@ class EquitySimulatorTest(unittest.TestCase):
             self.assertIsInstance(data['include'], bool)
 
     def test_generate_attack_table_with_custom_threshold(self):
-        result_high = self.simulator.generate_attack_table(50, equity_threshold=0.7, iterations=100)
-        result_low = self.simulator.generate_attack_table(50, equity_threshold=0.3, iterations=100)
+        result_high = PreflopTables(self.simulator).attack(50, equity_threshold=0.7, iterations=100)
+        result_low = PreflopTables(self.simulator).attack(50, equity_threshold=0.3, iterations=100)
 
         included_high = [h for h, v in result_high.items() if v['include']]
         included_low = [h for h, v in result_low.items() if v['include']]
