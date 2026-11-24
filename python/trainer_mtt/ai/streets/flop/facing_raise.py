@@ -11,7 +11,7 @@ class FacingRaise(Spot):
     rival_stats = ('af', 'cr', 'cbet')
     guidance = (
         "- You bet and the opponent raised. Your profile says how often THIS player folds to a raise of its own bet across all its hands: the weakest hands "
-        "fold and the best continue. Compare the rank of your hand (section 2) with that fold percentage: clearly below it, fold; clearly above it, continue "
+        "fold and the best continue. Compare the rank of your hand (section 3) with that fold percentage: clearly below it, fold; clearly above it, continue "
         "(call, or re-raise only with a monster or a very strong draw); close to it, mix.\n"
         "- A raise from a passive, tight or calling-station opponent is almost always real strength: fold more. A raise from an aggressive opponent or a maniac "
         "is often a bluff or a semi-bluff: continue more, especially with a draw.\n"

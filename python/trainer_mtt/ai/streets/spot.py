@@ -13,9 +13,12 @@ from itertools import combinations
 from trainer_mtt.ai.actions import ACTION_HELP
 from trainer_mtt.ai.streets.opponent import OpponentRead
 from trainer_mtt.ai.streets.questionnaire import OPPONENT_TYPES, HandContext, StatsReader
+from trainer_mtt.ai.streets.story import StreetsStory
+from trainer_mtt.poker.board_story import BoardStory
 from trainer_mtt.poker.cards import Card, Deck
 from trainer_mtt.poker.hand_analyzer import HandAnalyzer
 from trainer_mtt.poker.hand_range import HandRange
+from trainer_mtt.poker.hand_story import HandStory
 from trainer_mtt.poker.range_composition import RangeComposition
 from trainer_mtt.poker.range_narrowing import RangeNarrower
 from trainer_mtt.poker.range_scorer import RangeScorer, RangeSplit
@@ -100,16 +103,17 @@ class Spot:
         board = [Card.from_string(card) for card in state['board']]
         own_range = HandRange(state.get('range'))
         arrival = HandRange((rival or {}).get('range'))
+        story_lines, own_range, arrival = self._story(state, context, rival, own_range, arrival, hole, board)
         shown, frequency = self._shown_range(context, rival, read, arrival, own_range, hole, board)
         analysis = self.analyzer.analyze(state['hole_cards'], state['board'], shown or arrival)
         stats = StatsReader.street_stats(state.get('profile'), street)
 
-        lines = [f'QUESTIONNAIRE · {street.upper()} · {self.title}', '']
-        lines += ['1. WHO IS THE OPPONENT']
+        lines = [f'QUESTIONNAIRE · {street.upper()} · {self.title}', ''] + story_lines + ['']
+        lines += ['2. WHO IS THE OPPONENT']
         lines += self._rivals_section(state, rival, read)
         kind = read.type()
         lines += [f'   Type of player (computed from his statistics): {kind.upper()} - {OPPONENT_TYPES[kind]}.']
-        lines += ['', f'2. YOUR HAND (exact, computed by a tool): {" ".join(state["hole_cards"])} on board {" ".join(state["board"])}']
+        lines += ['', f'3. YOUR HAND (exact, computed by a tool): {" ".join(state["hole_cards"])} on board {" ".join(state["board"])}']
         lines += [f'   {line}' for line in self.analyzer.describe(analysis)]
         lines += self._price_check(state, analysis)
         if shown:
@@ -117,15 +121,15 @@ class Spot:
             lines += self._composition_lines(shown, hole, board)
         standing = self.analyzer.situation(analysis)
         lines += [f'   Where you stand (computed): {standing.upper()} - {SITUATIONS[standing]}.']
-        lines += ['', f'3. YOUR PROFILE IN THIS SPOT (you play as this player). Preflop style: {StatsReader.preflop_style(state.get("profile"))}']
+        lines += ['', f'4. YOUR PROFILE IN THIS SPOT (you play as this player). Preflop style: {StatsReader.preflop_style(state.get("profile"))}']
         lines += StatsReader.lines(stats, self.own_stats)
         lines += self._target_section(state)
         zones, notes = self.adapt(self.zones(state), read, k)
         lines += [f'  ADAPTATION to this opponent (your skill and the reliability of the read apply): {note}' for note in notes]
         range_lines = self._range_section(state, own_range, shown or arrival, hole, board, zones)
         lines += range_lines
-        lines += ['', '4. THE SITUATION'] + context.situation_lines() + ['  Actions so far:'] + [f'  {line}' for line in context.history_lines()]
-        lines += ['', '5. HOW TO DECIDE', self.guidance]
+        lines += ['', '5. THE SITUATION'] + context.situation_lines() + ['  Actions so far:'] + [f'  {line}' for line in context.history_lines()]
+        lines += ['', '6. HOW TO DECIDE', self.guidance]
         if range_lines:
             lines.append(
                 '- Decide with ALL the results above, they are computed for you: your equity against the price of the call, what he bets with (value, draws, '
@@ -217,7 +221,9 @@ class Spot:
         need = round(100 * to_call / (pot + to_call), 1)
         verdict = 'enough to call' if equity >= need else 'not enough to call on equity alone'
 
-        return [f'   PRICE CHECK: your equity is {equity}% and the call needs {need}% ({verdict}; also count what you win when you hit).']
+        extra = '' if analysis.get('final') else '; also count what you win when you hit'
+
+        return [f'   PRICE CHECK: your equity is {equity}% and the call needs {need}% ({verdict}{extra}).']
 
     @staticmethod
     def _composition_lines(shown, hole, board):
@@ -274,7 +280,7 @@ class Spot:
         meaning = (' (a TRAP: you check a strong hand so that he bets into you)' if zone == 'trap' else '')
 
         return [
-            f'  Range you arrive with at this street, from your preflop line: {own.percent_of_hands()}% of all hands. Opponent range: {opponent}.',
+            f'  Range you arrive with at this street, {self._origin(state)}: {own.percent_of_hands()}% of all hands. Opponent range: {opponent}.',
             f'  Ordering your range from strongest to weakest on THIS board, your profile splits it: {parts}.',
             f'  => Your hand is in the top {round(top * 100)}% of your range, so it falls in the {zone.upper()} zone ({away}).',
             f'  => With a hand in that position of its range this player usually does {action.upper()}{meaning}. It is one input, not an order: '
@@ -288,3 +294,24 @@ class Spot:
         shown = ', '.join(f"{key[:-4].replace('_', ' ')} {value}%" for key, value in target.items())
 
         return [f'  => Across ALL the hands this player has in this exact spot, it does: {shown}.']
+
+    # ------------------------------------------------------------------ historia de la mano
+
+    @staticmethod
+    def _origin(state):
+        """De dónde sale el rango con el que se llega a esta calle."""
+        return 'from your preflop line' if state['street'] == 'flop' else 'from your preflop line and what you did on the earlier streets'
+
+    def _story(self, state, context, rival, own_range, arrival, hole, board):
+        """(líneas, rango propio, rango del rival): la historia de la mano hasta ahora y los rangos estrechados por lo que se hizo en el flop."""
+        street = state['street']
+        played = [s for s in ('flop', 'turn', 'river') if s != street and any(h and h[0] == s for h in state.get('history') or [])]
+        lines = ['1. THE STORY OF THE HAND SO FAR (computed from the actions)'] + HandStory(state).story_lines(played)
+        lines += [f'   {line}' for line in BoardStory().lines(board)]
+        if street in ('turn', 'river'):
+            flop = StreetsStory(state, context, rival, hole, board)
+            if flop.applies():
+                own_range, arrival, notes = flop.through(own_range, arrival)
+                lines += [f'   {note}' for note in notes]
+
+        return lines, own_range, arrival

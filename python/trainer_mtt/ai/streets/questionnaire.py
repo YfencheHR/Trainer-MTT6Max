@@ -72,11 +72,16 @@ class HandContext:
         """¿Ya apostó o subió este jugador en la calle actual?"""
         return any(h[1] == self.state.get('position') and h[2] in AGGRESSIVE for h in self.street_actions())
 
-    def had_initiative(self):
-        """¿Fue el último que subió preflop?"""
-        raises = [h for h in self.history if h[0] == 'preflop' and h[2] in ('raise', 'allin')]
+    def previous_aggressor(self):
+        """Posición del último que apostó o subió ANTES de esta calle: quien trae la iniciativa (el que subió preflop; en el turn, quien apostó el flop)."""
+        street = self.state.get('street')
+        aggressive = [h for h in self.history if h[0] != street and h[2] in AGGRESSIVE]
 
-        return bool(raises) and raises[-1][1] == self.state.get('position')
+        return aggressive[-1][1] if aggressive else None
+
+    def had_initiative(self):
+        """¿Trae este jugador la iniciativa a esta calle?"""
+        return self.previous_aggressor() == self.state.get('position')
 
     def preflop_aggressor(self):
         """Posición del último que subió preflop (None si nadie)."""
@@ -85,10 +90,10 @@ class HandContext:
         return raises[-1][1] if raises else None
 
     def rival_had_initiative(self, rival):
-        return rival is not None and rival.get('position') == self.preflop_aggressor()
+        return rival is not None and rival.get('position') == self.previous_aggressor()
 
     def main_rival(self):
-        """El rival que más importa: el que apostó o subió en la calle; si no, el último que subió preflop; si no, el primero."""
+        """El rival que más importa: el que apostó o subió en la calle; si no, el último que apostó o subió en una calle anterior; si no, el primero."""
         rivals = self.state.get('rivals') or []
         if not rivals:
             return None
@@ -97,7 +102,7 @@ class HandContext:
         for h in reversed(self.street_actions()):
             if h[1] != self.state.get('position') and h[2] in AGGRESSIVE and h[1] in by_position:
                 return by_position[h[1]]
-        for h in reversed([h for h in self.history if h[0] == 'preflop' and h[2] in ('raise', 'allin')]):
+        for h in reversed([h for h in self.history if h[0] != self.state.get('street') and h[2] in AGGRESSIVE]):
             if h[1] in by_position:
                 return by_position[h[1]]
 

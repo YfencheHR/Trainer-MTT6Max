@@ -11,10 +11,10 @@ class FacingBet(Spot):
     rival_stats = ('cbet', 'donk', 'af', 'cr')
     guidance = (
         "- Your profile says how often THIS player folds, calls and raises here across all its hands. The weakest hands are the ones that fold and the best "
-        "ones continue: compare the rank of your hand (section 2) with the fold percentage. If your hand ranks clearly below it, folding gets most of the "
+        "ones continue: compare the rank of your hand (section 3) with the fold percentage. If your hand ranks clearly below it, folding gets most of the "
         "probability; clearly above it, continuing does; close to it, mix them. Never give exactly 0 or 1 (it is a person) unless it is total air or a monster.\n"
         "- Draws are worth more than their rank: many outs and a good price (pot odds) keep you in the hand.\n"
-        "- Read the opponent (section 1) against your own profile: a bettor that bets very often or is very aggressive bluffs more, so continue a bit more; "
+        "- Read the opponent (section 2) against your own profile: a bettor that bets very often or is very aggressive bluffs more, so continue a bit more; "
         "a bettor that rarely bets usually has a real hand, so fold a bit more; a calling station betting is strong value.\n"
         "- Raise only with your strongest hands and best draws, as often overall as the raise percentage says; choose the size among the allowed ones."
     )

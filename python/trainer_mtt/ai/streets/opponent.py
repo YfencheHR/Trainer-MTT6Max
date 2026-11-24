@@ -67,8 +67,10 @@ class OpponentRead:
         return round((100 - float(folded)) * float(raised) / 100, 1)
 
     def bet_frequency(self, had_initiative):
-        """% de veces que apuesta en el flop: su c-bet si tenía la iniciativa, su donk si no (None si no hay datos)."""
+        """% de veces que apuesta: su c-bet si tenía la iniciativa, su donk si no; en el turn y el river, su «apuesta cuando le pasan» (None si no hay datos)."""
         value = self.stats.get('cbet' if had_initiative else 'donk')
+        if value is None:
+            value = self.stats.get('bet')
 
         return None if value is None else float(value)
 

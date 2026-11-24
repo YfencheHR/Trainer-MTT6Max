@@ -25,9 +25,9 @@ FLOP_SERVICE = REGISTRY.service_for('flop')
 
 
 class StreetServicesTest(unittest.TestCase):
-    def test_only_the_flop_has_a_service_for_now(self):
-        self.assertEqual(REGISTRY.available(), ['flop'])
-        self.assertIsNone(REGISTRY.service_for('turn'))
+    def test_only_the_streets_with_a_service_are_covered(self):
+        self.assertEqual(REGISTRY.available(), ['flop', 'preflop', 'river', 'turn'])
+        self.assertIsNone(REGISTRY.service_for('showdown'))
 
     def test_the_flop_service_only_shows_the_model_the_flop_part_of_each_profile(self):
         prepared = FLOP_SERVICE.prepare_state(FACING_BET)
@@ -138,13 +138,13 @@ class StreetEndpointsTest(unittest.TestCase):
         self.client = app.test_client()
 
     def test_an_uncovered_street_answers_501(self):
-        response = self.client.post('/ai/decide', json={'state': {**FACING_BET, 'street': 'turn'}, 'model': 'm'})
+        response = self.client.post('/ai/decide', json={'state': {**FACING_BET, 'street': 'showdown'}, 'model': 'm'})
 
         self.assertEqual(response.status_code, 501)
-        self.assertEqual(response.get_json()['streets'], ['flop'])
+        self.assertEqual(response.get_json()['streets'], ['flop', 'preflop', 'river', 'turn'])
 
     def test_it_lists_the_covered_streets(self):
-        self.assertEqual(self.client.get('/ai/streets').get_json(), {'streets': ['flop']})
+        self.assertEqual(self.client.get('/ai/streets').get_json(), {'streets': ['flop', 'preflop', 'river', 'turn']})
 
     def test_a_flop_state_is_decided(self):
         answer = json.dumps({'opponent_type': 'nit', 'my_situation': 'ahead', 'fold': 1, 'call': 3})

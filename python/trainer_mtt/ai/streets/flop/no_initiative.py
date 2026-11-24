@@ -13,7 +13,7 @@ class NoInitiative(Spot):
         "- You did not raise preflop and nobody has bet yet. Out of position and first to act, this player leads (bets) only as often as its profile says "
         "(usually little) and checks the rest; when it leads it is with strong hands or a plan, not with everything. In position after a check there is no "
         "exact statistic: use its general aggression (af) as the tendency to bet when checked to.\n"
-        "- Read the opponent (section 1): an aggressive preflop raiser will bet if you check, so checking to call or check-raise is natural with strong hands "
+        "- Read the opponent (section 2): an aggressive preflop raiser will bet if you check, so checking to call or check-raise is natural with strong hands "
         "and draws; against a passive opponent that checks behind, betting for value or as a probe gets more value.\n"
         "- The probabilities of all bet sizes together are the probability of betting; check gets the rest. Never give exactly 0 or 1 unless it is a monster."
     )

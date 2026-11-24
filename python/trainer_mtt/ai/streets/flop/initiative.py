@@ -14,9 +14,9 @@ class Initiative(Spot):
     rival_stats = ('f2bet', 'raise_vs_bet', 'cr', 'af')
     guidance = (
         "- You raised preflop and nobody has bet yet. Your profile says how often THIS player bets here across all its hands (the rest it checks). It bets "
-        "its best hands and some of its worst (bluffs and draws): compare your hand (section 2) with the bet percentage; strong made hands and strong draws "
+        "its best hands and some of its worst (bluffs and draws): compare your hand (section 3) with the bet percentage; strong made hands and strong draws "
         "bet most of the time, medium hands are the ones that mostly check, and air bets only as often as this player bluffs.\n"
-        "- Read the opponent (section 1): against one that folds a lot to bets, bet more (more air); against a calling station, bet for value and bluff "
+        "- Read the opponent (section 2): against one that folds a lot to bets, bet more (more air); against a calling station, bet for value and bluff "
         "little; against one that raises or check-raises a lot, check more with weak and medium hands.\n"
         "- The probabilities of all bet sizes together are the probability of betting; check gets the rest. Use small bets for thin value, draws and dry "
         "boards and big bets for strong hands against opponents that pay. Never give exactly 0 or 1 unless it is total air or a monster."
@@ -34,7 +34,8 @@ class Initiative(Spot):
         if cell.get('bet') is not None and (cell.get('n') or 0) >= MIN_CELL_HANDS:
             bet = cell['bet']
         else:
-            bet = (side.get('agg') or {}).get('bet', stats.get('cbet'))
+            general = stats.get('cbet') if stats.get('cbet') is not None else stats.get('bet')   # cbet en el flop; «apuesta cuando le pasan» en el turn
+            bet = (side.get('agg') or {}).get('bet', general)
         if bet is None:
             return {}
         bet = round(float(bet), 1)
