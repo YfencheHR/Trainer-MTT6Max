@@ -42,9 +42,9 @@ Preflop, cada rival decide con unas tablas por mano, posición y tramo de stack 
 
 Está en proceso de pulido. Quedan por hacer, entre otras cosas, que el postflop use los rangos de los rivales y tablas más finas por posición del abridor.
 
-### IA local en el flop (rama `feature/ia-bots`, en pruebas)
+### IA local en las cuatro calles (rama `feature/ia-bots`, en pruebas)
 
-En esta rama los bots pueden decidir el flop con un modelo de lenguaje local (Qwen3 32B por defecto, servido por Ollama dentro de Docker; con tarjeta NVIDIA opcional mediante `docker-compose.gpu.yml`). El modelo se elige al instalar. El interruptor es por bot (`metadata.engine` = `ai` o `rules`) y, si el servicio falla, cada decisión vuelve a las reglas.
+En esta rama los bots pueden decidir preflop, flop, turn y river con un modelo de lenguaje local (Qwen3 32B por defecto, servido por Ollama dentro de Docker; con tarjeta NVIDIA opcional mediante `docker-compose.gpu.yml`). El modelo se elige al instalar. El interruptor es por bot (`metadata.engine` = `ai` o `rules`) y, si el servicio falla, cada decisión vuelve a las reglas.
 
 Principios del diseño:
 
@@ -57,7 +57,9 @@ Principios del diseño:
 
 Medición con 150 decisiones reales de un jugador de PokerTracker (`php artisan ai:evaluate-flop`, pérdida log, menor es mejor): solo el perfil 0,526; IA con mano 0,461; con rango 0,446; con rango y adaptación 0,443. Detalle en `Trainer-MTT-DOCS/13-IA-ejemplo-de-comprobacion.md`.
 
-Pendiente: turn y river, que el importador guarde el cbet por heads-up/multiway, medir la adaptación con rivales extremos y el contexto de torneo (ICM, ciegas). Por ahora solo decide el flop.
+Preflop, turn y river usan el mismo molde, con **la mano como historia**: el cuestionario cuenta el preflop y cada calle jugada, y el rango de cada jugador se estrecha con lo que hizo en las calles anteriores (`HandStory`, `RangeStory`, `BoardStory`). Mediciones con 100 decisiones reales (pérdida log, solo perfil → IA con rango): preflop con tabla de la mano 0,59 (copia la tabla, no la mejora); turn 0,595 → 0,479; river 0,721 → 0,777 (acierta más veces la acción más probable, pero es más tajante que el jugador real). Detalle en `Trainer-MTT-DOCS/14-IA-preflop-historia-y-memoria.md`.
+
+Pendiente: memoria y capacidades por torneo (ninguna, torneo, historial), que el importador guarde el cbet por heads-up/multiway, afinar el rango del river (slowplay), medir la adaptación con rivales extremos y el contexto de torneo (ICM, ciegas).
 
 ### Reproducción de torneos
 
