@@ -59,7 +59,7 @@ class TournamentFactory
      * Crea el torneo (pendiente) con sus jugadores.
      *
      * @param array $settings starting_stack, big_blind, speed, hands_per_level, ante_by_level, hand_types, show_all_cards,
-     *                        no_hud_data, player_time_mode, time_per_decision_seconds, bank_time_seconds
+     *                        no_hud_data, bot_memory (none|tournament), player_time_mode, time_per_decision_seconds, bank_time_seconds
      * @param Bot[] $bots rivales (uno por plaza)
      * @param array{user_id?: int|null, name?: string}|null $hero datos del héroe humano; null = torneo solo de bots
      * @param bool $heroEntryInConfig incluir la entrada "tú" en config.players (la pantalla de creación siempre lo ha hecho)
@@ -191,6 +191,7 @@ class TournamentFactory
             'game_settings' => array_merge(config('game-settings'), [
                 'show_all_cards' => $data['show_all_cards'] ?? false,
                 'no_hud_data' => $data['no_hud_data'] ?? false,
+                'bot_memory' => $data['bot_memory'] ?? 'none',
             ]),
             'player_time_settings' => [
                 'mode' => $data['player_time_mode'] ?? 'unlimited',

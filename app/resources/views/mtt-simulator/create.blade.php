@@ -142,6 +142,15 @@
         </label>
       </div>
 
+      <div style="padding-bottom: 1.5rem;">
+        <label for="botMemory" style="color: #d1d5db;" class="block text-xs uppercase font-semibold mb-2">{{ __('tournaments.bot_memory') }}</label>
+        <select id="botMemory" name="bot_memory" style="background-color: #0f1419; border: 1px solid #2e3a48; color: #a1a5b0; padding: 0.5rem; border-radius: 0.375rem; width: 100%;">
+          @foreach (['none', 'tournament'] as $memory)
+            <option value="{{ $memory }}" {{ old('bot_memory', 'none') === $memory ? 'selected' : '' }}>{{ __('tournaments.bot_memory_'.$memory) }}</option>
+          @endforeach
+        </select>
+      </div>
+
       <!-- Distribución de Rivales con Sliders -->
       <div>
         <p style="color: #d1d5db;" class="block text-xs uppercase font-semibold mb-4">{{ __('tournaments.select_rivals') }}</p>

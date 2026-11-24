@@ -53,7 +53,7 @@ class DecisionContract
             $rivals[] = [
                 'position' => $p['position'], 'stack_bb' => round($p['stack'] / $bb, 1), 'bet_bb' => round(($p['bet'] ?? 0) / $bb, 1),
                 'all_in' => ! empty($p['all_in']),
-                'profile' => $this->profile($p),
+                'profile' => $this->rivalProfile($p, $ctx),
             ] + (isset($ranges[$p['id']]) ? ['range' => $ranges[$p['id']]] : []);
         }
         $mine = collect($ctx['players'])->firstWhere('id', $me['id']) ?? [];
@@ -71,7 +71,7 @@ class DecisionContract
             'in_position' => $this->inPosition($me['position'], array_column($rivals, 'position'), count($ctx['players']) === 2),
             'history' => $this->compactHistory($ctx['history'] ?? [], array_column($ctx['players'], 'position', 'id'), $bb),
             'rivals' => $rivals,
-            'profile' => $this->profile($mine + ['preflop_stats' => $me['stats'] ?? []]),
+            'profile' => $this->profile(isset($mine['profile_preflop']) ? ['preflop_stats' => $mine['profile_preflop']] + $mine : $mine + ['preflop_stats' => $me['stats'] ?? []]),
         ] + (isset($ranges[$me['id']]) ? ['range' => $ranges[$me['id']]] : []));
     }
 
@@ -175,6 +175,17 @@ class DecisionContract
     private function profile(array $player): array
     {
         return ['preflop' => $player['preflop_stats'] ?? $player['stats'] ?? [], 'postflop' => $player['postflop_stats'] ?? []];
+    }
+
+    /**
+     * El perfil con el que el bot ve a un rival: su perfil configurado, corregido con lo observado en el torneo si el torneo da esa memoria
+     * a los bots (BotMemory). Sin memoria, lo visto en el torneo no cuenta.
+     */
+    private function rivalProfile(array $player, array $ctx): array
+    {
+        $configured = isset($player['profile_preflop']) ? ['preflop_stats' => $player['profile_preflop']] + $player : $player;
+
+        return app(BotMemory::class)->apply($this->profile($configured), $player['stats'] ?? [], BotMemory::mode($ctx));
     }
 
     /**

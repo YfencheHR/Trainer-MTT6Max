@@ -68,6 +68,7 @@ class TournamentController extends Controller
             'hero_player' => 'boolean',
             'show_all_cards' => 'boolean',
             'no_hud_data' => 'boolean',
+            'bot_memory' => 'nullable|in:none,tournament',
             'player_time_mode' => 'required|in:unlimited,standard',
             'time_per_decision_seconds' => 'nullable|integer|min:5|max:300',
             'bank_time_seconds' => 'nullable|integer|min:30|max:3600',

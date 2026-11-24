@@ -27,6 +27,7 @@ class TournamentSimulateCommand extends Command
         {--speed=tipica : tipica | rapida | muy_rapida}
         {--hands-per-level= : manos por nivel (por defecto, el de la velocidad)}
         {--bots= : perfiles y pesos "id:peso,id:peso" (por defecto, todos los perfiles importados con el mismo peso)}
+        {--bot-memory=none : memoria de los bots con IA: none | tournament}
         {--max-rounds=3000 : tope de rondas por torneo}
         {--purge : borra todos los torneos simulados y termina}';
 
@@ -64,6 +65,7 @@ class TournamentSimulateCommand extends Command
             'hands_per_level' => $handsPerLevel,
             'ante_by_level' => $this->anteSchedule((int) $this->option('bb'), $speed, $handsPerLevel),
             'hand_types' => [1],
+            'bot_memory' => $this->option('bot-memory') === 'tournament' ? 'tournament' : 'none',
         ];
 
         $total = max(1, (int) $this->option('tournaments'));

@@ -525,6 +525,7 @@ class HandPlayService
                 'total_in_hand' => $p['total'] ?? 0,
                 'stats' => $playerStats, // lo observado de este jugador en el torneo
                 'preflop_stats' => $this->hudFor($playerRows->get($p['id']), $playerStats),
+                'profile_preflop' => $bot ? $this->hudFor($playerRows->get($p['id']), ['hands' => 0] + $playerStats) : null, // el perfil configurado, sin lo observado (memoria de la IA)
                 'postflop_stats' => $postflopStats,
                 'folded' => $p['folded'],
                 'all_in' => $p['all_in'],
@@ -534,6 +535,7 @@ class HandPlayService
 
         return [
             'hand_id' => $hand->id,
+            'bot_memory' => (string) data_get($hand->tournament->config, 'game_settings.bot_memory', 'none'),
             'hand_number' => $hand->hand_number,
             'street' => $meta['street'],
             'big_blind' => (int) ($meta['bb'] ?? 100),
