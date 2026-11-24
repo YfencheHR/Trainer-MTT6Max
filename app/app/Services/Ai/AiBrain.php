@@ -18,6 +18,7 @@ class AiBrain
         private ActionCatalog $catalog,
         private AiClient $client,
         private FlopRanges $ranges,
+        private PreflopTargets $targets,
         private BrainRepository $brains,
     ) {
     }
@@ -54,7 +55,11 @@ class AiBrain
     {
         $seed ??= random_int(1, 2147483646);
         $state = $this->contract->fromBotContext($ctx, $this->ranges->forHand($ctx)) + ['adaptation' => $this->adaptationFor($ctx)];
-        $allowed = $this->contract->allowedActions($ctx['legal'], $ctx['street']);
+        $counts = $this->contract->preflopCounts($ctx['history'] ?? [], (int) $ctx['big_blind']);
+        if ($ctx['street'] === 'preflop' && ($table = $this->targets->forDecision($ctx))) {
+            $state['table'] = $table; // lo que su perfil hace en esta situación (con todas sus manos y con esta mano)
+        }
+        $allowed = $this->contract->allowedActions($ctx['legal'], $ctx['street'], $counts['raises']);
         if (! $allowed) {
             throw new \RuntimeException('No hay ninguna acción permitida');
         }
@@ -68,7 +73,7 @@ class AiBrain
         $resolved = $this->catalog->resolve($cell, [
             'legal' => $ctx['legal'], 'pot' => $ctx['pot'], 'to_call' => $ctx['to_call'], 'current_bet' => $ctx['current_bet'],
             'stack' => $ctx['me']['stack'], 'bet' => $ctx['me']['bet'], 'big_blind' => $ctx['big_blind'],
-            'limpers' => 0, 'preflop_raises' => 0, 'flags' => $ctx['me']['flags'] ?? [],
+            'limpers' => $counts['limpers'], 'preflop_raises' => $counts['raises'], 'flags' => $ctx['me']['flags'] ?? [],
         ]);
 
         $top = [];

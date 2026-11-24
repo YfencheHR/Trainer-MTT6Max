@@ -5,7 +5,7 @@ return [
     'engine' => env('AI_ENGINE', 'rules'),
 
     // Calles que decide la IA (cada una tiene su servicio en python/streets). Las demás siguen con reglas.
-    'streets' => ['flop'],
+    'streets' => array_values(array_filter(array_map('trim', explode(',', env('AI_STREETS', 'preflop,flop,turn,river'))))),
 
     'url' => env('PYTHON_SERVICE_URL', 'http://python-service:5000'),
 

@@ -81,7 +81,7 @@ class DecisionContract
      *
      * @return list<string>
      */
-    public function allowedActions(array $legal, string $street): array
+    public function allowedActions(array $legal, string $street, int $raises = 0): array
     {
         $out = [];
         if (! empty($legal['fold'])) {
@@ -93,8 +93,9 @@ class DecisionContract
         if (($legal['call'] ?? null) !== null) {
             $out[] = 'call';
         }
-        if ($street !== 'preflop' && ($legal['raise'] ?? null) !== null) {
-            $out = array_merge($out, array_keys(self::POSTFLOP_FRACTION));
+        if (($legal['raise'] ?? null) !== null) {
+            // Preflop: abrir a un tamaño fijo si nadie ha subido, y resubir como múltiplo de la apuesta si ya hay una subida
+            $out = array_merge($out, $street !== 'preflop' ? array_keys(self::POSTFLOP_FRACTION) : array_keys($raises > 0 ? self::RAISE_MULT : self::OPEN_BB));
         }
         if (($legal['allin'] ?? null) !== null) {
             $out[] = 'allin';
@@ -135,10 +136,36 @@ class DecisionContract
         return $out;
     }
 
-    /** El modelo solo decide en postflop (el preflop sigue con la tabla del perfil hasta que se demuestre que la IA lo mejora). */
+    /** Calles que define el contrato (cuáles decide la IA lo dice config('ai.streets'), según los servicios que haya). */
     public function supports(array $state): bool
     {
-        return in_array($state['street'], ['flop', 'turn', 'river'], true);
+        return in_array($state['street'], ['preflop', 'flop', 'turn', 'river'], true);
+    }
+
+    /**
+     * Subidas y limpers que hay preflop en el historial del simulador (lo que necesita el catálogo de acciones para dimensionar una subida).
+     *
+     * @return array{raises: int, limpers: int}
+     */
+    public function preflopCounts(array $history, int $bigBlind): array
+    {
+        $top = max(1, $bigBlind);
+        $raises = $limpers = 0;
+        foreach ($history as $h) {
+            if (($h['street'] ?? '') !== 'preflop') {
+                continue;
+            }
+            $action = $h['action'] ?? '';
+            $amount = (int) ($h['amount'] ?? 0);
+            if (in_array($action, ['raise', 'bet'], true) || ($action === 'allin' && $amount > $top)) {
+                $raises++;
+                $top = $amount;
+            } elseif ($action === 'call' && $raises === 0) {
+                $limpers++;
+            }
+        }
+
+        return ['raises' => $raises, 'limpers' => $limpers];
     }
 
     /**
@@ -185,7 +212,9 @@ class DecisionContract
             'players_left' => $a['players_left'],
             'raises_this_street' => count(array_filter($left, fn ($x) => $x['street'] === $a['street'] && $x['action'] === 'raise')),
             'in_position' => $this->inPosition($a['position'], array_column($rivals, 'position'), count($hand['players']) === 2),
-            'history' => array_values(array_map(fn ($x) => [$x['street'], $x['position'], $x['action'], round($x['amount'] / $bb, 1)], $left)),
+            // Como en el simulador: una apuesta o subida va con el total al que sube, y un call con lo que paga
+            'history' => array_values(array_map(fn ($x) => [$x['street'], $x['position'], $x['action'],
+                round((in_array($x['action'], ['raise', 'bet'], true) ? $x['committed_before'] + $x['amount'] : $x['amount']) / $bb, 1)], $left)),
             'rivals' => $rivals,
             'profile' => $this->profile($profiles[$a['player']] ?? []),
         ]);

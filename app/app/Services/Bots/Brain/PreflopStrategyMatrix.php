@@ -30,7 +30,8 @@ class PreflopStrategyMatrix
         return $bot?->isPool() ? $this->forPoolDecision($bot, $features) : null;
     }
 
-    private function forPoolDecision(Bot $bot, array $features): array
+    /** Reparto de acciones (en %) que la tabla del bot da a `$features['hand_code']` en la situación descrita por `$features`. */
+    public function forPoolDecision(Bot $bot, array $features): array
     {
         $position = $features['position'] ?? '';
         $handCode = $features['hand_code'] ?? '';

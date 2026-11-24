@@ -41,8 +41,43 @@ class DecisionContractTest extends TestCase
 
         $this->assertSame(['vpip' => 28], $row['state']['profile']['preflop']);
         $this->assertSame(55, $row['state']['profile']['postflop']['flop']['fold_to_cbet']);
-        $this->assertFalse($c->supports($row['state']), 'preflop sigue con la tabla del perfil');
+        $this->assertTrue($c->supports($row['state']), 'el contrato también define el preflop');
         $this->assertTrue($c->supports(['street' => 'turn']));
+        $this->assertFalse($c->supports(['street' => 'showdown']));
+    }
+
+    public function test_preflop_the_allowed_raises_are_the_open_sizes_or_the_re_raise_multiples(): void
+    {
+        $c = new DecisionContract;
+        $legal = ['fold' => true, 'check' => false, 'call' => 150, 'raise' => ['min' => 300, 'max' => 5000], 'allin' => 5000];
+
+        $this->assertSame(['fold', 'call', 'open_2bb', 'open_2_5bb', 'open_3bb', 'allin'], $c->allowedActions($legal, 'preflop', 0));
+        $this->assertSame(['fold', 'call', 'raise_x2_2', 'raise_x3', 'raise_x4', 'allin'], $c->allowedActions($legal, 'preflop', 1));
+        $this->assertContains('bet_pot', $c->allowedActions($legal, 'flop'));
+    }
+
+    public function test_it_counts_the_raises_and_the_limpers_of_the_preflop(): void
+    {
+        $history = [
+            ['street' => 'preflop', 'action' => 'call', 'amount' => 100],
+            ['street' => 'preflop', 'action' => 'call', 'amount' => 100],
+            ['street' => 'preflop', 'action' => 'raise', 'amount' => 400],
+            ['street' => 'preflop', 'action' => 'call', 'amount' => 400],
+            ['street' => 'preflop', 'action' => 'allin', 'amount' => 3000],
+            ['street' => 'flop', 'action' => 'bet', 'amount' => 200],
+        ];
+
+        $this->assertSame(['raises' => 2, 'limpers' => 2], (new DecisionContract)->preflopCounts($history, 100));
+        $this->assertSame(['raises' => 0, 'limpers' => 0], (new DecisionContract)->preflopCounts([], 100));
+    }
+
+    public function test_a_real_raise_goes_in_the_history_with_the_total_it_raises_to(): void
+    {
+        $hand = $this->hand();
+        $raise = collect($hand['actions'])->first(fn ($a) => $a['action'] === 'raise');
+        $state = (new DecisionContract)->fromHistory($hand, 2)['state'];
+
+        $this->assertContains(['preflop', $raise['position'], 'raise', round(($raise['committed_before'] + $raise['amount']) / 150, 1)], $state['history']);
     }
 
     public function test_the_simulator_state_names_the_first_postflop_bet_a_bet_and_caps_the_call_to_the_stack(): void
