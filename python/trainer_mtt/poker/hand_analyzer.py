@@ -48,6 +48,7 @@ class HandAnalyzer:
             'backdoors': self._backdoors(hole, board, draws, mine),
             'combos': {**self._combos(board, opponents, mine), 'against': against},
             'equity': self._equity(hole, board, opponents),
+            'final': len(board) == 5,
         }
 
     def describe(self, analysis):
@@ -70,13 +71,14 @@ class HandAnalyzer:
 
         lines = [
             f"Made hand: {analysis['made']['label']}.",
-            f"Draws: {'; '.join(parts) if parts else 'none'}"
-            + (f" (about {draws['outs']} cards improve you to a straight or better)." if draws['outs'] else '.'),
+            ('Draws: none (the river is dealt: no cards to come, the hand is what it is).' if analysis.get('final') else f"Draws: {'; '.join(parts) if parts else 'none'}"
+            + (f" (about {draws['outs']} cards improve you to a straight or better)." if draws['outs'] else '.')),
             f"Against {self._scope(combos)}: you beat {self._count(combos['ahead'])}, tie {self._count(combos['tied'])} "
             f"and lose to {self._count(combos['behind'])}; as it stands now (made hand only, no draws) it ranks above {combos['rank_pct']}% of them.",
         ]
         if analysis.get('equity') is not None:
-            lines.append(f"EQUITY by the river against that range, counting your draws and overcards: {analysis['equity']}% "
+            what = 'EQUITY at showdown against that range' if analysis.get('final') else 'EQUITY by the river against that range, counting your draws and overcards'
+            lines.append(f"{what}: {analysis['equity']}% "
                          '(this, not the made hand alone, is what your hand is really worth).')
         if combos['beaten_by']:
             lines.append('Hands that beat you: ' + ', '.join(f'{name} ({self._count(count)} combos)' for name, count in combos['beaten_by'].items()) + '.')
@@ -151,7 +153,9 @@ class HandAnalyzer:
 
     @staticmethod
     def _draws(hole, board, unseen, current):
-        """Cartas que mejoran la mano a escalera o mejor (proyectos) y su tipo."""
+        """Cartas que mejoran la mano a escalera o mejor (proyectos) y su tipo. En el river no hay cartas por venir: no hay proyectos."""
+        if len(board) >= 5:
+            return {"flush_draw": False, "nut_flush_draw": False, "flush_outs": 0, "straight_draw": None, "straight_outs": 0, "outs": 0, "overcards": 0, "pair_outs": 0}
         flush_outs, straight_outs, other_outs = [], [], []
         for card in unseen:
             new = HandEvaluator.best_rank(hole + board + [card])

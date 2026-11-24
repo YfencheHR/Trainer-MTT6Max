@@ -24,7 +24,10 @@ class RangeScorer:
         needed = 5 - len(self.board)
         rng = random.Random(seed)
         free = Deck.without(self.board)
-        boards = [self.board + rng.sample(free, needed) for _ in range(self.RUNOUTS)] if needed > 0 else [self.board]
+        if needed == 1:
+            boards = [self.board + [card] for card in free]   # en el turn solo falta el river: se repasan todos, sin azar
+        else:
+            boards = [self.board + rng.sample(free, needed) for _ in range(self.RUNOUTS)] if needed > 0 else [self.board]
         self._boards = [
             ([c.rank_value for c in b], [c.suit_value for c in b], {self._cid(c) for c in b}) for b in boards
         ]
@@ -87,7 +90,7 @@ class RangeScorer:
 
     def _outs(self, hole, mine):
         """Cartas que completan un color o una escalera (cálculo estructural rápido; sin contar cartas muertas de los rivales)."""
-        if mine[0] >= 3:
+        if mine[0] >= 3 or len(self.board) >= 5:   # en el river no hay cartas por venir
             return 0
         cards = list(hole) + self.board
         outs = 0
