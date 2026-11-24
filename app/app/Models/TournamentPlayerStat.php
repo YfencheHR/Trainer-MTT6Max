@@ -13,12 +13,21 @@ class TournamentPlayerStat extends Model
         'tournament_player_id', 'hands', 'vpip', 'pfr', 'three_bet_opp', 'three_bet',
         'fold_to_three_bet_opp', 'fold_to_three_bet', 'saw_flop', 'cbet_opp', 'cbet',
         'aggressive_actions', 'passive_actions', 'showdowns', 'showdown_wins',
+        ...self::STREET_COUNTERS,
+    ];
+
+    /** Por calle postflop: oportunidades y veces que apuesta sin apuesta delante y que foldea ante una apuesta. */
+    public const STREET_COUNTERS = [
+        'flop_bet_opp', 'flop_bet', 'flop_f2bet_opp', 'flop_f2bet',
+        'turn_bet_opp', 'turn_bet', 'turn_f2bet_opp', 'turn_f2bet',
+        'river_bet_opp', 'river_bet', 'river_f2bet_opp', 'river_f2bet',
     ];
 
     /** Contadores que se incrementan con el resultado de cada mano. */
     public const COUNTERS = [
         'hands', 'vpip', 'pfr', 'three_bet_opp', 'three_bet', 'fold_to_three_bet_opp', 'fold_to_three_bet',
         'saw_flop', 'cbet_opp', 'cbet', 'aggressive_actions', 'passive_actions', 'showdowns', 'showdown_wins',
+        ...self::STREET_COUNTERS,
     ];
 
     public function player(): BelongsTo
@@ -37,6 +46,14 @@ class TournamentPlayerStat extends Model
         $aggr = $g('aggressive_actions');
         $pass = $g('passive_actions');
 
+        $streets = [];
+        foreach (['flop', 'turn', 'river'] as $street) {
+            $streets[$street] = [
+                'bet' => $pct($g("{$street}_bet"), $g("{$street}_bet_opp")), 'bet_opp' => $g("{$street}_bet_opp"),
+                'f2bet' => $pct($g("{$street}_f2bet"), $g("{$street}_f2bet_opp")), 'f2bet_opp' => $g("{$street}_f2bet_opp"),
+            ];
+        }
+
         return [
             'hands' => $g('hands'),
             'vpip' => $pct($g('vpip'), $g('hands')),
@@ -48,6 +65,8 @@ class TournamentPlayerStat extends Model
             'cbet' => $pct($g('cbet'), $g('cbet_opp')),
             'cbet_opp' => $g('cbet_opp'),
             'af' => $pass > 0 ? round($aggr / $pass, 1) : ($aggr > 0 ? (float) $aggr : null),
+            'af_n' => $aggr + $pass,
+            'streets' => $streets,
             'wtsd' => $pct($g('showdowns'), $g('saw_flop')),
             'wsd' => $pct($g('showdown_wins'), $g('showdowns')),
         ];

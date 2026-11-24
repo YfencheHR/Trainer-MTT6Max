@@ -41,21 +41,33 @@ class BotMemory
         $preflop['three_bet'] = $this->mix($preflop['three_bet'] ?? null, $observed['three_bet'] ?? null, $observed['three_bet_opp'] ?? 0);
         $preflop['observed_hands'] = $observed['hands'];
 
-        $flop = (array) ($postflop['flop'] ?? []);
-        $cbet = $this->mix($flop['cbet'] ?? null, $observed['cbet'] ?? null, $observed['cbet_opp'] ?? 0);
-        if ($cbet !== null) {
-            $flop['cbet'] = $cbet;
-            $postflop['flop'] = $flop;
+        foreach (['flop', 'turn', 'river'] as $street) {
+            $seen = $observed['streets'][$street] ?? [];
+            $stats = (array) ($postflop[$street] ?? []);
+            $mixed = [
+                // Fold ante apuesta y agresión de cada calle; en el flop, el c-bet; en turn y river, «apuesta cuando le pasan»
+                'f2bet' => $this->mix($stats['f2bet'] ?? null, $seen['f2bet'] ?? null, $seen['f2bet_opp'] ?? 0),
+                'af' => $this->mix($stats['af'] ?? null, $observed['af'] ?? null, $observed['af_n'] ?? 0),
+                $street === 'flop' ? 'cbet' : 'bet' => $street === 'flop'
+                    ? $this->mix($stats['cbet'] ?? null, $observed['cbet'] ?? null, $observed['cbet_opp'] ?? 0)
+                    : $this->mix($stats['bet'] ?? null, $seen['bet'] ?? null, $seen['bet_opp'] ?? 0),
+            ];
+            foreach (array_filter($mixed, fn ($v) => $v !== null) as $key => $value) {
+                $stats[$key] = $value;
+            }
+            if ($stats) {
+                $postflop[$street] = $stats;
+            }
         }
 
         return ['preflop' => array_filter($preflop, fn ($v) => $v !== null), 'postflop' => $postflop];
     }
 
     /** Mezcla perfil y observado según la muestra; sin uno de los dos devuelve el otro; sin ninguno, null. */
-    public function mix(float|int|null $profile, float|int|null $observed, int $sample): ?float
+    public function mix(float|int|null $profile, float|int|null $observed, int $sample): float|int|null
     {
         if ($observed === null || $sample <= 0) {
-            return $profile === null ? null : (float) $profile;
+            return $profile;
         }
         if ($profile === null) {
             return (float) $observed;

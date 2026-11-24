@@ -119,6 +119,17 @@ class TournamentStatsService
             $amount = (int) $h['amount'];
             $aggressive = $act === 'raise' || ($act === 'allin' && $amount > $streetMax);
 
+            // Por calle: apostar cuando nadie ha apostado y foldear ante una apuesta (con sus oportunidades)
+            if (in_array($street, ["flop", "turn", "river"], true)) {
+                if ($streetMax === 0 && ($aggressive || $act === "check")) {
+                    $d[$pid]["{$street}_bet_opp"]++;
+                    $d[$pid]["{$street}_bet"] += $aggressive ? 1 : 0;
+                } elseif ($streetMax > 0 && in_array($act, ["fold", "call", "raise", "allin"], true)) {
+                    $d[$pid]["{$street}_f2bet_opp"]++;
+                    $d[$pid]["{$street}_f2bet"] += $act === "fold" ? 1 : 0;
+                }
+            }
+
             // C-bet: el último agresor preflop es el primero en apostar en el flop
             if ($street === 'flop' && !$cbetDone && $pid === $lastRaiser && $streetMax === 0 && in_array($act, ['check', 'raise', 'allin', 'fold', 'call'], true)) {
                 $flags['cbet_opp'][$pid] = true;
