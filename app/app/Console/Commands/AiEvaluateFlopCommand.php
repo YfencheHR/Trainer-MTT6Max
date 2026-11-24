@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Concerns\ScoresAgainstRealActions;
 use App\Services\Ai\AiClient;
 use App\Services\Ai\DecisionContract;
 use App\Services\Ai\HandHistoryParser;
@@ -30,9 +31,10 @@ class AiEvaluateFlopCommand extends Command
 
     protected $description = 'Evalúa la IA del flop contra manos reales de PokerTracker';
 
-    private const CLASSES = ['fold', 'check', 'call', 'aggr'];
+    /** Calle que se evalúa (el comando del turn hereda de este y cambia solo esto). */
+    protected string $street = 'flop';
 
-    private const RANKS = 'AKQJT98765432';
+    use ScoresAgainstRealActions;
 
     public function handle(HandHistoryParser $parser, DecisionContract $contract, AiClient $client): int
     {
@@ -71,7 +73,7 @@ class AiEvaluateFlopCommand extends Command
             if ($seen < $profileHands) {
                 $this->tallyRange($hand, $player, $deals, $lines);
             }
-            $mine = array_values(array_filter($hand['actions'], fn ($a) => $a['player'] === $player && $a['street'] === 'flop'));
+            $mine = array_values(array_filter($hand['actions'], fn ($a) => $a['player'] === $player && $a['street'] === $this->street));
             if (! $mine) {
                 continue;
             }
@@ -90,9 +92,9 @@ class AiEvaluateFlopCommand extends Command
 
         $profile = $this->profileFrom($counts);
         // Su cbet por posición y, dentro de ella, heads-up o multiway: lo más concreto que tiene el perfil (ver Initiative::target)
-        $profile['postflop']['flop'] += $this->cellsProfile($cells);
+        $profile['postflop'][$this->street] += $this->cellsProfile($cells);
         $this->info("Jugador: {$player} · manos para el perfil: ".min($seen, $profileHands).' · manos de evaluación: '.count($pool).' · modos: '.implode(', ', $modes));
-        $this->line('Perfil flop: '.json_encode($profile['postflop']['flop']));
+        $this->line("Perfil {$this->street}: ".json_encode($profile['postflop'][$this->street]));
         $this->line('Líneas preflop con rango: '.count(array_filter($lines, fn ($l) => array_sum($l) >= (int) $this->option('min-line'))).' de '.count($lines));
 
         // Decisiones de evaluación (una sola por mano, para no repetir contexto), al azar pero siempre las mismas
@@ -104,14 +106,14 @@ class AiEvaluateFlopCommand extends Command
                 break;
             }
             foreach ($hand['actions'] as $i => $a) {
-                if ($a['player'] !== $player || $a['street'] !== 'flop') {
+                if ($a['player'] !== $player || $a['street'] !== $this->street) {
                     continue;
                 }
                 $profiles = [$player => ['preflop_stats' => $profile['preflop'], 'postflop_stats' => $profile['postflop']]];
                 foreach ($hand['players'] as $p) {
                     // Rival con pocas manos observadas: sin perfil (la IA lo trata como desconocido)
                     $observed = $this->profileFrom($everyone[$p['name']] ?? [], 30);
-                    if ($p['name'] !== $player && $observed['postflop']['flop']) {
+                    if ($p['name'] !== $player && array_filter($observed['postflop'])) {
                         $profiles[$p['name']] = ['preflop_stats' => [], 'postflop_stats' => $observed['postflop']];
                     }
                 }
@@ -147,7 +149,7 @@ class AiEvaluateFlopCommand extends Command
         foreach ($rows as $n => $row) {
             $facing = $row['a']['to_call'] > 0;
             $legal = ['fold' => $facing, 'check' => ! $facing, 'call' => $facing ? $row['a']['to_call'] : null, 'raise' => ['min' => 1, 'max' => 1], 'allin' => 1];
-            $allowed = $contract->allowedActions($legal, 'flop');
+            $allowed = $contract->allowedActions($legal, $this->street);
             $answers = [];
             foreach ($modes as $mode) {
                 $state = $row['state'] + ['adaptation' => $mode === 'full' ? 1.0 : 0.0];
@@ -169,7 +171,7 @@ class AiEvaluateFlopCommand extends Command
             }
             $report[] = [
                 'spot' => $facing ? 'ante apuesta' : 'primero en hablar', 'real' => $row['real'], 'modes' => $answers,
-                'base' => $this->baseline($profile['postflop']['flop'], $facing, $row['state']),
+                'base' => $this->baseline($profile['postflop'][$this->street], $facing, $row['state']),
                 'hand' => implode(' ', $row['state']['hole_cards']).' | '.implode(' ', $row['state']['board']),
                 'real_exact' => $row['real_exact'], 'line' => $row['line'], 'has_range' => (bool) $row['range'],
             ];
@@ -184,30 +186,6 @@ class AiEvaluateFlopCommand extends Command
         $this->line("Detalle: {$out}");
 
         return 0;
-    }
-
-    private function coarse(string $action): string
-    {
-        return in_array($action, ['fold', 'check', 'call'], true) ? $action : 'aggr';
-    }
-
-    private function fmt(array $c): string
-    {
-        return implode(' ', array_map(fn ($k) => $k.' '.round($c[$k] * 100).'%', array_keys(array_filter($c, fn ($p) => $p > 0.005))));
-    }
-
-    /** 'AKs', 'AKo' o 'AA' a partir de las dos cartas ('A♠', 'K♦'). */
-    private function handClass(array $cards): string
-    {
-        [$a, $b] = array_map(fn ($c) => [mb_substr($c, 0, 1), mb_substr($c, 1, 1)], $cards);
-        if ($a[0] === $b[0]) {
-            return $a[0].$b[0];
-        }
-        if (strpos(self::RANKS, $a[0]) > strpos(self::RANKS, $b[0])) {
-            [$a, $b] = [$b, $a];
-        }
-
-        return $a[0].$b[0].($a[1] === $b[1] ? 's' : 'o');
     }
 
     /**
@@ -279,12 +257,33 @@ class AiEvaluateFlopCommand extends Command
         return $range;
     }
 
-    /** Cuenta las oportunidades y acciones de cada estadística del flop en una mano del jugador. */
+    /** Quién traía la iniciativa a una calle: el último que subió o apostó en las anteriores. */
+    private function holderBefore(array $hand, string $street): ?string
+    {
+        $order = ['preflop' => 0, 'flop' => 1, 'turn' => 2, 'river' => 3];
+        $last = null;
+        foreach ($hand['actions'] as $a) {
+            if (($order[$a['street']] ?? 9) < $order[$street] && in_array($a['action'], ['bet', 'raise'], true)) {
+                $last = $a['player'];
+            }
+        }
+
+        return $last;
+    }
+
+    /** Cuenta las oportunidades y acciones de cada estadística del flop, el turn y el river en una mano del jugador. */
     private function tally(array $hand, string $player, array &$c): void
     {
-        $preRaises = array_values(array_filter($hand['actions'], fn ($a) => $a['street'] === 'preflop' && $a['action'] === 'raise'));
-        $initiative = $preRaises && end($preRaises)['player'] === $player;
-        $flop = array_values(array_filter($hand['actions'], fn ($a) => $a['street'] === 'flop'));
+        foreach (['flop', 'turn', 'river'] as $street) {
+            $c[$street] ??= [];
+            $this->tallyStreet($hand, $player, $street, $c[$street]);
+        }
+    }
+
+    private function tallyStreet(array $hand, string $player, string $street, array &$c): void
+    {
+        $initiative = $this->holderBefore($hand, $street) === $player;
+        $flop = array_values(array_filter($hand['actions'], fn ($a) => $a['street'] === $street));
         $iBet = false;
         foreach ($flop as $k => $a) {
             if ($a['player'] !== $player) {
@@ -299,7 +298,8 @@ class AiEvaluateFlopCommand extends Command
                     $c['raise_vs_bet']['hit'] = ($c['raise_vs_bet']['hit'] ?? 0) + ($a['action'] === 'raise' ? 1 : 0);
                 }
             } elseif ($k === 0 || ! array_filter(array_slice($flop, 0, $k), fn ($x) => in_array($x['action'], ['bet', 'raise'], true))) {
-                $key = $initiative ? 'cbet' : ($k === 0 ? 'donk' : null);
+                // Flop: su cbet con la iniciativa y su donk sin ella. Turn y river: «apuesta cuando le pasan», tenga o no la iniciativa
+                $key = $street !== 'flop' ? 'bet' : ($initiative ? 'cbet' : ($k === 0 ? 'donk' : null));
                 if ($key) {
                     $c[$key]['n'] = ($c[$key]['n'] ?? 0) + 1;
                     $c[$key]['hit'] = ($c[$key]['hit'] ?? 0) + (in_array($a['action'], ['bet', 'raise'], true) ? 1 : 0);
@@ -311,31 +311,34 @@ class AiEvaluateFlopCommand extends Command
         }
     }
 
-    /** Perfil del flop con las estadísticas que tengan al menos $minSample oportunidades. */
+    /** Perfil del flop, el turn y el river con las estadísticas que tengan al menos $minSample oportunidades. */
     private function profileFrom(array $c, int $minSample = 1): array
     {
-        $flop = [];
-        foreach ($c as $key => $v) {
-            if (($v['n'] ?? 0) >= $minSample) {
-                $flop[$key] = round(100 * $v['hit'] / max(1, $v['n']), 1);
+        $postflop = [];
+        foreach (['flop', 'turn', 'river'] as $street) {
+            $stats = [];
+            foreach ($c[$street] ?? [] as $key => $v) {
+                if (($v['n'] ?? 0) >= $minSample) {
+                    $stats[$key] = round(100 * $v['hit'] / max(1, $v['n']), 1);
+                }
             }
-        }
-        if ($flop) {
-            $flop['sample_size'] = max(array_map(fn ($v) => $v['n'], $c));
+            if ($stats) {
+                $stats['sample_size'] = max(array_map(fn ($v) => $v['n'], $c[$street]));
+            }
+            $postflop[$street] = $stats;
         }
 
-        return ['preflop' => [], 'postflop' => ['flop' => $flop]];
+        return ['preflop' => [], 'postflop' => $postflop];
     }
 
-    /** Cuenta su cbet (primera acción del flop con la iniciativa y sin apuesta que igualar) por posición y heads-up / multiway. */
+    /** Cuenta su apuesta con la iniciativa (primera acción de la calle sin apuesta que igualar) por posición y heads-up / multiway. */
     private function tallyCells(array $hand, string $player, array &$cells, DecisionContract $contract): void
     {
-        $raises = array_values(array_filter($hand['actions'], fn ($a) => $a['street'] === 'preflop' && $a['action'] === 'raise'));
-        if (! $raises || end($raises)['player'] !== $player) {
+        if ($this->holderBefore($hand, $this->street) !== $player) {
             return;
         }
         foreach ($hand['actions'] as $i => $a) {
-            if ($a['street'] !== 'flop' || $a['player'] !== $player) {
+            if ($a['street'] !== $this->street || $a['player'] !== $player) {
                 continue;
             }
             $built = $a['to_call'] > 0 ? null : $contract->fromHistory($hand, $i);
@@ -375,7 +378,7 @@ class AiEvaluateFlopCommand extends Command
             return $cell['bet'];
         }
 
-        return $flop[$position]['agg']['bet'] ?? ($flop['cbet'] ?? 50);
+        return $flop[$position]['agg']['bet'] ?? ($flop['cbet'] ?? $flop['bet'] ?? 50);
     }
 
     /** Lo que haría un jugador que solo conoce su perfil (misma frecuencia para cualquier mano). */
@@ -387,8 +390,8 @@ class AiEvaluateFlopCommand extends Command
 
             return ['fold' => $fold, 'check' => 0.0, 'call' => 1 - $fold - $raise, 'aggr' => $raise];
         }
-        $initiative = collect($state['history'])->where(0, 'preflop')->where(2, 'raise')->last()[1] ?? null;
-        $bet = (($initiative === $state['position'] ? $this->cbetFor($flop, $state) : ($flop['donk'] ?? 10))) / 100;
+        $initiative = collect($state['history'])->filter(fn ($h) => $h[0] !== $this->street && in_array($h[2], ['bet', 'raise'], true))->last()[1] ?? null;
+        $bet = (($initiative === $state['position'] ? $this->cbetFor($flop, $state) : ($flop['donk'] ?? $flop['bet'] ?? 10))) / 100;
 
         return ['fold' => 0.0, 'check' => 1 - $bet, 'call' => 0.0, 'aggr' => $bet];
     }
