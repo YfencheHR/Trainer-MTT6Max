@@ -6,6 +6,7 @@ use App\Models\Bot;
 use App\Models\BotBetSizeCount;
 use App\Models\BotPreflopHandRange;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -64,6 +65,7 @@ class BotFreezer
             'preflop' => $sorted($bot->allPreflopHandRanges()->get()),
             'bets' => $sorted(BotBetSizeCount::where('bot_id', $bot->id)->get()),
             'bet_prior' => DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->orderBy('street')->get(['street', 'air_share'])->map(fn($r) => (array) $r)->all(),
+            'pot_stats' => $this->potStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
         ]));
     }
 
@@ -105,6 +107,18 @@ class BotFreezer
             DB::table('bot_bet_size_prior')->insert(['bot_id' => $copy->id, 'street' => $prior->street, 'air_share' => $prior->air_share, 'created_at' => $now, 'updated_at' => $now]);
         }
 
+        // Lo que hace en botes limpeados / subidos por posición y stack (PokerTracker): lo lee el Perceiver con el id del bot que juega
+        foreach (array_chunk($this->potStats($bot)->map(fn($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all(), 200) as $chunk) {
+            DB::table('bot_postflop_pot_stats')->insert($chunk);
+        }
+
         return $copy;
+    }
+
+    /** Filas de bot_postflop_pot_stats del bot, ordenadas para que la huella no dependa del orden de lectura. */
+    private function potStats(Bot $bot): Collection
+    {
+        return DB::table('bot_postflop_pot_stats')->where('bot_id', $bot->id)
+            ->orderBy('street')->orderBy('pot')->orderBy('position')->orderBy('stack_bucket')->get()->map(fn($r) => (array) $r);
     }
 }

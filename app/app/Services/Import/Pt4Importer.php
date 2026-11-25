@@ -294,7 +294,7 @@ class Pt4Importer
             left join tourney_blinds b on b.id_blinds = s.id_blinds
             where p.player_name not like '[%'
               and s.id_player not in (select id_player from tourney_hand_player_statistics where flg_hero group by 1)
-            group by s.id_player having count(*) >= ? and avg(s.flg_vpip::int) > 0 -- VPIP 0: sentado sin jugar, no es un estilo
+            group by s.id_player, p.player_name having count(*) >= ? and avg(s.flg_vpip::int) > 0 -- VPIP 0: sentado sin jugar, no es un estilo
             order by count(*) desc", [$minHands]);
 
         $this->say('Jugadores seleccionados: ' . count($rows));

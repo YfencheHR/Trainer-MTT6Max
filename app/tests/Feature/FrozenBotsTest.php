@@ -90,6 +90,23 @@ class FrozenBotsTest extends TestCase
         $this->assertSame(2, Bot::withoutGlobalScope('active')->whereNotNull('archived_at')->count());
     }
 
+    public function test_the_frozen_copy_carries_what_the_profile_does_in_limped_and_raised_pots(): void
+    {
+        $bot = $this->poolBot();
+        $row = ['street' => 'flop', 'pot' => 'limp', 'position' => 'any', 'stack_bucket' => 'all', 'open_opps' => 100, 'opens' => 25,
+            'facing' => 80, 'folds' => 50, 'calls' => 25, 'raises' => 5, 'created_at' => now(), 'updated_at' => now()];
+        \Illuminate\Support\Facades\DB::table('bot_postflop_pot_stats')->insert($row + ['bot_id' => $bot->id]);
+        $freezer = app(BotFreezer::class);
+
+        $first = $freezer->frozenFor($bot);
+        $copied = \Illuminate\Support\Facades\DB::table('bot_postflop_pot_stats')->where('bot_id', $first->id)->first();
+        $this->assertNotNull($copied, 'la copia congelada también lleva esas estadísticas: el Perceiver las lee con su id');
+        $this->assertSame(25, (int) $copied->opens);
+
+        \Illuminate\Support\Facades\DB::table('bot_postflop_pot_stats')->where('bot_id', $bot->id)->update(['opens' => 40]);
+        $this->assertNotSame($first->id, $freezer->frozenFor($bot->fresh())->id, 'si cambian, se congela una copia nueva');
+    }
+
     public function test_editing_the_live_profile_afterwards_does_not_change_the_frozen_copy(): void
     {
         $bot = $this->poolBot();
