@@ -1,0 +1,12 @@
+# Cómo cuenta GitHub (linguist) los lenguajes del repositorio.
+
+# Las vistas Blade son Blade, no PHP ni Hack
+*.blade.php linguist-language=Blade
+
+# Archivos generados: no son código propio y no deben contar como JavaScript, CSS o JSON
+app/public/assets/** linguist-generated=true
+app/composer.lock linguist-generated=true
+
+# Capturas y pruebas manuales: documentación, no código de la aplicación
+screenshots/** linguist-documentation=true
+app/tests/manual/** linguist-documentation=true

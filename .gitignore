@@ -51,3 +51,6 @@ app/storage/framework/views/*
 app/storage/framework/cache/*
 app/storage/framework/sessions/*
 app/storage/framework/testing/*
+
+# Copias locales del editor (VS Code Local History): no son código del proyecto y GitHub las contaba como Hack y Vue
+.history/
