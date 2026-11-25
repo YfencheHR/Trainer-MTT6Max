@@ -43,6 +43,7 @@ class BrainRunner
         private PreflopStrategyMatrix $preflopStrategies,
         private PreflopOpponentDanger $preflopDanger,
         private BetSizeMatrix $bets,
+        private ClearCallGuard $clearCall = new ClearCallGuard(),
     ) {}
 
     /**
@@ -76,8 +77,14 @@ class BrainRunner
             ? ['operator_pct' => 0.0, 'moved_pct' => 0.0, 'players' => []]
             : $this->preflopDanger->apply($matrix, $ctx, $features, $ctx['me']['stats'] ?? []); // 4) presión de los rivales que aún pueden actuar
 
+        // Una mano con mucha más equity que la que pide el precio no se tira: ni por las estadísticas ni por un despiste (ver ClearCallGuard)
+        $guarded = ! $strategy && $this->clearCall->apply($matrix, $features);
+        if ($guarded) {
+            $fired[] = ['id' => 'guard_clear_call', 'depth' => 0];
+        }
+
         // 5) Imprecisión de la habilidad
-        $lapse = $strategy ? 0.0 : $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
+        $lapse = $strategy ? 0.0 : $this->applyImprecision($matrix, $brain['imprecision'] ?? [], $guarded);
 
         // 6) Sorteo: un único número de 0 a 100 con dos decimales
         $distribution = $matrix->distribution();
@@ -192,7 +199,11 @@ class BrainRunner
             ? ['operator_pct' => 0.0, 'moved_pct' => 0.0, 'players' => []]
             : $this->preflopDanger->apply($matrix, $ctx, $perception['features'], $ctx['me']['stats'] ?? []);
         if (! $strategy) {
-            $this->applyImprecision($matrix, $brain['imprecision'] ?? []);
+            $guarded = $this->clearCall->apply($matrix, $perception['features']);
+            if ($guarded) {
+                $fired[] = ['id' => 'guard_clear_call', 'depth' => 0];
+            }
+            $this->applyImprecision($matrix, $brain['imprecision'] ?? [], $guarded);
         }
 
         return [
@@ -214,10 +225,13 @@ class BrainRunner
      *
      * @return float puntos movidos
      */
-    private function applyImprecision(DecisionMatrix $matrix, array $cfg): float
+    private function applyImprecision(DecisionMatrix $matrix, array $cfg, bool $noFolds = false): float
     {
         $rate = (float) ($cfg['rate'] ?? 0);
         $mistakes = (array) ($cfg['mistakes'] ?? []);
+        if ($noFolds) {
+            unset($mistakes['fold']);   // una mano que no se tira (ClearCallGuard) tampoco se tira por un despiste
+        }
         if ($rate <= 0 || ! $mistakes) {
             return 0.0;
         }
