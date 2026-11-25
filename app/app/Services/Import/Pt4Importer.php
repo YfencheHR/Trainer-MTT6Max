@@ -287,7 +287,7 @@ class Pt4Importer
     public function players(int $minHands): array
     {
         $rows = $this->tmp()->select("
-            select s.id_player, " . $this->select() . ",
+            select s.id_player, p.player_name, " . $this->select() . ",
                 round(100.0 * avg(s.amt_won / nullif(b.amt_bb, 0)), 2) as bb100,
                 count(s.id_player) as hand_count
             from fresh_stats s join player p using (id_player)
@@ -369,6 +369,7 @@ class Pt4Importer
             'vs_opener' => $this->vsOpener($in, $label),
             'postflop' => $postflop,
             'postflop_pot' => $this->postflopByPot($in),
+            'pot_stats' => $this->potStats($in),
             'stack_buckets' => $this->stackBuckets($in, $general),
             'bet_matrix' => $this->betCounts('s.id_player = any(?)', [$in]),
             'bb100' => $bb,
@@ -938,6 +939,7 @@ class Pt4Importer
                     $copy = $this->poolCopy($primary);
                     $copy->update(['nombre' => $copy->nombre . ' · W']);
                     $this->write($copy, $agg);
+                    $this->storeMembers($copy, $winners, $players);
                     app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
                     $this->logHistory($copy, count($winners), $nPlayers, $g, $agg['bb100']);
                 }
@@ -952,6 +954,7 @@ class Pt4Importer
                     $copy = $this->poolCopy($primary);
                     $copy->update(['nombre' => $copy->nombre . ' · L']);
                     $this->write($copy, $agg);
+                    $this->storeMembers($copy, $losers, $players);
                     app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
                     $this->logHistory($copy, count($losers), $nPlayers, $g, $agg['bb100']);
                 }
@@ -984,6 +987,7 @@ class Pt4Importer
                         'metadata' => ['source' => 'pt4_import', 'players' => count($winners)],
                     ]);
                     $this->write($bot, $agg);
+                    $this->storeMembers($bot, $winners, $players);
                     app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
                     $this->logHistory($bot, count($winners), $nPlayers, $g, $agg['bb100']);
                 }
@@ -1010,6 +1014,7 @@ class Pt4Importer
                         'metadata' => ['source' => 'pt4_import', 'players' => count($losers)],
                     ]);
                     $this->write($bot, $agg);
+                    $this->storeMembers($bot, $losers, $players);
                     app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
                     $this->logHistory($bot, count($losers), $nPlayers, $g, $agg['bb100']);
                 }
@@ -1394,6 +1399,7 @@ class Pt4Importer
         }
 
         $this->storePreflopHandStats($bot, $agg['preflop_hands'] ?? []);
+        $this->storePotStats($bot, $agg['pot_stats'] ?? []);
 
         // Matriz de apuestas del perfil y, la primera vez de la importación, la de toda la población (su prior)
         $this->storePopulationBets();
@@ -1520,5 +1526,97 @@ class Pt4Importer
         }
 
         $bot->allPreflopHandRanges()->where('is_manual', false)->delete();
+    }
+
+    // ---------------------------------------------------------------- postflop por tipo de bote, posición y stack
+
+    /** Tipos de bote que se guardan: los botes limpeados y los de una subida (los que más se juegan). */
+    private const POT_STATS_POTS = ['limp', 'srp'];
+
+    /**
+     * Qué hace el grupo postflop según el tipo de bote, la posición y el tramo de stack (contadores, ver bot_postflop_pot_stats).
+     *   open:   flg_{calle}_open_opp / flg_{calle}_open  (le tocaba y nadie había apostado: apostar sin esperar a nadie)
+     *   facing: se enfrentó a una primera apuesta (amt_{calle}_bet_facing > 0, sin ser él quien abre) → subió / foldeó / pagó
+     * Comprobado contra DB0.backup: en botes limpeados reproduce las frecuencias de las manos reales (apuesta 23,9 / 29,0 / 31,4 % en flop / turn / river,
+     * fold ante apuesta 63 / 55 / 63 %).
+     *
+     * @return array<int, array<string, mixed>> filas {street, pot, position, bucket, open_opps, opens, facing, folds, calls, raises}
+     */
+    private function potStats(string $in): array
+    {
+        $bucketSql = 'case ' . implode(' ', array_map(
+            fn($b, $r) => "when s.stack_bb >= {$r[0]} and s.stack_bb < {$r[1]} then '{$b}'",
+            array_keys(BotProfile::STACK_BUCKETS), BotProfile::STACK_BUCKETS
+        )) . " else '40+' end";
+        $pots = "'" . implode("','", self::POT_STATS_POTS) . "'";
+        $cells = [];
+        foreach (['flop' => 'f', 'turn' => 't', 'river' => 'r'] as $street => $x) {
+            $rows = $this->tmp()->select("
+                select p.pot, s.flg_{$x}_has_position as ip, {$bucketSql} as bucket,
+                  coalesce(sum(s.flg_{$x}_open_opp::int), 0) as open_opps,
+                  coalesce(sum(s.flg_{$x}_open::int), 0) as opens,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open)::int), 0) as facing,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open and s.cnt_{$x}_raise = 0 and s.flg_{$x}_fold)::int), 0) as folds,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open and s.cnt_{$x}_raise = 0 and not s.flg_{$x}_fold)::int), 0) as calls,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open and s.cnt_{$x}_raise > 0)::int), 0) as raises
+                from fresh_stats s join fresh_pot p using (id_hand)
+                where s.id_player = any(?) and s.flg_{$x}_saw and p.pot in ({$pots})
+                group by 1, 2, 3", [$in]);
+            foreach ($rows as $r) {
+                // Cada fila se suma en sus cuatro contextos: (posición | cualquiera) × (tramo | todos)
+                foreach ([$r->ip ? 'ip' : 'oop', 'any'] as $position) {
+                    foreach ([$r->bucket, 'all'] as $bucket) {
+                        $key = "{$street}|{$r->pot}|{$position}|{$bucket}";
+                        $c = &$cells[$key];
+                        $c ??= ['street' => $street, 'pot' => $r->pot, 'position' => $position, 'bucket' => $bucket,
+                            'open_opps' => 0, 'opens' => 0, 'facing' => 0, 'folds' => 0, 'calls' => 0, 'raises' => 0];
+                        foreach (['open_opps', 'opens', 'facing', 'folds', 'calls', 'raises'] as $k) {
+                            $c[$k] += (int) $r->{$k};
+                        }
+                        unset($c);
+                    }
+                }
+            }
+        }
+
+        return array_values($cells);
+    }
+
+    /** Suma los contadores a lo ya guardado (las importaciones acumulan muestra). */
+    private function storePotStats(Bot $bot, array $rows): void
+    {
+        $now = now();
+        foreach ($rows as $r) {
+            if ($r['open_opps'] + $r['facing'] === 0) {
+                continue;
+            }
+            DB::statement(
+                'insert into bot_postflop_pot_stats (bot_id, street, pot, position, stack_bucket, open_opps, opens, facing, folds, calls, raises, created_at, updated_at)
+                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 on conflict (bot_id, street, pot, position, stack_bucket) do update set
+                   open_opps = bot_postflop_pot_stats.open_opps + excluded.open_opps, opens = bot_postflop_pot_stats.opens + excluded.opens,
+                   facing = bot_postflop_pot_stats.facing + excluded.facing, folds = bot_postflop_pot_stats.folds + excluded.folds,
+                   calls = bot_postflop_pot_stats.calls + excluded.calls, raises = bot_postflop_pot_stats.raises + excluded.raises,
+                   updated_at = excluded.updated_at',
+                [$bot->id, $r['street'], $r['pot'], $r['position'], $r['bucket'], $r['open_opps'], $r['opens'], $r['facing'], $r['folds'], $r['calls'], $r['raises'], $now, $now]
+            );
+        }
+    }
+
+    /** Guarda qué jugadores reales forman este perfil (con sus manos en la copia), para poder asignarlos a un bot al reproducir torneos. */
+    private function storeMembers(Bot $bot, array $ids, array $players): void
+    {
+        $now = now();
+        foreach ($ids as $id) {
+            $p = $players[$id] ?? null;
+            if (! $p || ! isset($p['player_name'])) {
+                continue;
+            }
+            DB::statement(
+                'insert into bot_source_players (bot_id, pt4_player_id, player_name, hands, created_at, updated_at) values (?, ?, ?, ?, ?, ?)
+                 on conflict (bot_id, pt4_player_id) do update set hands = bot_source_players.hands + excluded.hands, updated_at = excluded.updated_at',
+                [$bot->id, (int) $id, (string) $p['player_name'], (int) ($p['hand_count'] ?? 0), $now, $now]
+            );
+        }
     }
 }

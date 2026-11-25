@@ -375,6 +375,26 @@ class Perceiver
             $f['stats_source'] = 'agresor_' . $ipKey;
         }
 
+        // Bote limpeado (nadie subió preflop): nadie trae la iniciativa, así que ni el c-bet ni el donk describen lo que hace. Su frecuencia de apostar y su
+        // respuesta ante una apuesta salen de lo que ESE perfil hace en botes limpeados (PokerTracker, por posición y stack); sin dato se queda lo anterior.
+        if (($f['preflop_raises'] ?? 1) === 0 && !empty($ctx['me']['bot_id']) && !$mine['this']) {
+            $potRows = PostflopPotStats::forBot((int) $ctx['me']['bot_id']);
+            if ($toCall <= 0) {
+                $open = PostflopPotStats::open($potRows, $street, 'limp', (bool) $f['in_position'], (float) ($f['stack_bb'] ?? 40));
+                if ($open) {
+                    $f['own_bet_freq'] = $open['bet'];
+                    $f['stats_source'] = 'bote_limpeado_' . $ipKey;
+                }
+            } else {
+                $facing = PostflopPotStats::facing($potRows, $street, 'limp', (bool) $f['in_position'], (float) ($f['stack_bb'] ?? 40));
+                if ($facing) {
+                    $f['own_f2bet'] = $facing['fold'];
+                    $f['own_raise_vs_bet'] = round($facing['raise'] / max(0.01, $facing['call'] + $facing['raise']) * 100, 1);
+                    $f['stats_source'] = 'bote_limpeado_' . $ipKey;
+                }
+            }
+        }
+
         // ------------------------------------------------ intenciones
         $flags = $me['flags'] ?? [];
         $f['flag_check_raise'] = !empty($flags['check_raise']);
