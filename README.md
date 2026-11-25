@@ -40,7 +40,9 @@ Los rivales que juegan son los perfiles generados por la importación de PokerTr
 
 Preflop, cada rival decide con unas tablas por mano, posición y tramo de stack (menos de 10, 10-20, 20-40 y 40 o más ciegas grandes) que se generan de sus propias estadísticas: abrir, limpear, defender, responder a un 3-bet y a un 3-bet o 4-bet sin haber abierto. Con stack corto parte de sus subidas pasan a all-in según cómo juegue ese perfil. Postflop deciden las reglas del cerebro y una percepción que varía según la habilidad.
 
-Está en proceso de pulido. Quedan por hacer, entre otras cosas, que el postflop use los rangos de los rivales y tablas más finas por posición del abridor.
+Mejoras recientes: la respuesta ante limpers (subir para aislar, pagar o foldear) sale de lo que cada perfil hace con limpers delante; la respuesta de quien abre ante un 3-bet usa solo a los que abrieron, y tras limpear y recibir una subida hay estadística propia de pagar o foldear; en las ciegas, la defensa se guarda por posición del abridor. Postflop, el fold ante apuestas ya no se amplifica de más, los botes con limpers usan las estadísticas de PokerTracker por tipo de bote (limp, subido, 3-bet, 4-bet) y la textura del board (seco, conectado, con color…) ajusta la frecuencia de apostar y de foldear.
+
+Está en proceso de pulido. Quedan por hacer, entre otras cosas, tablas más finas por posición del abridor, que la defensa de la ciega grande ante aperturas sea menos amplia y perfiles Pool más finos (hoy un grupo puede reunir a miles de jugadores).
 
 ### IA local en las cuatro calles (rama `feature/ia-bots`, en pruebas)
 
@@ -59,7 +61,15 @@ Medición con 150 decisiones reales de un jugador de PokerTracker (`php artisan 
 
 Preflop, turn y river usan el mismo molde, con **la mano como historia**: el cuestionario cuenta el preflop y cada calle jugada, y el rango de cada jugador se estrecha con lo que hizo en las calles anteriores (`HandStory`, `RangeStory`, `BoardStory`). Mediciones con 100 decisiones reales (pérdida log, solo perfil → IA con rango): preflop con tabla de la mano 0,59 (copia la tabla, no la mejora); turn 0,595 → 0,479; river 0,721 → 0,777 (acierta más veces la acción más probable, pero es más tajante que el jugador real). Detalle en `Trainer-MTT-DOCS/14-IA-preflop-historia-y-memoria.md`.
 
-Pendiente: memoria y capacidades por torneo (ninguna, torneo, historial), que el importador guarde el cbet por heads-up/multiway, afinar el rango del river (slowplay), medir la adaptación con rivales extremos y el contexto de torneo (ICM, ciegas).
+Herramientas que se añaden al cuestionario (todo cálculo exacto, la IA solo lee el resultado):
+
+- **Blockers** (`poker/blockers.py`): qué parte de su rango, por familias (valor, proyectos, faroles), quitan nuestras cartas.
+- **Ventaja de rango** (`poker/range_advantage.py`): equity media y proporción de nuts de cada rango sobre el board, con una muestra de 250 combos por rango para no encarecer la decisión.
+- **Memoria por torneo**: un bot puede recordar cómo juega cada rival durante el torneo (`bot_memory`: ninguna o torneo) con más estadísticas observadas por calle.
+
+Cómo se mide si funciona: `php artisan bots:replay` reproduce manos reales de PokerTracker, pregunta a cada bot lo que haría y cuenta cuántas veces su acción más probable coincide con la de la persona (intervalo de confianza al 95 %, pérdida log y línea base). La importación lo ejecuta sola al terminar y deja el resultado en su registro: hoy ≈ 56 % (±4) con las cartas desconocidas muestreadas, sin descartar a nadie. `php artisan bots:compare-engines` compara motores sobre las mismas decisiones: reglas ≈ IA directa (≈ 67 %, ±5; la IA calibra algo mejor, pérdida log 0,87 frente a 0,91), y ni el análisis breve ni el modo de razonamiento del modelo mejoran (este último tarda ~1 minuto por decisión). Conclusión de las pruebas: razonar más no es la palanca, sino darle información nueva; los blockers y la ventaja de rango todavía no muestran una mejora medible dentro del margen de error. Detalle en `Trainer-MTT-DOCS/14-IA-preflop-historia-y-memoria.md`.
+
+Pendiente: el perfil por situación (que la IA lea las estadísticas de PokerTracker por tipo de bote y stack), blockers sobre el rango estrechado por la historia, reintento cuando el modelo no da probabilidad a ninguna acción (≈ 5 % de las decisiones, hoy cae a las reglas), afinar el rango del river (slowplay), medir la adaptación con rivales extremos y el contexto de torneo (ICM, ciegas).
 
 ### Reproducción de torneos
 
@@ -73,7 +83,7 @@ Hay más ideas y mejoras planteadas que se irán definiendo durante el desarroll
 
 En `/import` se puede subir una copia comprimida de una base de PokerTracker 4. El sistema la procesa en una base temporal, calcula estadísticas de los jugadores y las distribuye entre perfiles de bot. Cuando un jugador no encaja en los perfiles disponibles, se puede generar un bot nuevo. Después de importar, los perfiles se pueden revisar y configurar en la aplicación.
 
-Las estadísticas se calculan en general, por posición y por tramo de stack, y con ellas se generan las tablas de decisión de cada perfil. También se guarda una matriz de apuestas (tipo de mano y tamaño, por calle) que se consulta con `php artisan bots:bet-matrix`. Con los datos de los showdown se ajusta qué tipo de manos juega cada perfil, y las estadísticas extremas se acotan para evitar rangos irreales (por ejemplo, que un rival foldee AA).
+Las estadísticas se calculan en general, por posición y por tramo de stack, y con ellas se generan las tablas de decisión de cada perfil. También se guarda una matriz de apuestas (tipo de mano y tamaño, por calle) que se consulta con `php artisan bots:bet-matrix`. También guarda las estadísticas postflop por tipo de bote y por stack, la frecuencia de subir contra limpers, la respuesta a un limp y la textura del board por población. Al terminar, la importación comprueba sola cuánto se parecen los perfiles a los jugadores reales y lo deja en su registro. Con los datos de los showdown se ajusta qué tipo de manos juega cada perfil, y las estadísticas extremas se acotan para evitar rangos irreales (por ejemplo, que un rival foldee AA).
 
 ### Simular un torneo y comprobar cómo juegan los bots
 
