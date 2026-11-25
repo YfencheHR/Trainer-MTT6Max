@@ -73,10 +73,13 @@ class PreflopStrategyMatrix
             $scenario = 'pool_open_response';
         } elseif ($limpedByBot) {
             $response = $table['attack']['limp_response'];
+            // Lo que ni sube ni hace all-in se reparte entre igualar y foldear según lo que el perfil hace tras limpear (antes todo era fold)
+            $rest = $this->poolTables->limpContinuation($bot, $position, $handCode, (float) $response['raise'], (float) $response['push']);
             $distribution = [
                 'raise_x3' => $response['raise'],
                 'allin' => $response['push'],
-                'fold' => max(0.0, 100.0 - $response['raise'] - $response['push']),
+                'call' => $rest['call'],
+                'fold' => $rest['fold'],
             ];
             $scenario = 'pool_limp_response';
         } elseif ($raises >= 2 && $position !== 'UTG') {

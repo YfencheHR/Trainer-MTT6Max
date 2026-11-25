@@ -135,6 +135,76 @@ class RivalPreflopTables
         return ['raise' => round($raise, 2), 'call' => round($call, 2)];
     }
 
+    /** @var array<int, array<string, array>> */
+    private array $limpResponseCache = [];
+
+    /** @var array<string, array>|null */
+    private ?array $limpResponsePopulation = null;
+
+    /** @var array<string, array<string, float>> */
+    private array $limpRangeCache = [];
+
+    /**
+     * Tras limpear y recibir una subida: la tabla del bot solo dice cuánto sube y cuánto hace all-in con la mano; lo que queda se reparte entre
+     * IGUALAR y FOLDEAR según lo que el perfil hace en esa posición (bot_limp_response_stats, de PokerTracker: la gente iguala ~la mitad). Las peores
+     * manos de su rango de limp son las que foldean. Sin dato todo lo que queda es fold, como antes.
+     *
+     * @return array{call: float, fold: float}
+     */
+    public function limpContinuation(Bot $bot, string $position, string $hand, float $raise, float $push): array
+    {
+        $rest = max(0.0, 100.0 - $raise - $push);
+        $db = self::DB_POSITION[$position] ?? $position;
+        $own = ($this->limpResponseCache[$bot->id] ??= \Illuminate\Support\Facades\DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->get()
+            ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+        $pop = ($this->limpResponsePopulation ??= \Illuminate\Support\Facades\DB::table('bot_limp_response_stats')
+            ->selectRaw('position, sum(opportunities) as opportunities, sum(folds) as folds')->groupBy('position')->get()
+            ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+        if ((! $own || $own['opportunities'] <= 0) && (! $pop || $pop['opportunities'] <= 0)) {
+            return ['call' => 0.0, 'fold' => $rest];
+        }
+        $base = $pop && $pop['opportunities'] > 0 ? $pop['folds'] / $pop['opportunities'] : 0.5;
+        $foldRate = ! $own || $own['opportunities'] <= 0 ? $base : ($own['folds'] + self::ISO_PRIOR * $base) / ($own['opportunities'] + self::ISO_PRIOR);
+        $within = $this->positionWithinLimpRange($bot, $position, $hand);
+        if ($within === null) {
+            return ['call' => round($rest * (1 - $foldRate), 2), 'fold' => round($rest * $foldRate, 2)];
+        }
+        $foldProb = 100 * max(0.0, min(1.0, ($within - (100 - 100 * $foldRate)) / (2 * self::ISO_WIDTH) + 0.5));
+        $fold = min($rest, $foldProb);
+
+        return ['call' => round($rest - $fold, 2), 'fold' => round($fold, 2)];
+    }
+
+    /** Dónde cae la mano dentro de SU rango de limp en esa posición (0 = la mejor, 100 = la peor); null si el bot no tiene tabla de limp ahí. */
+    private function positionWithinLimpRange(Bot $bot, string $position, string $hand): ?float
+    {
+        $key = $bot->id . ':' . $position;
+        if (! isset($this->limpRangeCache[$key])) {
+            $weights = [];
+            foreach (BotPreflopHandRange::where(['bot_id' => $bot->id, 'stack_bucket' => 'all', 'position' => $position])->get(['hand', 'attack_limp']) as $row) {
+                if ($row->attack_limp > 0) {
+                    $weights[$row->hand] = $this->combos($row->hand) * $row->attack_limp / 100;
+                }
+            }
+            $this->limpRangeCache[$key] = $weights;
+        }
+        $weights = $this->limpRangeCache[$key];
+        $total = array_sum($weights);
+        if ($total <= 0) {
+            return null;
+        }
+        $mine = $this->ranking->percentileForCode($hand);
+        $better = 0.0;
+        foreach ($weights as $code => $weight) {
+            if ($code !== $hand && $this->ranking->percentileForCode($code) < $mine) {
+                $better += $weight;
+            }
+        }
+
+        // En el punto medio de su propio peso: así la última mano del rango no se queda a medias del tramo de fold
+        return 100 * ($better + ($weights[$hand] ?? 0.0) / 2) / $total;
+    }
+
     /**
      * Respuesta de quien NO abrió y se encuentra un 3-bet (2 subidas) o un 4-bet o más: la generada y guardada en su tabla.
      *

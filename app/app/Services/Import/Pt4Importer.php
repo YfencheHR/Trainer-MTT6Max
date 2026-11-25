@@ -223,7 +223,9 @@ class Pt4Importer
             'pfr' => 'round(100.0 * avg((cnt_p_raise > 0)::int), 2)',
             'af_preflop' => 'round(1.0 * sum(cnt_p_raise) / nullif(sum(cnt_p_call), 0), 2)',
             'three_bet' => $pct('flg_p_3bet::int', 'flg_p_3bet_opp::int'),
-            'fold_to_3bet' => $pct("(enum_p_3bet_action = 'F')::int", 'flg_p_3bet_def_opp::int'),
+            // Respuesta de quien ABRIÓ (subiendo) y recibe un 3-bet. flg_p_3bet_def_opp también es true para quien no había actuado y se encuentra
+            // la apertura y el 3-bet (foldea el 86 %): mezclarlos daba un fold a 3-bet del 64 % cuando quien abre foldea el 36 % (iguala 53 %, 4-bet 11,5 %).
+            'fold_to_3bet' => $pct("(flg_p_open and not flg_p_limp and enum_p_3bet_action = 'F')::int", '(flg_p_open and not flg_p_limp and flg_p_3bet_def_opp)::int'),
             'four_bet' => $pct('flg_p_4bet::int', 'flg_p_4bet_opp::int'),
             'fold_to_4bet' => $pct("(enum_p_4bet_action = 'F')::int", 'flg_p_4bet_def_opp::int'),
             // RFI = abrir SUBIENDO: flg_p_open también es true para quien abre limpeando (comprobado en datos reales: 32.405 aperturas con flg_p_limp y sin subida;
@@ -234,8 +236,8 @@ class Pt4Importer
             'limp' => $pct('(flg_p_limp and flg_p_open_opp)::int', 'flg_p_open_opp::int'),
             'limp_raise' => $pct("(flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin <> 'P')::int", '(flg_p_limp and flg_p_face_raise)::int'),
             'limp_push' => $pct("(flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin = 'P')::int", '(flg_p_limp and flg_p_face_raise)::int'),
-            'call_vs_3bet' => $pct("(enum_p_3bet_action = 'C')::int", 'flg_p_3bet_def_opp::int'),
-            'reraise_vs_3bet' => $pct("(enum_p_3bet_action = 'R')::int", 'flg_p_3bet_def_opp::int'),
+            'call_vs_3bet' => $pct("(flg_p_open and not flg_p_limp and enum_p_3bet_action = 'C')::int", '(flg_p_open and not flg_p_limp and flg_p_3bet_def_opp)::int'),
+            'reraise_vs_3bet' => $pct("(flg_p_open and not flg_p_limp and enum_p_3bet_action = 'R')::int", '(flg_p_open and not flg_p_limp and flg_p_3bet_def_opp)::int'),
             'squeeze' => $pct('flg_p_squeeze::int', 'flg_p_squeeze_opp::int'),
             // Respuesta a un 3-bet SIN haber actuado antes (ni abrir, ni limpear, ni pagar la apertura, ni squeeze): ver self::COLD3.
             'cold3_fold' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'F')::int", self::COLD3 . '::int', 20),
@@ -370,6 +372,7 @@ class Pt4Importer
             'postflop' => $postflop,
             'postflop_pot' => $this->postflopByPot($in),
             'pot_stats' => $this->potStats($in),
+            'limp_response' => $this->limpResponseStats($in),
             'stack_buckets' => $this->stackBuckets($in, $general),
             'bet_matrix' => $this->betCounts('s.id_player = any(?)', [$in]),
             'bb100' => $bb,
@@ -702,10 +705,10 @@ class Pt4Importer
               coalesce(sum((flg_p_limp and flg_p_open_opp)::int), 0) as limps,
               coalesce(sum((flg_p_3bet_opp and not flg_p_limp)::int), 0) as vs_open_opportunities,
               coalesce(sum((flg_p_3bet and not flg_p_limp)::int), 0) as three_bets,
-              coalesce(sum(flg_p_3bet_def_opp::int), 0) as vs_3bet_opportunities,
-              coalesce(sum((enum_p_3bet_action = 'R')::int), 0) as open_reraises,
-              coalesce(sum((enum_p_3bet_action = 'C')::int), 0) as open_calls,
-              coalesce(sum((enum_p_3bet_action = 'F')::int), 0) as open_folds,
+              coalesce(sum((flg_p_open and not flg_p_limp and flg_p_3bet_def_opp)::int), 0) as vs_3bet_opportunities,
+              coalesce(sum((flg_p_open and not flg_p_limp and enum_p_3bet_action = 'R')::int), 0) as open_reraises,
+              coalesce(sum((flg_p_open and not flg_p_limp and enum_p_3bet_action = 'C')::int), 0) as open_calls,
+              coalesce(sum((flg_p_open and not flg_p_limp and enum_p_3bet_action = 'F')::int), 0) as open_folds,
               coalesce(sum((flg_p_limp and flg_p_face_raise)::int), 0) as limp_raise_opportunities,
               coalesce(sum((flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin <> 'P')::int), 0) as limp_raises,
               coalesce(sum((flg_p_limp and flg_p_face_raise and cnt_p_raise > 0 and enum_allin = 'P')::int), 0) as limp_pushes,
@@ -1456,6 +1459,7 @@ class Pt4Importer
 
         $this->storePreflopHandStats($bot, $agg['preflop_hands'] ?? []);
         $this->storePotStats($bot, $agg['pot_stats'] ?? []);
+        $this->storeLimpResponseStats($bot, $agg['limp_response'] ?? []);
 
         // Matriz de apuestas del perfil y, la primera vez de la importación, la de toda la población (su prior)
         $this->storePopulationBets();
@@ -1648,6 +1652,41 @@ class Pt4Importer
     }
 
     /** Suma los contadores a lo ya guardado (las importaciones acumulan muestra). */
+    /**
+     * Qué hace el grupo cuando limpeó y se encuentra una subida, por posición (fold / call / subida o all-in).
+     * Comprobado contra DB0.backup (11.570 casos): fold preflop 45,2 % (enum_folded = 'P' sin subir), call 51,4 %, subida 3,4 %; coincide con las manos reales.
+     *
+     * @return array<int, array{position: string, opportunities: int, folds: int, calls: int, raises: int}>
+     */
+    private function limpResponseStats(string $in): array
+    {
+        $rows = $this->tmp()->select("
+            select " . $this->posLabel() . " as pos,
+              count(*) as opportunities,
+              coalesce(sum((enum_folded = 'P' and cnt_p_raise = 0)::int), 0) as folds,
+              coalesce(sum((enum_folded <> 'P' and cnt_p_raise = 0)::int), 0) as calls,
+              coalesce(sum((cnt_p_raise > 0)::int), 0) as raises
+            from fresh_stats where id_player = any(?) and flg_p_limp and flg_p_face_raise group by 1", [$in]);
+
+        return array_map(fn($r) => ['position' => $r->pos, 'opportunities' => (int) $r->opportunities, 'folds' => (int) $r->folds,
+            'calls' => (int) $r->calls, 'raises' => (int) $r->raises], $rows);
+    }
+
+    /** Suma los contadores de la respuesta tras limpear (las importaciones acumulan muestra). */
+    private function storeLimpResponseStats(Bot $bot, array $rows): void
+    {
+        $now = now();
+        foreach ($rows as $r) {
+            DB::statement(
+                'insert into bot_limp_response_stats (bot_id, position, opportunities, folds, calls, raises, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?)
+                 on conflict (bot_id, position) do update set opportunities = bot_limp_response_stats.opportunities + excluded.opportunities,
+                   folds = bot_limp_response_stats.folds + excluded.folds, calls = bot_limp_response_stats.calls + excluded.calls,
+                   raises = bot_limp_response_stats.raises + excluded.raises, updated_at = excluded.updated_at',
+                [$bot->id, $r['position'], $r['opportunities'], $r['folds'], $r['calls'], $r['raises'], $now, $now]
+            );
+        }
+    }
+
     private function storePotStats(Bot $bot, array $rows): void
     {
         $now = now();

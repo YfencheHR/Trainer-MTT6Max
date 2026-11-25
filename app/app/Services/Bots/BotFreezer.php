@@ -67,6 +67,7 @@ class BotFreezer
             'bet_prior' => DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->orderBy('street')->get(['street', 'air_share'])->map(fn($r) => (array) $r)->all(),
             'pot_stats' => $this->potStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
             'iso' => $this->isoStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
+            'limp_response' => $this->limpResponseStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
         ]));
     }
 
@@ -109,6 +110,9 @@ class BotFreezer
         }
 
         // Lo que hace en botes limpeados / subidos por posición y stack (PokerTracker): lo lee el Perceiver con el id del bot que juega
+        if ($limpResponse = $this->limpResponseStats($bot)->map(fn($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all()) {
+            DB::table('bot_limp_response_stats')->insert($limpResponse);
+        }
         if ($iso = $this->isoStats($bot)->map(fn($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all()) {
             DB::table('bot_iso_stats')->insert($iso);
         }
@@ -117,6 +121,12 @@ class BotFreezer
         }
 
         return $copy;
+    }
+
+    /** Lo que hace el perfil tras limpear y recibir una subida, por posición (bot_limp_response_stats). */
+    private function limpResponseStats(Bot $bot): Collection
+    {
+        return DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->orderBy('position')->get()->map(fn($r) => (array) $r);
     }
 
     /** Lo que hace el perfil con limpers delante, por posición (bot_iso_stats). */
