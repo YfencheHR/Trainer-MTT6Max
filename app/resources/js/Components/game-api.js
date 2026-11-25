@@ -9,16 +9,26 @@ export class GameAPI {
 
   async request(path, method = 'GET', body = null) {
     const url = path.startsWith('/') ? path : `${this.baseUrl}/${path}`;
+    // Solo la ventana activa del torneo juega: las acciones esperan a saberlo y no salen de una ventana que no lo es
+    const windowLock = method !== 'GET' && window.tournamentWindow?.started ? window.tournamentWindow : null;
+    if (windowLock) {
+      await windowLock.ready;
+      if (windowLock.blocked) throw new Error(windowLock.message);
+    }
     const response = await fetch(url, {
       method,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': this.getCsrfToken(),
+        ...(windowLock ? { 'X-Tournament-Window': windowLock.token } : {}),
       },
       body: body ? JSON.stringify(body) : null,
     });
     const json = await response.json().catch(() => ({}));
+    if (response.status === 409 && json.code === 'window_taken') {
+      windowLock?.markLost();
+    }
     if (!response.ok || json.success === false) {
       throw new Error(json.message || `HTTP ${response.status}`);
     }

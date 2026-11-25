@@ -147,4 +147,14 @@ return [
     'hand_no_showdown' => 'Everyone folded: no showdown',
     'hand_continue' => 'Continue',
     'pot' => 'Pot',
+
+    // One window at a time per tournament
+    'window_taken_message' => 'This tournament is open in another window: it can only be played in one at a time.',
+    'window_other_title' => 'This tournament is open in another window',
+    'window_other_text' => 'It can only be played in one window at a time; playing in two would corrupt the game. You can continue here (the other window will stop) or leave it in the one already open.',
+    'window_lost_title' => 'The game was continued in another window',
+    'window_lost_text' => 'Another window took the tournament and this one has stopped. To keep playing here, take it back (the other window will stop).',
+    'window_continue_here' => 'Continue here',
+    'window_stay_there' => 'Leave it in the other window',
+    'window_leave' => 'Back to the list',
 ];

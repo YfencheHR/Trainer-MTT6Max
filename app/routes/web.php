@@ -8,6 +8,7 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MadeHandController;
 use App\Http\Controllers\TournamentController;
 use App\Http\Controllers\TournamentHistoryController;
+use App\Http\Controllers\TournamentWindowController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -57,9 +58,12 @@ Route::prefix('mtt-simulator/hand')->group(function () {
     Route::get('{hand}/log', [GamePlayController::class, 'logHistory'])->name('mtt-simulator.hand.log');
     Route::get('{hand}/history', [TournamentHistoryController::class, 'hand'])->name('mtt-simulator.hand.history');
     Route::get('{hand}/ranges/{player}', [GamePlayController::class, 'getPlayerRanges'])->name('mtt-simulator.hand.ranges');
-    Route::post('{hand}/action', [GamePlayController::class, 'playerAction'])->name('mtt-simulator.hand.action');
-    Route::post('{hand}/bot-action', [GamePlayController::class, 'botAction'])->name('mtt-simulator.hand.bot-action');
-    Route::post('{hand}/next', [GamePlayController::class, 'nextHand'])->name('mtt-simulator.hand.next');
+    // Solo la ventana activa del torneo puede jugar (ver EnsureTournamentWindow)
+    Route::middleware('tournament.window')->group(function () {
+        Route::post('{hand}/action', [GamePlayController::class, 'playerAction'])->name('mtt-simulator.hand.action');
+        Route::post('{hand}/bot-action', [GamePlayController::class, 'botAction'])->name('mtt-simulator.hand.bot-action');
+        Route::post('{hand}/next', [GamePlayController::class, 'nextHand'])->name('mtt-simulator.hand.next');
+    });
 });
 
 // Importación (PokerTracker 4: torneos MTT, manos, jugadores y estadísticas)
@@ -73,7 +77,11 @@ Route::get('/mtt-simulator/{tournament}/history', [TournamentHistoryController::
 Route::get('/mtt-simulator/{tournament}/history/export', [TournamentHistoryController::class, 'export'])->name('mtt-simulator.history.export');
 
 // Resolución de mesas secundarias (una petición por mesa y ronda)
-Route::post('/mtt-simulator/{tournament}/tables/{table}/resolve', [GamePlayController::class, 'resolveTable'])->name('mtt-simulator.table.resolve');
+Route::post('/mtt-simulator/{tournament}/tables/{table}/resolve', [GamePlayController::class, 'resolveTable'])->middleware('tournament.window')->name('mtt-simulator.table.resolve');
+
+// Una sola ventana a la vez por torneo: pedir el turno (o renovarlo) y liberarlo al cerrar
+Route::post('/mtt-simulator/{tournament}/window', [TournamentWindowController::class, 'claim'])->name('mtt-simulator.window.claim');
+Route::post('/mtt-simulator/{tournament}/window/release', [TournamentWindowController::class, 'release'])->name('mtt-simulator.window.release');
 
 // Equity Simulation Routes
 Route::prefix('equity')->group(function () {

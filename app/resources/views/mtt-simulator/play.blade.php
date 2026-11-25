@@ -1,7 +1,25 @@
 @extends('app')
 
 @section('content')
-  <div x-data="gameContainer()" style="background-color: transparent; min-height: calc(100vh - 80px);">
+  <div x-data="gameContainer()"
+       x-init="$store.tournamentWindow.start(@js(route('mtt-simulator.window.claim', $tournament)), @js(route('mtt-simulator.window.release', $tournament)), @js(__('tournaments.window_taken_message')))"
+       style="background-color: transparent; min-height: calc(100vh - 80px);">
+
+    <!-- Una sola ventana a la vez: si el torneo está abierto en otra, esta no juega hasta que se elija continuar aquí -->
+    <div x-cloak x-show="$store.tournamentWindow.blocked" style="position: fixed; inset: 0; z-index: 1000; background: rgba(8, 12, 18, 0.88);">
+      <div style="display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 1rem;">
+      <div role="alertdialog" aria-modal="true" style="max-width: 32rem; background: #1a212a; border: 1px solid #f59e0b; border-radius: 0.75rem; padding: 1.5rem; color: #d1d5db;">
+        <h2 class="text-xl font-bold" style="color: #fbbf24; margin: 0 0 0.75rem;"
+            x-text="$store.tournamentWindow.status === 'lost' ? @js(__('tournaments.window_lost_title')) : @js(__('tournaments.window_other_title'))"></h2>
+        <p class="text-sm" style="margin: 0 0 1.25rem; line-height: 1.5;"
+           x-text="$store.tournamentWindow.status === 'lost' ? @js(__('tournaments.window_lost_text')) : @js(__('tournaments.window_other_text'))"></p>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+          <button type="button" @click="$store.tournamentWindow.takeOver()" class="px-4 py-2 rounded font-semibold" style="background-color: #16a34a; color: white;">{{ __('tournaments.window_continue_here') }}</button>
+          <a href="{{ route('mtt-simulator.index') }}" class="px-4 py-2 rounded font-semibold" style="background-color: #374151; color: white; text-decoration: none;">{{ __('tournaments.window_leave') }}</a>
+        </div>
+      </div>
+      </div>
+    </div>
 
     <!-- Header del Torneo -->
     <div style="background-color: #1a212a; border-bottom: 1px solid #2e3a48; padding: 1rem;">

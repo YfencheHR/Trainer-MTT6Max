@@ -3,6 +3,7 @@ import Alpine from 'alpinejs'
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
 import { gameTable } from './Components/game-table.js'
+import { createTournamentWindow } from './Components/tournament-window.js'
 
 window.Pusher = Pusher
 window.Alpine = Alpine
@@ -216,6 +217,10 @@ window.botsActionRanges = function(handId) {
     }
   };
 }
+
+// Una sola ventana a la vez por torneo: el estado se comparte con el aviso de la página y con las llamadas al servidor (GameAPI)
+Alpine.store('tournamentWindow', createTournamentWindow())
+window.tournamentWindow = Alpine.store('tournamentWindow')
 
 Alpine.start()
 

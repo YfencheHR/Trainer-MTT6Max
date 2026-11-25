@@ -14,7 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Solo la ventana activa de un torneo puede jugarlo
+        $middleware->alias(['tournament.window' => \App\Http\Middleware\EnsureTournamentWindow::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

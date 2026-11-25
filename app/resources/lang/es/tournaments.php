@@ -156,4 +156,14 @@ return [
     'hand_no_showdown' => 'Todos se retiraron: no hay showdown',
     'hand_continue' => 'Continuar',
     'pot' => 'Bote',
+
+    // Una sola ventana a la vez por torneo
+    'window_taken_message' => 'Este torneo está abierto en otra ventana: solo se puede jugar en una a la vez.',
+    'window_other_title' => 'Este torneo está abierto en otra ventana',
+    'window_other_text' => 'Solo se puede jugar en una ventana a la vez; jugar en dos a la vez corrompería la partida. Puedes continuar aquí (la otra ventana se detendrá) o dejarlo en la que ya está abierta.',
+    'window_lost_title' => 'Se ha continuado en otra ventana',
+    'window_lost_text' => 'Otra ventana ha tomado el torneo y esta se ha detenido. Si quieres seguir jugando aquí, recupera el torneo (la otra ventana se detendrá).',
+    'window_continue_here' => 'Continuar aquí',
+    'window_stay_there' => 'Dejarlo en la otra ventana',
+    'window_leave' => 'Salir al listado',
 ];

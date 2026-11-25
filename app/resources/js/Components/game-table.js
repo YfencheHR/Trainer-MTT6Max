@@ -67,6 +67,11 @@ export function gameTable(handId, userId, initialState = null) {
         .catch(err => console.error('No se pudo cargar el historial del log:', err));
       // Si al cargar la mesa le toca a un bot, se le pide su acción al servidor.
       this.$nextTick(() => this.runBotTurns());
+      // Esta ventana recupera el torneo (continuar aquí, o la otra se cerró): se pone al día con lo que pasó mientras tanto y sigue
+      window.addEventListener('tournament-window-owner', () => {
+        void this.syncHandState();
+        void this.runBotTurns();
+      });
     },
     connectSocket() {
       try {
