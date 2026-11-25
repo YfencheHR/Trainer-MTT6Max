@@ -83,6 +83,7 @@ class RealHandContext
                 'id' => $s['id'], 'name' => $p['name'], 'position' => $p['position'], 'stack' => max(0, $p['name'] === $a['player'] ? $stack : $s['stack']),
                 'bet' => $s['bet'], 'total_in_hand' => $s['total'], 'stats' => ['hands' => 0], 'preflop_stats' => $profile['preflop'] ?? null,
                 'postflop_stats' => $profile['postflop'] ?? null, 'folded' => $s['folded'], 'all_in' => $s['all_in'], 'is_bot' => true,
+                'bot_id' => $rivalBot?->id,   // sin esto la IA no tiene los rangos de nadie: los ids de aquí no son jugadores de un torneo
             ];
         }
         $own = $this->profile($bot);

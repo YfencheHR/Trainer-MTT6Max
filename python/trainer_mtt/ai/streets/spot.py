@@ -8,18 +8,21 @@ Además de lo que el perfil hace en general, la situación se ADAPTA al rival co
 continúa más y se atrapa con las manos fuertes; contra uno selectivo se foldea más. Cuánto se adapta depende de la habilidad del bot (`adaptation`).
 """
 
+import os
 from itertools import combinations
 
 from trainer_mtt.ai.actions import ACTION_HELP
 from trainer_mtt.ai.streets.opponent import OpponentRead
 from trainer_mtt.ai.streets.questionnaire import OPPONENT_TYPES, HandContext, StatsReader
 from trainer_mtt.ai.streets.story import StreetsStory
+from trainer_mtt.poker.blockers import Blockers
 from trainer_mtt.poker.board_story import BoardStory
 from trainer_mtt.poker.cards import Card, Deck
 from trainer_mtt.poker.hand_analyzer import HandAnalyzer
 from trainer_mtt.poker.hand_range import HandRange
 from trainer_mtt.poker.hand_story import HandStory
 from trainer_mtt.poker.range_composition import RangeComposition
+from trainer_mtt.poker.range_advantage import RangeAdvantage
 from trainer_mtt.poker.range_narrowing import RangeNarrower
 from trainer_mtt.poker.range_scorer import RangeScorer, RangeSplit
 
@@ -119,6 +122,8 @@ class Spot:
         if shown:
             lines.append(f'   (That range is only the hands he would {self.shown_verb()} with: {frequency}% of his range.)')
             lines += self._composition_lines(shown, hole, board)
+            if 'blockers' not in os.environ.get('AI_TOOLS_OFF', ''):   # interruptor del experimento (medir cada herramienta por separado)
+                lines += Blockers(board).lines(shown.combos(dead=board), hole)
         standing = self.analyzer.situation(analysis)
         lines += [f'   Where you stand (computed): {standing.upper()} - {SITUATIONS[standing]}.']
         lines += ['', f'4. YOUR PROFILE IN THIS SPOT (you play as this player). Preflop style: {StatsReader.preflop_style(state.get("profile"))}']
@@ -128,6 +133,8 @@ class Spot:
         lines += [f'  ADAPTATION to this opponent (your skill and the reliability of the read apply): {note}' for note in notes]
         range_lines = self._range_section(state, own_range, shown or arrival, hole, board, zones)
         lines += range_lines
+        if own_range and arrival and street != 'preflop' and 'advantage' not in os.environ.get('AI_TOOLS_OFF', ''):
+            lines += RangeAdvantage(board).lines(own_range.combos(dead=board), arrival.combos(dead=board))
         lines += ['', '5. THE SITUATION'] + context.situation_lines() + ['  Actions so far:'] + [f'  {line}' for line in context.history_lines()]
         lines += ['', '6. HOW TO DECIDE', self.guidance]
         if range_lines:

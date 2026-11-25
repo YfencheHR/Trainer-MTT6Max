@@ -138,6 +138,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - OLLAMA_URL=http://ollama:11434
+      - AI_TOOLS_OFF=${AI_TOOLS_OFF:-}
     volumes:
       - ./python:/app
     ports:

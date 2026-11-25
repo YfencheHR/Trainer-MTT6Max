@@ -34,7 +34,8 @@ class FlopRanges
 
         $out = [];
         foreach ($players as $p) {
-            $botId = $botIds[$p['id']] ?? null;
+            // Un contexto que ya trae el bot de cada jugador (la réplica de manos reales) no pasa por la tabla de jugadores del torneo
+            $botId = array_key_exists('bot_id', $p) ? $p['bot_id'] : ($botIds[$p['id']] ?? null);
             $line = $this->line($ctx['history'] ?? [], (int) $p['id']);
             if (! $botId || ! $line || ! in_array($p['position'] ?? null, self::POSITIONS, true)) {
                 continue;
