@@ -12,6 +12,7 @@ from trainer_mtt.poker.range_scorer import RangeScorer
 NUTS_EQUITY = 0.85       # equity contra el otro rango a partir de la cual una mano cuenta como «nuts»
 EVEN_EQUITY = 2.0        # diferencia de equity (puntos) por debajo de la cual no hay ventaja clara
 EVEN_NUTS = 3.0          # diferencia de nuts (puntos) por debajo de la cual no hay ventaja clara
+MAX_COMBOS = 250         # combos por rango con los que se compara (un rango entero son hasta 1.326)
 
 
 class RangeAdvantage:
@@ -21,8 +22,8 @@ class RangeAdvantage:
 
     def compare(self, mine, rival):
         """{'mine': {'equity', 'nuts'}, 'rival': {...}} en % o None si falta un rango. Los combos son [((carta, carta), peso)]."""
-        mine = [(cards, w) for cards, w in mine if w > 0]
-        rival = [(cards, w) for cards, w in rival if w > 0]
+        mine = self._sample([(cards, w) for cards, w in mine if w > 0])
+        rival = self._sample([(cards, w) for cards, w in rival if w > 0])
         if not mine or not rival:
             return None
 
@@ -30,6 +31,16 @@ class RangeAdvantage:
             'mine': self._summary(mine, self._scorer.table(rival)),
             'rival': self._summary(rival, self._scorer.table(mine)),
         }
+
+    @staticmethod
+    def _sample(combos):
+        """Un rango grande se reduce a una muestra repartida por igual (un combo de cada k): la equity media y la parte de nuts apenas cambian y el
+        cálculo, que compara cada combo con cada combo del otro rango en varios tableros, cuesta mucho menos."""
+        if len(combos) <= MAX_COMBOS:
+            return combos
+        step = len(combos) / MAX_COMBOS
+
+        return [combos[int(i * step)] for i in range(MAX_COMBOS)]
 
     def _summary(self, combos, against):
         scored = self._scorer.scored(combos, against)

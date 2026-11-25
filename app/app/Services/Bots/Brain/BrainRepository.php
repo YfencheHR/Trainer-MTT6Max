@@ -21,12 +21,12 @@ class BrainRepository
     /** @var array<int, array> */
     private array $cache = [];
 
+    /** @var array<int, array> cerebro actual por bot (réplica de manos reales) */
+    private array $botCache = [];
+
     public function __construct(private BrainAssembler $assembler)
     {
     }
-
-    /** @var array<int, array> */
-    private array $botCache = [];
 
     /** Cerebro actual de un bot, sin pasar por un jugador de torneo (réplica de manos reales: allí los ids de jugador no existen). */
     public function forBot(Bot $bot): array
@@ -71,6 +71,7 @@ class BrainRepository
     {
         if ($tournamentPlayerId === null) {
             $this->cache = [];
+            $this->botCache = [];
         } else {
             unset($this->cache[$tournamentPlayerId]);
         }

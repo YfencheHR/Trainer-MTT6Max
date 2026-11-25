@@ -44,5 +44,20 @@ class RangeAdvantageTest(unittest.TestCase):
         self.assertEqual(RangeAdvantage(BOARD).lines([], STRONG), [])
 
 
+class SamplingTest(unittest.TestCase):
+    def test_a_big_range_is_reduced_to_a_sample_that_keeps_the_result(self):
+        from trainer_mtt.poker.hand_range import HandRange
+        from trainer_mtt.poker.preflop_hand import PreflopHand
+        from trainer_mtt.poker.range_advantage import MAX_COMBOS
+
+        wide = HandRange(PreflopHand().top_range(60).weights).combos(dead=BOARD)
+        tight = HandRange(PreflopHand().top_range(15).weights).combos(dead=BOARD)
+
+        self.assertGreater(len(wide), MAX_COMBOS)
+        self.assertEqual(len(RangeAdvantage._sample(wide)), MAX_COMBOS)
+        result = RangeAdvantage(BOARD).compare(tight, wide)
+        self.assertGreater(result['mine']['equity'], result['rival']['equity'], 'el rango más fuerte sigue siéndolo con la muestra')
+
+
 if __name__ == '__main__':
     unittest.main()
