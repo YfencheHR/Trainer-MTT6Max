@@ -85,11 +85,25 @@
     <div>
       <h2 class="text-2xl font-bold mb-4" style="color: #d1d5db;">{{ __('tournaments.hands_history') }}</h2>
       <div class="space-y-3">
-        @forelse ($tournament->hands()->latest()->get() as $hand)
-          <div style="background-color: #1a212a; border-color: #2e3a48;" class="rounded border p-4 hover:border-blue-500 transition cursor-pointer" onclick="document.getElementById('hand-{{ $hand->id }}').scrollIntoView({ behavior: 'smooth' })">
+        @forelse ($tournament->hands()->with('table')->latest()->get() as $hand)
+          @php
+            // Sin jugador humano en la mano no hay «ganar» ni «perder» del héroe: se muestra quién ganó el bote. Las manos antiguas sin bote guardado lo
+            // sacan del resultado de la mano.
+            $seated = collect($hand->players_in_hand ?? []);
+            $hasHero = $seated->contains(fn ($p) => ! ($p['is_bot'] ?? true));
+            $potChips = (float) $hand->getTotalPot() ?: (float) ($hand->actions['pot_won'] ?? 0);
+            $winnerNames = $seated->whereIn('id', array_keys((array) ($hand->actions['awards'] ?? [])))->pluck('name')->implode(', ');
+          @endphp
+          {{-- Una mano terminada abre su detalle (cartas y acciones de cada jugador) y desde ahí se puede repetir con los bots --}}
+          <div style="background-color: #1a212a; border-color: #2e3a48;" class="rounded border p-4 hover:border-blue-500 transition {{ $hand->status === 'completed' ? 'cursor-pointer' : '' }}"
+               @if ($hand->status === 'completed') onclick="window.location.href = '{{ route('mtt-simulator.hand.replays', $hand) }}'" @endif>
             <div class="flex items-center justify-between">
               <div>
-                <p style="color: #ffffff;" class="font-semibold">#{{ $hand->hand_number }} - {{ __('tournaments.level') }} {{ $hand->level }}</p>
+                <p style="color: #ffffff;" class="font-semibold">#{{ $hand->hand_number }}{{ $hand->table ? ' · ' . __('tournaments.table') . ' ' . $hand->table->table_number : '' }} - {{ __('tournaments.level') }} {{ $hand->level }}
+                  @if ($hand->status === 'completed')
+                    <a href="{{ route('mtt-simulator.hand.replays', $hand) }}" style="margin-left: 0.5rem; font-size: 0.75rem; font-weight: 600; color: #60a5fa; text-decoration: none;">🔁 {{ __('tournaments.replay_open') }}</a>
+                  @endif
+                </p>
                 <p style="color: #9ca3af;" class="text-sm mt-1">
                   @if (is_array($hand->hero_cards) && count($hand->hero_cards) >= 2)
                     {{ __('tournaments.hero_cards') }}: <span style="color: #10b981;">{{ $hand->hero_cards[0] }} {{ $hand->hero_cards[1] }}</span>
@@ -100,14 +114,20 @@
                 </p>
               </div>
               <div class="text-right">
-                <p style="color: #a78bfa;" class="font-bold">{{ $hand->getTotalPot() }}€</p>
-                <p style="color: #{{ $hand->result === 'win' ? '10b981' : ($hand->result === 'fold' ? '6b7280' : 'ef4444') }};" class="text-sm font-semibold">
-                  {{ ucfirst($hand->result) }} @if ($hand->getHeroStackChange() > 0)
-                    <span style="color: #10b981;">+{{ $hand->getHeroStackChange() }}</span>
-                  @elseif ($hand->getHeroStackChange() < 0)
-                    <span style="color: #ef4444;">{{ $hand->getHeroStackChange() }}</span>
-                  @endif
-                </p>
+                <p style="color: #a78bfa;" class="font-bold">{{ number_format($potChips, 0, ',', '.') }}</p>
+                @if ($hasHero)
+                  <p style="color: #{{ $hand->result === 'win' ? '10b981' : ($hand->result === 'fold' ? '6b7280' : 'ef4444') }};" class="text-sm font-semibold">
+                    {{ ucfirst($hand->result) }} @if ($hand->getHeroStackChange() > 0)
+                      <span style="color: #10b981;">+{{ $hand->getHeroStackChange() }}</span>
+                    @elseif ($hand->getHeroStackChange() < 0)
+                      <span style="color: #ef4444;">{{ $hand->getHeroStackChange() }}</span>
+                    @endif
+                  </p>
+                @elseif ($winnerNames !== '')
+                  <p style="color: #fbbf24;" class="text-sm font-semibold">🏆 {{ $winnerNames }}</p>
+                @elseif ($hand->status !== 'completed')
+                  <p style="color: #9ca3af;" class="text-sm">{{ __('tournaments.hand_in_progress') }}</p>
+                @endif
               </div>
             </div>
           </div>

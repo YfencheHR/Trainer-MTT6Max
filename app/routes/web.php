@@ -4,6 +4,7 @@ use App\Http\Controllers\BotController;
 use App\Http\Controllers\GameActionController;
 use App\Http\Controllers\GamePlayController;
 use App\Http\Controllers\HandMatrixController;
+use App\Http\Controllers\HandReplayController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MadeHandController;
 use App\Http\Controllers\TournamentController;
@@ -58,6 +59,10 @@ Route::prefix('mtt-simulator/hand')->group(function () {
     Route::get('{hand}/log', [GamePlayController::class, 'logHistory'])->name('mtt-simulator.hand.log');
     Route::get('{hand}/history', [TournamentHistoryController::class, 'hand'])->name('mtt-simulator.hand.history');
     Route::get('{hand}/ranges/{player}', [GamePlayController::class, 'getPlayerRanges'])->name('mtt-simulator.hand.ranges');
+    // Repetir una mano jugada con las mismas cartas y decisiones nuevas de los bots (ver HandReplayService)
+    Route::get('{hand}/replays', [HandReplayController::class, 'show'])->name('mtt-simulator.hand.replays');
+    Route::get('{hand}/replays/frames', [HandReplayController::class, 'frames'])->name('mtt-simulator.hand.replays.frames');
+    Route::post('{hand}/replays', [HandReplayController::class, 'store'])->name('mtt-simulator.hand.replays.store');
     // Solo la ventana activa del torneo puede jugar (ver EnsureTournamentWindow)
     Route::middleware('tournament.window')->group(function () {
         Route::post('{hand}/action', [GamePlayController::class, 'playerAction'])->name('mtt-simulator.hand.action');

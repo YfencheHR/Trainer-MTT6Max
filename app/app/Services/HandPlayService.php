@@ -19,8 +19,13 @@ class HandPlayService
     private const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
     private const SUITS = ['♠', '♥', '♦', '♣'];
 
-    /** Estado público listo para la mesa (oculta cartas rivales hasta el final). */
-    public function state(TournamentHand $hand): array
+    /**
+     * Estado público listo para la mesa (oculta cartas rivales hasta el final).
+     *
+     * @param  bool  $light  solo lo que pinta la mesa (jugadores, board, bote, resultado): sin rangos, log ni resumen del torneo. Es lo que usa el replay
+     *                       visual, que guarda un estado por cada acción.
+     */
+    public function state(TournamentHand $hand, bool $light = false): array
     {
         $this->ensureInitialized($hand);
 
@@ -65,7 +70,7 @@ class HandPlayService
         // Obtener rangos dinámicos del jugador actual
         $currentPlayerId = $completed ? null : $meta['turn'];
         $dynamicRanges = null;
-        if ($currentPlayerId && !$completed) {
+        if ($currentPlayerId && !$completed && !$light) {
             $tp = $hand->table ? $hand->table->players()->find($currentPlayerId) : $hand->tournament->players()->find($currentPlayerId);
             if ($tp && $tp->bot) {
                 $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
@@ -82,10 +87,10 @@ class HandPlayService
 
         // Rangos de los bots que han entrado en la mano (incluye los que luego foldearon)
         $botIds = array_column(array_filter($players, fn($p) => $p['is_bot']), 'id');
-        $botsRanges = (object) array_map(
+        $botsRanges = (object) ($light ? [] : array_map(
             fn($b) => ['action' => $b['action'], 'ranges' => $this->rangeCodes($b['ranges'])],
             app(\App\Services\Bots\RangeFilter::class)->getEnteredRanges($hand, $botIds)
-        );
+        ));
 
         return [
             'hand_id' => $hand->id,
@@ -99,11 +104,11 @@ class HandPlayService
             'status' => $hand->status,
             'winner_id' => $meta['winner_id'] ?? null,
             'result' => $completed ? $this->handResult($hand, $players, $meta) : null,
-            'log' => $this->normalizeLog($meta['log']),
+            'log' => $light ? [] : $this->normalizeLog($meta['log']),
             'current_bet' => $this->maxBet($players),
             'min_raise_to' => $this->minRaiseTo($players, $meta),
             'hand_number' => (int) $hand->hand_number,
-            'tournament' => $this->tournamentSummary($hand, $meta),
+            'tournament' => $light ? ['hand_number' => (int) $hand->hand_number] : $this->tournamentSummary($hand, $meta),
             'last_action' => $meta['last_action'] ?? null,
             'hero_actions' => $this->heroLegal($players, $meta, $completed),
             'big_blind' => (int) ($meta['bb'] ?? 100),
@@ -445,6 +450,45 @@ class HandPlayService
         throw new \RuntimeException('La mano simulada no terminó (mesa ' . $hand->table_id . ')');
     }
 
+    /**
+     * Juega hasta el final una mano que se está REPITIENDO (ver HandReplayService): los bots deciden de nuevo con el mismo motor; el jugador humano, si lo
+     * hay, hace lo que hizo en la mano original (`$humanScript`: [id del jugador => [[acción, importe], …]] en orden) y, si eso ya no es posible porque
+     * la mano se desarrolló distinto, pasa o se retira.
+     *
+     * @param  array<int>  $scripted  jugadores (también bots) que NO deciden: hacen lo que dice `$humanScript`; así se reproduce una mano tal como se jugó
+     * @param  callable|null  $onStep  se llama con la mano después de cada acción
+     */
+    public function playReplay(TournamentHand $hand, array $humanScript = [], array $scripted = [], ?callable $onStep = null): void
+    {
+        for ($guard = 0; $guard < 500; $guard++) {
+            if ($hand->fresh()->status === 'completed') {
+                return;
+            }
+            $this->locked($hand, function ($h) use (&$humanScript, $scripted) {
+                $current = $this->find($h->players_in_hand, $h->actions['turn']);
+                // Los bots deciden de nuevo, salvo los jugadores de `$scripted`: esos hacen exactamente lo guardado (para reproducir una mano tal cual)
+                if ($current['is_bot'] && ! in_array($current['id'], $scripted, true)) {
+                    return $this->doBotAction($h, false);
+                }
+                $queue = $humanScript[$current['id']] ?? [];
+                [$action, $amount] = array_shift($queue) ?? ['check', 0];
+                $humanScript[$current['id']] = $queue;
+                try {
+                    return DB::transaction(fn() => $this->apply($h, $current['id'], $action, (int) $amount, false));
+                } catch (\RuntimeException) {
+                    $legal = $this->legalActions($h->players_in_hand, $h->actions, $current);
+
+                    return $this->apply($h, $current['id'], $legal['check'] ? 'check' : 'fold', 0, false);
+                }
+            });
+            if ($onStep) {
+                $onStep($hand->fresh());   // la mesa tal como queda después de cada acción (para verla paso a paso)
+            }
+        }
+
+        throw new \RuntimeException('La mano repetida no terminó');
+    }
+
     private function locked(TournamentHand $hand, callable $fn): array
     {
         return DB::transaction(function () use ($hand, $fn) {
@@ -759,6 +803,7 @@ class HandPlayService
         $next = ['preflop' => 'flop', 'flop' => 'turn', 'turn' => 'river'][$meta['street']];
         $count = ['flop' => 3, 'turn' => 4, 'river' => 5][$next];
 
+        $hand->{'pot_' . $meta['street']} = $meta['pot'];   // lo que había en el bote al cerrar la calle que termina
         $meta['street'] = $next;
         foreach ($meta['bot_flags'] ?? [] as $pid => $flags) {
             unset($meta['bot_flags'][$pid]['check_raise']);
@@ -1022,7 +1067,11 @@ class HandPlayService
         $hand->actions = $meta;
         $hand->status = 'completed';
         $hand->winning_seat = $w + 1;
-        $hand->result = $heroWon <= 0 ? 'lose' : (count($awards) > 1 ? 'split' : 'win');
+        // Sin jugador humano en la mano ('bots') no hay victoria ni derrota que contar: antes todas salían como «lose»
+        $hand->result = ! $hero ? 'bots' : ($heroWon <= 0 ? 'lose' : (count($awards) > 1 ? 'split' : 'win'));
+        // Bote de la última calle jugada (el de las anteriores se guarda al cambiar de calle): sin esto el listado de manos mostraba siempre 0
+        $lastStreet = in_array($meta['street'] ?? '', ['preflop', 'flop', 'turn', 'river'], true) ? $meta['street'] : 'river';
+        $hand->{'pot_' . $lastStreet} = $meta['pot_won'] ?? 0;
         $hand->stacks_after = array_column($players, 'stack', 'id');
         $hand->save();
 
@@ -1034,7 +1083,13 @@ class HandPlayService
 
     // ------------------------------------------------------------- inicio
 
-    public function ensureInitialized(TournamentHand $hand): void
+    /**
+     * Reparte e inicia la mano (ciegas, antes, turno).
+     *
+     * @param  array|null  $deal  reparto ya hecho, para REPETIR una mano jugada (HandReplayService): en lugar de los jugadores de la mesa y un mazo
+     *                            barajado, se usan sus jugadores {id, name, stack, seat, is_bot, hole_cards} y el board_full. El resto es igual.
+     */
+    public function ensureInitialized(TournamentHand $hand, ?array $deal = null): void
     {
         if (!empty($hand->players_in_hand) && array_key_exists('turn', $hand->actions ?? [])) {
             return;
@@ -1042,41 +1097,50 @@ class HandPlayService
 
         $pending = $hand->actions['pending_log'] ?? [];
 
-        if ($hand->table_id) {
-            $tp = $hand->table->players()->where('tournament_players.current_stack', '>', 0)
-                ->orderBy('table_players.seat_number')->take(self::TABLE_SIZE)->get();
+        if ($deal !== null) {
+            $players = array_map(fn($d) => [
+                'id' => (int) $d['id'], 'name' => (string) $d['name'], 'stack' => (int) $d['stack'], 'bet' => 0, 'bet_visible' => false, 'total' => 0,
+                'folded' => false, 'all_in' => false, 'acted' => false, 'is_bot' => (bool) $d['is_bot'], 'seat' => (int) $d['seat'], 'hole_cards' => $d['hole_cards'],
+            ], array_values($deal['players']));
+            $board = array_values($deal['board_full']);
         } else {
-            // Manos antiguas sin mesa: primeros jugadores del torneo
-            $tp = $hand->tournament->players()->where('current_stack', '>', 0)->orderBy('id')->take(self::TABLE_SIZE)->get();
-        }
-        if ($tp->count() < 2) {
-            throw new \RuntimeException('Se necesitan al menos 2 jugadores');
-        }
-
-        $deck = [];
-        foreach (self::RANKS as $r) {
-            foreach (self::SUITS as $s) {
-                $deck[] = $r . $s;
+            if ($hand->table_id) {
+                $tp = $hand->table->players()->where('tournament_players.current_stack', '>', 0)
+                    ->orderBy('table_players.seat_number')->take(self::TABLE_SIZE)->get();
+            } else {
+                // Manos antiguas sin mesa: primeros jugadores del torneo
+                $tp = $hand->tournament->players()->where('current_stack', '>', 0)->orderBy('id')->take(self::TABLE_SIZE)->get();
             }
-        }
-        shuffle($deck);
+            if ($tp->count() < 2) {
+                throw new \RuntimeException('Se necesitan al menos 2 jugadores');
+            }
 
-        $players = [];
-        foreach ($tp as $i => $row) {
-            $players[] = [
-                'id' => (int) $row->id,
-                'name' => (string) $row->name,
-                'stack' => (int) $row->current_stack,
-                'bet' => 0,
-                'bet_visible' => false,
-                'total' => 0,
-                'folded' => false,
-                'all_in' => false,
-                'acted' => false,
-                'is_bot' => (bool) $row->is_bot,
-                'seat' => (int) ($row->pivot->seat_number ?? ($i + 1)),
-                'hole_cards' => [array_shift($deck), array_shift($deck)],
-            ];
+            $deck = [];
+            foreach (self::RANKS as $r) {
+                foreach (self::SUITS as $s) {
+                    $deck[] = $r . $s;
+                }
+            }
+            shuffle($deck);
+
+            $players = [];
+            foreach ($tp as $i => $row) {
+                $players[] = [
+                    'id' => (int) $row->id,
+                    'name' => (string) $row->name,
+                    'stack' => (int) $row->current_stack,
+                    'bet' => 0,
+                    'bet_visible' => false,
+                    'total' => 0,
+                    'folded' => false,
+                    'all_in' => false,
+                    'acted' => false,
+                    'is_bot' => (bool) $row->is_bot,
+                    'seat' => (int) ($row->pivot->seat_number ?? ($i + 1)),
+                    'hole_cards' => [array_shift($deck), array_shift($deck)],
+                ];
+            }
+            $board = array_splice($deck, 0, 5);
         }
 
         $n = count($players);
@@ -1086,7 +1150,7 @@ class HandPlayService
 
         $btn = (int) ($hand->button_seat ?? 0) % $n;
         $meta = ['pot' => 0, 'turn' => null, 'street' => 'preflop', 'log' => [], 'winner_id' => null, 'bb' => $bb, 'btn' => $btn, 'last_raise' => $bb, 'raises' => 0,
-            'board_full' => array_splice($deck, 0, 5)];
+            'board_full' => $board];
 
         // Historial: quién se sienta, con qué stack y qué cartas (antes de poner ciegas)
         $positions = [];

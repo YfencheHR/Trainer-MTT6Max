@@ -3,11 +3,13 @@ import Alpine from 'alpinejs'
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
 import { gameTable } from './Components/game-table.js'
+import { replayTable } from './Components/replay-table.js'
 import { createTournamentWindow } from './Components/tournament-window.js'
 
 window.Pusher = Pusher
 window.Alpine = Alpine
 window.gameTable = gameTable
+window.replayTable = replayTable
 window.createGameEcho = () => {
   const config = JSON.parse(document.querySelector('meta[name="reverb-config"]')?.content || '{}')
   const key = config.key

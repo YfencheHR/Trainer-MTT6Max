@@ -116,6 +116,7 @@
 
               <template x-if="data">
                 <div>
+                  <a href="{{ route('mtt-simulator.hand.replays', $h['id']) }}" style="display: inline-block; margin-bottom: 0.6rem; padding: 0.3rem 0.8rem; border-radius: 0.35rem; background: #374151; color: #fff; font-size: 0.78rem; font-weight: 600; text-decoration: none;">🔁 {{ __('tournaments.replay_link') }}</a>
                   {{-- Board y botes --}}
                   <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: 0.75rem;">
                     <div style="display: flex; gap: 0.3rem; align-items: center;">
