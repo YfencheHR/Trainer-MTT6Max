@@ -23,6 +23,7 @@ class BotsReplayCommand extends Command
         {--limit=1500 : decisiones a comparar}
         {--streets=preflop,flop,turn,river : calles a incluir}
         {--max-players=6 : manos con más jugadores se ignoran (la app es 6-max)}
+        {--marginal : ignorar las cartas conocidas y tratar a TODOS con manos candidatas (calibración sin el sesgo del showdown: quien llega al showdown nunca foldea)}
         {--without-texture : no aplicar los multiplicadores por textura del board (para comparar)}
         {--candidates=24 : manos candidatas por jugador cuando no se conocen sus cartas (0 = solo decisiones con cartas conocidas)}
         {--out=ai/replay.json : resultado detallado (dentro de storage/app)}';
@@ -163,7 +164,7 @@ class BotsReplayCommand extends Command
                 $player = $p;
             }
         }
-        $known = $player['hole_cards'] ?? null;
+        $known = $this->option('marginal') ? null : ($player['hole_cards'] ?? null);
         if ($known) {
             $cands = [$known];
         } elseif ($candidates > 0) {
@@ -179,6 +180,7 @@ class BotsReplayCommand extends Command
             }
             $facing = $a['to_call'] > 0;
             $dists = [];
+            $scenarios = [];
             foreach ($cands as $k => $cards) {
                 $ctx = $builder->build($hand, $i, $cards);
                 if (! $ctx) {
@@ -188,6 +190,7 @@ class BotsReplayCommand extends Command
                 }
                 $result = $runner->decide($ctx, $brain, $seed++);
                 $dists[$k] = $this->coarseDistribution($result['trace']['distribution'] ?? [$result['action'] => 100], $facing);
+                $scenarios[] = $result['trace']['preflop_strategy']['scenario'] ?? null;
             }
             $real = $this->coarse($a['action']);
             $pred = array_fill_keys(self::CLASSES, 0.0);
@@ -210,7 +213,9 @@ class BotsReplayCommand extends Command
                     'street' => $a['street'], 'spot' => $facing ? 'ante apuesta' : 'primero en hablar', 'pot' => $this->potType($hand, $i),
                     'real' => $real, 'dist' => $pred, 'bot' => $bot->nombre, 'player' => $name, 'known' => (bool) $known, 'ess' => round($ess, 1),
                     'stack_bb' => round($a['stack_before'] / max(1, (int) $hand['big_blind']), 1),
+                    'position' => $a['position'] ?? null,
                     'texture' => \App\Services\Bots\Brain\BoardTexture::classify($a['board'] ?? []),
+                    'scenario' => ($counts = array_count_values(array_filter($scenarios))) ? array_key_first(array_slice($counts, 0, 1, true) + $counts) : null,
                     'hand' => $known ? implode(' ', $known).' | '.implode(' ', $a['board'] ?? []) : null,
                 ];
             }

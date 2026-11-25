@@ -1582,6 +1582,15 @@ class Pt4Importer
         }
 
         $bot->allPreflopHandRanges()->where('is_manual', false)->delete();
+
+        // Resumen por posición de lo que hace con limpers delante (los contadores por mano ya están sumados): lo lee el bot al decidir
+        DB::table('bot_iso_stats')->where('bot_id', $bot->id)->delete();
+        DB::statement(
+            'insert into bot_iso_stats (bot_id, position, opportunities, raises, calls, created_at, updated_at)
+             select bot_id, posicion, sum(vs_limp_opportunities), sum(vs_limp_raises), sum(vs_limp_calls), now(), now()
+             from bot_preflop_hand_stats where bot_id = ? group by bot_id, posicion having sum(vs_limp_opportunities) > 0',
+            [$bot->id]
+        );
     }
 
     // ---------------------------------------------------------------- postflop por tipo de bote, posición y stack

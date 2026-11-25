@@ -88,6 +88,53 @@ class RivalPreflopTables
         ];
     }
 
+    /** Peso (en «oportunidades») de lo que hace la población en el suavizado de lo que hace un perfil con limpers delante. */
+    private const ISO_PRIOR = 20.0;
+
+    /** Anchura (en puntos de percentil) de la transición entre subir y no subir. */
+    private const ISO_WIDTH = 6.0;
+
+    /** @var array<int, array<string, array>> */
+    private array $isoCache = [];
+
+    /** @var array<string, array>|null */
+    private ?array $isoPopulation = null;
+
+    /**
+     * Con limpers delante y nadie que haya subido: [% que sube (aísla), % que iguala] con ESTA mano, según lo que el perfil hace en esa posición
+     * (PokerTracker: bot_iso_stats), suavizado hacia lo que hace la población con su muestra. Las mejores manos son las que suben. Desde la ciega
+     * grande no hay fold ni call: lo que no sube pasa (la acción «call» del bot es el check). Null si no hay ningún dato de esa posición.
+     *
+     * @return array{raise: float, call: float}|null
+     */
+    public function isoFrequencies(Bot $bot, string $position, string $hand): ?array
+    {
+        $db = self::DB_POSITION[$position] ?? $position;
+        $own = ($this->isoCache[$bot->id] ??= \Illuminate\Support\Facades\DB::table('bot_iso_stats')->where('bot_id', $bot->id)->get()->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+        $pop = ($this->isoPopulation ??= \Illuminate\Support\Facades\DB::table('bot_iso_stats')
+            ->selectRaw('position, sum(opportunities) as opportunities, sum(raises) as raises, sum(calls) as calls')->groupBy('position')->get()
+            ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+        if ((! $own || $own['opportunities'] <= 0) && (! $pop || $pop['opportunities'] <= 0)) {
+            return null;
+        }
+        $rate = function (string $column) use ($own, $pop): float {
+            $base = $pop && $pop['opportunities'] > 0 ? $pop[$column] / $pop['opportunities'] : 0.0;
+            if (! $own || $own['opportunities'] <= 0) {
+                return $base;
+            }
+
+            return ($own[$column] + self::ISO_PRIOR * $base) / ($own['opportunities'] + self::ISO_PRIOR);
+        };
+        $raiseTarget = 100 * $rate('raises');
+        $callTarget = $position === 'BB' ? 0.0 : 100 * $rate('calls');
+        $percentile = $this->ranking->percentileForCode($hand);   // 0 = la mejor mano
+        $ramp = fn(float $target): float => 100 * max(0.0, min(1.0, ($target - $percentile) / (2 * self::ISO_WIDTH) + 0.5));
+        $raise = $ramp($raiseTarget);
+        $call = $position === 'BB' ? 100.0 - $raise : max(0.0, min(100.0 - $raise, $ramp($raiseTarget + $callTarget) - $raise));
+
+        return ['raise' => round($raise, 2), 'call' => round($call, 2)];
+    }
+
     /**
      * Respuesta de quien NO abrió y se encuentra un 3-bet (2 subidas) o un 4-bet o más: la generada y guardada en su tabla.
      *

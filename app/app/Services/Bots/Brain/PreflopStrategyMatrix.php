@@ -47,6 +47,14 @@ class PreflopStrategyMatrix
         if (! $table) {
             $distribution = ['fold' => 100.0];
             $scenario = 'pool_missing_hand';
+        } elseif ($raises === 0 && ($iso = ((int) ($features['limpers'] ?? 0)) > 0 ? $this->poolTables->isoFrequencies($bot, $position, $handCode) : null)) {
+            // Limpers delante y nadie ha subido: no es abrir la acción. Sube (aísla) según lo que el perfil hace ante limpers en esa posición.
+            $distribution = [
+                'open_2_5bb' => $iso['raise'],
+                'call' => $iso['call'],
+                'fold' => max(0.0, 100.0 - $iso['raise'] - $iso['call']),
+            ];
+            $scenario = 'pool_vs_limp';
         } elseif ($raises === 0) {
             $attack = $table['attack'];
             $distribution = [
