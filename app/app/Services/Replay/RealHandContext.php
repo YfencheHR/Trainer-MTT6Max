@@ -89,6 +89,7 @@ class RealHandContext
         $own = $this->profile($bot);
 
         return [
+            'replay' => true,   // los ids de jugador de este contexto no existen en la base de datos
             'hand_id' => $hand['hand_id'], 'hand_number' => 1, 'street' => $a['street'], 'big_blind' => $bb,
             'pot' => (int) $a['pot_before'], 'current_bet' => (int) $a['current_bet'], 'to_call' => $toCall,
             'required_equity' => $facing ? $toCall / max(1, $a['pot_before'] + $toCall) : 0.0,

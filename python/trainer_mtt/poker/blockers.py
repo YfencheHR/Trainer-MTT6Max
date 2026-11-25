@@ -1,4 +1,4 @@
-"""Blockers: qué le quitan nuestras cartas al rango con el que el rival apuesta.
+"""Blockers: qué le quitan nuestras cartas a su rango (el que llega a esta calle, antes de estrecharlo con su apuesta: ese ya excluye nuestras cartas).
 
 Una carta en nuestra mano es una carta que él no puede tener. Si bloquea manos fuertes suyas (el as del color, la pareja alta del board), él tiene
 menos valor del que parece: pagar con una mano que sirve de poco pesa más. Si bloquea sus faroles o proyectos, queda más valor: foldear pesa más. Es un
@@ -51,10 +51,10 @@ class Blockers:
         shift = round(after['value'] - before['value'], 1)
         if abs(shift) >= MEANINGFUL:
             if shift < 0:
-                lines.append(f"   => Your cards BLOCK HIS VALUE: he has value {before['value']}% → {after['value']}% of what he bets with, so he is bluffing "
+                lines.append(f"   => Your cards BLOCK HIS VALUE: he has value {before['value']}% → {after['value']}% of his range, so he is bluffing "
                              'more often than the plain range suggests: a call (or a raise as a bluff) is worth more.')
             else:
-                lines.append(f"   => Your cards BLOCK HIS BLUFFS: he has value {before['value']}% → {after['value']}% of what he bets with, so he is "
+                lines.append(f"   => Your cards BLOCK HIS BLUFFS: he has value {before['value']}% → {after['value']}% of his range, so he is "
                              'less likely to be bluffing: folding a weak hand is worth more.')
         else:
             lines.append('   => Your cards barely change what he can have: blockers do not move the decision.')

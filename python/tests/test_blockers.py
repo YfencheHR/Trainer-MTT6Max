@@ -36,5 +36,32 @@ class BlockersTest(unittest.TestCase):
         self.assertEqual(Blockers(BOARD).lines([], cards('Ah', '3s')), [])
 
 
+class BlockersInTheQuestionnaireTest(unittest.TestCase):
+    def questionnaire(self, hole):
+        from tests.test_river import FACING_RIVER_BET
+        from trainer_mtt.ai.streets import default_registry
+
+        service = default_registry().service_for('river')
+        state = service.prepare_state(dict(FACING_RIVER_BET, hole_cards=hole))
+        messages, _ = service.spot_for(state).prompt(state, ['fold', 'call', 'raise'])
+
+        return messages[1]['content']
+
+    def test_a_card_that_blocks_his_value_removes_combos_in_the_real_flow(self):
+        # K♠ bloquea los reyes (su valor): antes el rango ya excluía nuestras cartas y siempre salía 0 %
+        text = self.questionnaire(['K♠', 'Q♠'])
+        line = next(l for l in text.split('\n') if 'BLOCKERS' in l)
+
+        self.assertNotIn('remove 0.0% of his value combos', line)
+
+    def test_cards_of_the_top_of_his_range_block_more_value_than_low_cards(self):
+        def value_removed(hole):
+            line = next(l for l in self.questionnaire(hole).split('\n') if 'BLOCKERS' in l)
+
+            return float(line.split('they remove ')[1].split('%')[0])
+
+        self.assertGreater(value_removed(['K♠', 'Q♠']), value_removed(['4♣', '5♦']))
+
+
 if __name__ == '__main__':
     unittest.main()

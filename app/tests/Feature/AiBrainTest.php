@@ -208,4 +208,14 @@ class AiBrainTest extends TestCase
         $this->assertStringContainsString('IA no disponible', $decision['reason']);
         $this->assertContains($decision['action'], ['fold', 'call', 'raise', 'allin', 'check']);
     }
+
+    public function test_in_a_replay_the_adaptation_comes_from_the_bots_brain_not_from_an_invented_player_id(): void
+    {
+        $bot = $this->bot('ai');   // tag: nivel «pro» → adaptación completa
+        $ctx = $this->ctx($bot);
+        $ctx['me']['id'] = 987654;   // en la réplica este id no existe en la base de datos
+
+        $this->assertSame(0.5, app(\App\Services\Ai\AiBrain::class)->adaptationFor($ctx), 'sin ser réplica, un jugador desconocido cae al valor por defecto');
+        $this->assertSame(1.0, app(\App\Services\Ai\AiBrain::class)->adaptationFor($ctx + ['replay' => true]));
+    }
 }

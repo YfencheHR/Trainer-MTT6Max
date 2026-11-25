@@ -25,6 +25,15 @@ class BrainRepository
     {
     }
 
+    /** @var array<int, array> */
+    private array $botCache = [];
+
+    /** Cerebro actual de un bot, sin pasar por un jugador de torneo (réplica de manos reales: allí los ids de jugador no existen). */
+    public function forBot(Bot $bot): array
+    {
+        return $this->botCache[$bot->id] ??= $this->assembler->forBot($bot);
+    }
+
     public function forPlayer(int $tournamentPlayerId): array
     {
         if (isset($this->cache[$tournamentPlayerId])) {

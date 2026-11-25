@@ -52,10 +52,14 @@ class BotsCompareEnginesCommand extends Command
             $limit = $engine === 'ai-think' ? (int) $this->option('think-limit') : (int) $this->option('limit');
             $this->info("Motor {$engine}: {$limit} decisiones…");
             $started = microtime(true);
-            $result = $replay->run(RealHandReplay::handsFromTsv($this->argument('file')), $byName, [
-                'limit' => $limit, 'every' => (int) $this->option('every'), 'streets' => array_filter(explode(',', (string) $this->option('streets'))),
-                'marginal' => false, 'candidates' => 0, 'decider' => $decider,
-            ]);
+            try {
+                $result = $replay->run(RealHandReplay::handsFromTsv($this->argument('file')), $byName, [
+                    'limit' => $limit, 'every' => (int) $this->option('every'), 'streets' => array_filter(explode(',', (string) $this->option('streets'))),
+                    'marginal' => false, 'candidates' => 0, 'decider' => $decider,
+                ]);
+            } finally {
+                config(['ai.reasoning' => null]);   // aunque falle una pasada, el modo de razonamiento no se queda puesto
+            }
             $seconds[$engine] = (microtime(true) - $started) / max(1, count($result['rows']));
             $results[$engine] = $result['rows'];
             $failed[$engine] = $result['errors'];

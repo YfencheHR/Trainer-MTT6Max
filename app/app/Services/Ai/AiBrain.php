@@ -28,7 +28,12 @@ class AiBrain
     {
         $levels = (array) config('ai.adaptation');
         try {
-            $tier = $this->brains->forPlayer((int) $ctx['me']['id'])['skill']['tier'] ?? null;
+            // En la réplica de manos reales el id del jugador es inventado: se busca el cerebro por el bot
+            $botId = (int) ($ctx['me']['bot_id'] ?? 0);
+            $brain = ($ctx['replay'] ?? false) && $botId
+                ? $this->brains->forBot(Bot::findOrFail($botId))
+                : $this->brains->forPlayer((int) $ctx['me']['id']);
+            $tier = $brain['skill']['tier'] ?? null;
         } catch (\Throwable) {
             $tier = null;
         }
