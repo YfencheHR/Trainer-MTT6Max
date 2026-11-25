@@ -395,6 +395,29 @@ class Perceiver
             }
         }
 
+        // Textura del board: el mismo jugador apuesta, foldea y sube distinto según el board (PokerTracker: A-alta seco favorece al agresor; bajo y conectado,
+        // al defensor). Se aplican multiplicadores relativos a la media de la calle sobre SU estadística, por papel: sin iniciativa y en botes limpeados
+        // vale «abrir», con iniciativa el c-bet y sin ella el donk; ante una apuesta, la respuesta del defensor.
+        if (!$mine['this'] && count($ctx['board'] ?? []) >= 3 && isset(BetTier::STREETS[$street])) {
+            $tex = BoardTextureStats::multipliers($street, $ctx['board']);
+            if ($tex) {
+                $unraised = ($f['preflop_raises'] ?? 1) === 0;
+                $initiative = !empty($f['has_initiative']);
+                if ($toCall <= 0 && $f['own_bet_freq'] !== null) {
+                    $f['own_bet_freq'] = round(min(100.0, (float) $f['own_bet_freq'] * $tex[$unraised ? 'open' : ($initiative ? 'cbet' : 'donk')]), 1);
+                } elseif ($toCall > 0) {
+                    $defender = !$unraised && !$initiative;
+                    if ($f['own_f2bet'] !== null) {
+                        $f['own_f2bet'] = round(min(100.0, (float) $f['own_f2bet'] * $tex[$defender ? 'cdef_fold' : 'fold']), 1);
+                    }
+                    if ($f['own_raise_vs_bet'] !== null) {
+                        $f['own_raise_vs_bet'] = round(min(100.0, (float) $f['own_raise_vs_bet'] * $tex[$defender ? 'cdef_raise' : 'raise']), 1);
+                    }
+                }
+                $f['board_texture'] = $tex['texture'];
+            }
+        }
+
         // ------------------------------------------------ intenciones
         $flags = $me['flags'] ?? [];
         $f['flag_check_raise'] = !empty($flags['check_raise']);

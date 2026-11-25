@@ -465,7 +465,63 @@ class Pt4Importer
 
         // Con muestra insuficiente (p. ej. una importación pequeña en modo suma) se conserva el modelo anterior
         BluffPriorModel::saveModels($this->fitBluffModels());
+        $this->storePopulationTexture();
     }
+
+    /**
+     * Qué hace la población según la textura del board (ver BoardTexture): apostar cuando nadie ha apostado y fold / subida ante una primera apuesta,
+     * por calle. Las cartas del volcado son ids 1-52: rango = ((id - 1) % 13) + 2 y palo = (id - 1) / 13 (comprobado con manos reales).
+     */
+    private function storePopulationTexture(): void
+    {
+        $counts = [];
+        foreach (['flop' => ['f', 3], 'turn' => ['t', 4], 'river' => ['r', 5]] as $street => [$x, $cards]) {
+            $rows = $this->tmp()->cursor("
+                select h.card_1, h.card_2, h.card_3, h.card_4, h.card_5,
+                  coalesce(sum(s.flg_{$x}_open_opp::int), 0) as open_opps, coalesce(sum(s.flg_{$x}_open::int), 0) as opens,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open)::int), 0) as facing,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open and s.cnt_{$x}_raise = 0 and s.flg_{$x}_fold)::int), 0) as folds,
+                  coalesce(sum((s.amt_{$x}_bet_facing > 0 and not s.flg_{$x}_open and s.cnt_{$x}_raise > 0)::int), 0) as raises,
+                  coalesce(sum(s.flg_{$x}_cbet_opp::int), 0) as cbet_opps, coalesce(sum(s.flg_{$x}_cbet::int), 0) as cbets,
+                  coalesce(sum(s.flg_{$x}_donk_opp::int), 0) as donk_opps, coalesce(sum(s.flg_{$x}_donk::int), 0) as donks,
+                  coalesce(sum(s.flg_{$x}_cbet_def_opp::int), 0) as cdef_opps,
+                  coalesce(sum((s.enum_{$x}_cbet_action = 'F')::int), 0) as cdef_folds, coalesce(sum((s.enum_{$x}_cbet_action = 'R')::int), 0) as cdef_raises
+                from fresh_stats s join tourney_hand_summary h using (id_hand)
+                where not s.flg_hero and s.flg_{$x}_saw and h.card_{$cards} > 0
+                group by h.card_1, h.card_2, h.card_3, h.card_4, h.card_5");
+            foreach ($rows as $r) {
+                $ranks = [];
+                $suits = [];
+                for ($i = 1; $i <= $cards; $i++) {
+                    $id = (int) $r->{"card_{$i}"};
+                    $ranks[] = ($id - 1) % 13;          // 0 = dos … 12 = as
+                    $suits[] = intdiv($id - 1, 13);
+                }
+                $key = $street . '|' . \App\Services\Bots\Brain\BoardTexture::fromValues($ranks, $suits);
+                foreach (self::TEXTURE_COUNTERS as $k) {
+                    $counts[$key][$k] = ($counts[$key][$k] ?? 0) + (int) $r->{$k};
+                }
+            }
+        }
+        if (! $this->merge) {
+            DB::table('board_texture_stats')->delete();
+        }
+        $now = now();
+        $cols = implode(', ', self::TEXTURE_COUNTERS);
+        $marks = implode(', ', array_fill(0, count(self::TEXTURE_COUNTERS) + 4, '?'));
+        $sums = implode(', ', array_map(fn ($k) => "{$k} = board_texture_stats.{$k} + excluded.{$k}", self::TEXTURE_COUNTERS));
+        foreach ($counts as $key => $c) {
+            [$street, $texture] = explode('|', $key, 2);
+            DB::statement(
+                "insert into board_texture_stats (street, texture, {$cols}, created_at, updated_at) values ({$marks})
+                 on conflict (street, texture) do update set {$sums}, updated_at = excluded.updated_at",
+                array_merge([$street, $texture], array_map(fn ($k) => $c[$k], self::TEXTURE_COUNTERS), [$now, $now])
+            );
+        }
+    }
+
+    /** Contadores de board_texture_stats que suma la importación. */
+    private const TEXTURE_COUNTERS = ['open_opps', 'opens', 'facing', 'folds', 'raises', 'cbet_opps', 'cbets', 'donk_opps', 'donks', 'cdef_opps', 'cdef_folds', 'cdef_raises'];
 
     /**
      * Respuesta de la población a la PRIMERA apuesta de cada calle según su tamaño (tabla fold_to_bet_size_population).
