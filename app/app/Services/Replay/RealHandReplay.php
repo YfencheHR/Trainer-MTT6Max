@@ -164,6 +164,9 @@ class RealHandReplay
             $facing = $a['to_call'] > 0;
             $dists = [];
             $scenarios = [];
+            $sources = [];
+            $asked = [];
+            $size = null;
             foreach ($cands as $k => $cards) {
                 $ctx = $builder->build($hand, $i, $cards);
                 if (! $ctx) {
@@ -174,6 +177,10 @@ class RealHandReplay
                 $result = $this->runner->decide($ctx, $brain, $seed++);
                 $dists[$k] = $this->coarseDistribution($result['trace']['distribution'] ?? [$result['action'] => 100], $facing);
                 $scenarios[] = $result['trace']['preflop_strategy']['scenario'] ?? null;
+                $features = $result['trace']['features'] ?? [];
+                $sources[] = $features['stats_source'] ?? null;
+                $asked[$k] = isset($features['own_f2bet']) ? (float) $features['own_f2bet'] : null;   // lo que PIDE la estadística del perfil ante una apuesta
+                $size ??= $features['bet_vs_pot'] ?? null;
             }
             $real = $this->coarse($a['action']);
             $pred = array_fill_keys(self::CLASSES, 0.0);
@@ -199,6 +206,9 @@ class RealHandReplay
                     'position' => $a['position'] ?? null,
                     'texture' => BoardTexture::classify($a['board'] ?? []),
                     'scenario' => $this->mostFrequent($scenarios),
+                    'source' => $this->mostFrequent($sources),
+                    'asked_fold' => ($askedValues = array_filter($asked, fn($v) => $v !== null)) ? round(array_sum($askedValues) / count($askedValues), 1) : null,
+                    'bet_vs_pot' => $size,
                     'hand' => $known ? implode(' ', $known).' | '.implode(' ', $a['board'] ?? []) : null,
                 ];
             }

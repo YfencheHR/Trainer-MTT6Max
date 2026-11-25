@@ -18,6 +18,7 @@ class BotsReplayCommand extends Command
         {--streets=preflop,flop,turn,river : calles a incluir}
         {--max-players=6 : manos con más jugadores se ignoran (la app es 6-max)}
         {--marginal : ignorar las cartas conocidas y tratar a TODOS con manos candidatas (calibración sin el sesgo del showdown: quien llega al showdown nunca foldea)}
+        {--fold-gain= : fuerza la ganancia de fold ante apuesta (config bot-calibration.fold_gain) en las tres calles, para probar valores}
         {--without-texture : no aplicar los multiplicadores por textura del board (para comparar)}
         {--candidates=24 : manos candidatas por jugador cuando no se conocen sus cartas (0 = solo decisiones con cartas conocidas)}
         {--out=ai/replay.json : resultado detallado (dentro de storage/app)}';
@@ -34,6 +35,11 @@ class BotsReplayCommand extends Command
         }
         $this->info(count($byName).' jugadores reales asignados a un perfil Pool');
         BoardTextureStats::$disabled = (bool) $this->option('without-texture');
+        if ($this->option('fold-gain') !== null && $this->option('fold-gain') !== '') {
+            $gain = (float) $this->option('fold-gain');
+            config(['bot-calibration.fold_gain' => ['flop' => $gain, 'turn' => $gain, 'river' => $gain]]);
+            $this->warn("Ganancia de fold forzada a {$gain} en flop, turn y river (solo en esta ejecución)");
+        }
 
         $result = $replay->run($this->hands($this->argument('file')), $byName, [
             'limit' => (int) $this->option('limit'),
