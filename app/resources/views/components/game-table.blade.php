@@ -67,8 +67,8 @@
           style="min-width: 260px; max-width: 420px; padding: 0.6rem 1rem; background: rgba(17,24,39,0.92); border: 1px solid #fbbf24; border-radius: 0.7rem; box-shadow: 0 0 22px rgba(251,191,36,0.35); text-align: center;">
           <template x-for="winner in (handResult?.winners || [])" :key="winner.id">
             <p style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #fbbf24;">
-              🏆 <span x-text="winner.name"></span> gana <span x-text="formatBB(winner.amount)"></span>
-              <span x-show="winner.hand_name" style="color: #e5e7eb; font-weight: 600;"> con <span x-text="winner.hand_name"></span></span>
+              🏆 <span x-text="winner.name"></span> {{ __('tournaments.hand_wins') }} <span x-text="formatBB(winner.amount)"></span>
+              <span x-show="winner.hand_name" style="color: #e5e7eb; font-weight: 600;"> {{ __('tournaments.hand_with') }} <span x-text="winner.hand_name"></span></span>
             </p>
           </template>
           <template x-if="handResult && handResult.pots.length > 1">
@@ -78,13 +78,13 @@
               </template>
             </div>
           </template>
-          <p x-show="handResult && !handResult.showdown" style="margin: 0.2rem 0 0; font-size: 0.7rem; color: #9ca3af;">Todos se retiraron: no hay showdown</p>
+          <p x-show="handResult && !handResult.showdown" style="margin: 0.2rem 0 0; font-size: 0.7rem; color: #9ca3af;">{{ __('tournaments.hand_no_showdown') }}</p>
           {{-- Cuenta atrás hasta la siguiente mano (solo si avanza sola) --}}
           <div x-show="advanceTotal > 0 && advanceLeft > 0" style="margin-top: 0.5rem;">
             <div style="height: 3px; background: #374151; border-radius: 2px; overflow: hidden;">
               <div style="height: 100%; background: #fbbf24; transition: width .1s linear;" :style="{ width: (100 * advanceLeft / advanceTotal) + '%' }"></div>
             </div>
-            <button type="button" @click="skipResultPause()" style="margin-top: 0.4rem; background: transparent; border: 1px solid #4b5563; color: #d1d5db; font-size: 0.7rem; padding: 0.15rem 0.7rem; border-radius: 999px; cursor: pointer;">Continuar ▶</button>
+            <button type="button" @click="skipResultPause()" style="margin-top: 0.4rem; background: transparent; border: 1px solid #4b5563; color: #d1d5db; font-size: 0.7rem; padding: 0.15rem 0.7rem; border-radius: 999px; cursor: pointer;">{{ __('tournaments.hand_continue') }} ▶</button>
           </div>
         </div>
       </div>

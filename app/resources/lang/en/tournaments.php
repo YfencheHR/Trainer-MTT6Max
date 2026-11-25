@@ -136,4 +136,15 @@ return [
     'elimination_history' => 'Eliminations by placement',
     'no_eliminations' => 'No players have been eliminated yet.',
     'round' => 'Round',
+    // Rivals ranges panel and hand summary
+    'ranges_title' => 'Rivals in action · ranges',
+    'ranges_waiting' => 'Waiting for the rivals to act...',
+    'ranges_view' => 'View the range of',
+    'ranges_folded' => 'Folded',
+    'ranges_waiting_range' => 'Waiting for range...',
+    'hand_wins' => 'wins',
+    'hand_with' => 'with',
+    'hand_no_showdown' => 'Everyone folded: no showdown',
+    'hand_continue' => 'Continue',
+    'pot' => 'Pot',
 ];

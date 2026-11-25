@@ -59,6 +59,8 @@ TXT;
         $this->assertCount(4, $ctx['history'], 'subida, fold, call y check anteriores');
         $this->assertSame('raise', $ctx['history'][0]['action']);
         $this->assertTrue(collect($ctx['players'])->firstWhere('name', 'Bob')['folded'], 'Bob ya había foldeado');
+        $this->assertSame(0, collect($ctx['players'])->firstWhere('name', 'Carol')['bet'], 'en el flop no cuenta lo puesto preflop');
+        $this->assertSame(60, collect($ctx['players'])->firstWhere('name', 'Carol')['total_in_hand'], 'lo puesto en toda la mano sí: ciega grande más la igualada');
     }
 
     public function test_it_uses_the_given_cards_instead_of_the_real_ones_and_refuses_players_without_a_bot(): void
@@ -71,6 +73,9 @@ TXT;
         $this->assertSame(['7♣', '2♦'], $ctx['me']['hole_cards']);
         $this->assertSame(20, $ctx['to_call'], 'la ciega grande que tiene delante');
         $this->assertTrue($ctx['legal']['fold']);
+        $blinds = collect($ctx['players'])->pluck('bet', 'name');
+        $this->assertSame(10, $blinds['Bob'], 'la ciega pequeña cuenta como apuesta preflop');
+        $this->assertSame(20, $blinds['Carol']);
         $bobFold = array_key_first(array_filter($hand['actions'], fn ($a) => $a['player'] === 'Bob'));
         $this->assertNull($builder->build($hand, $bobFold), 'Bob no tiene perfil asignado');
     }

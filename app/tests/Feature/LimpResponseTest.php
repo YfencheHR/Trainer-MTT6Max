@@ -67,6 +67,21 @@ class LimpResponseTest extends TestCase
         $this->assertEqualsWithDelta(70.0, $answer['call'] + $answer['fold'], 0.01, 'solo se reparte lo que queda tras subir y hacer all-in');
     }
 
+    public function test_archived_frozen_copies_do_not_weigh_in_the_population(): void
+    {
+        $this->bot(['SB' => [1000, 450, 520, 30]]);   // la población viva foldea el 45 %
+        $newcomer = Bot::create(['nombre' => 'Nuevo', 'tipo' => 'pool', 'vpip' => 30, 'pfr' => 20]);
+        $alone = $this->tables()->limpContinuation($newcomer, 'SB', 'T9s', 0.0, 0.0);
+
+        $copy = Bot::create(['nombre' => 'Copia', 'tipo' => 'pool', 'vpip' => 30, 'pfr' => 20]);
+        $copy->forceFill(['archived_at' => now()])->save();
+        DB::table('bot_limp_response_stats')->insert(['bot_id' => $copy->id, 'position' => 'SB', 'opportunities' => 100000, 'folds' => 100000,
+            'calls' => 0, 'raises' => 0, 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->assertSame($alone, $this->tables()->limpContinuation($newcomer, 'SB', 'T9s', 0.0, 0.0));
+        $this->assertEqualsWithDelta(55.0, $alone['call'], 0.5, 'sin muestra propia se reparte como la población viva: fold 45 %, call 55 %');
+    }
+
     public function test_the_decision_after_limping_now_includes_calling(): void
     {
         $bot = $this->bot(['SB' => [1000, 450, 520, 30]]);

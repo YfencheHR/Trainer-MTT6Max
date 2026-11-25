@@ -119,7 +119,7 @@ class HandPlayService
     {
         $names = array_column($players, 'name', 'id');
         $pots = array_map(fn($pot) => [
-            'label' => $pot['label'] ?? 'Bote',
+            'label' => $pot['label'] ?? __('tournaments.pot'),
             'amount' => (int) ($pot['amount'] ?? 0),
             'winners' => array_map(fn($id) => ['id' => $id, 'name' => $names[$id] ?? '?'], $pot['winners'] ?? []),
             'hand_name' => $pot['hand_name'] ?? null,

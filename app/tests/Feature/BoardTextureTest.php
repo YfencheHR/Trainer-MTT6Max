@@ -119,7 +119,6 @@ class BoardTextureTest extends TestCase
     public function test_without_texture_data_the_statistics_are_not_touched(): void
     {
         $raised = [['player_id' => 1, 'street' => 'preflop', 'action' => 'raise', 'amount' => 250], ['player_id' => 2, 'street' => 'preflop', 'action' => 'call', 'amount' => 250]];
-        BoardTextureStats::flush();
 
         $f = $this->features(['A♣', '7♦', '2♥'], $raised, 0);
 

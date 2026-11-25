@@ -145,4 +145,15 @@ return [
     'elimination_history' => 'Eliminados por puesto',
     'no_eliminations' => 'Aún no hay jugadores eliminados.',
     'round' => 'Ronda',
+    // Panel de rangos de los rivales y resumen de la mano
+    'ranges_title' => 'Rivales en acción · rangos',
+    'ranges_waiting' => 'Esperando acción de los rivales...',
+    'ranges_view' => 'Ver el rango de',
+    'ranges_folded' => 'Se fue (fold)',
+    'ranges_waiting_range' => 'Esperando rango...',
+    'hand_wins' => 'gana',
+    'hand_with' => 'con',
+    'hand_no_showdown' => 'Todos se retiraron: no hay showdown',
+    'hand_continue' => 'Continuar',
+    'pot' => 'Bote',
 ];

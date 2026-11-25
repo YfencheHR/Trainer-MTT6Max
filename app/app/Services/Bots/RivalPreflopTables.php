@@ -111,8 +111,11 @@ class RivalPreflopTables
     {
         $db = self::DB_POSITION[$position] ?? $position;
         $own = ($this->isoCache[$bot->id] ??= \Illuminate\Support\Facades\DB::table('bot_iso_stats')->where('bot_id', $bot->id)->get()->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+        // La población son solo los perfiles vivos: las copias congeladas (archivadas) repiten las filas de su perfil, una por torneo, y sesgarían la media
         $pop = ($this->isoPopulation ??= \Illuminate\Support\Facades\DB::table('bot_iso_stats')
-            ->selectRaw('position, sum(opportunities) as opportunities, sum(raises) as raises, sum(calls) as calls')->groupBy('position')->get()
+            ->join('bots', 'bots.id', '=', 'bot_iso_stats.bot_id')->whereNull('bots.archived_at')
+            ->selectRaw('bot_iso_stats.position as position, sum(bot_iso_stats.opportunities) as opportunities, sum(bot_iso_stats.raises) as raises, sum(bot_iso_stats.calls) as calls')
+            ->groupBy('bot_iso_stats.position')->get()
             ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
         if ((! $own || $own['opportunities'] <= 0) && (! $pop || $pop['opportunities'] <= 0)) {
             return null;
@@ -158,7 +161,9 @@ class RivalPreflopTables
         $own = ($this->limpResponseCache[$bot->id] ??= \Illuminate\Support\Facades\DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->get()
             ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
         $pop = ($this->limpResponsePopulation ??= \Illuminate\Support\Facades\DB::table('bot_limp_response_stats')
-            ->selectRaw('position, sum(opportunities) as opportunities, sum(folds) as folds')->groupBy('position')->get()
+            ->join('bots', 'bots.id', '=', 'bot_limp_response_stats.bot_id')->whereNull('bots.archived_at')
+            ->selectRaw('bot_limp_response_stats.position as position, sum(bot_limp_response_stats.opportunities) as opportunities, sum(bot_limp_response_stats.folds) as folds')
+            ->groupBy('bot_limp_response_stats.position')->get()
             ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
         if ((! $own || $own['opportunities'] <= 0) && (! $pop || $pop['opportunities'] <= 0)) {
             return ['call' => 0.0, 'fold' => $rest];

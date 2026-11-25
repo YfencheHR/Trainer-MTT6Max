@@ -149,6 +149,10 @@ class Pt4Importer
         'flg_t_face_raise', 'flg_t_float', 'flg_t_float_opp', 'flg_t_fold', 'flg_t_has_position', 'flg_t_saw',
         'flg_vpip', 'flg_won_hand', 'holecard_1', 'holecard_2', 'id_blinds', 'id_hand', 'id_player',
         'val_p_raise_aggressor_pos',
+        // Postflop por tipo de bote, textura del board y respuesta tras limpear (potStats, storePopulationTexture, limpResponseStats)
+        'amt_f_bet_facing', 'amt_t_bet_facing', 'amt_r_bet_facing', 'enum_folded',
+        'flg_f_open', 'flg_f_open_opp', 'flg_t_open', 'flg_t_open_opp', 'flg_r_open', 'flg_r_open_opp',
+        'flg_t_donk', 'flg_t_donk_opp', 'flg_r_donk', 'flg_r_donk_opp',
     ];
 
     /** Tipo de bote preflop de cada mano (mirando a todos sus jugadores): limp / srp / 3bp / 4bp. Requiere fresh_stats. */
@@ -170,10 +174,18 @@ class Pt4Importer
             "select column_name from information_schema.columns where table_name = 'tourney_hand_player_statistics'"
         ), 'column_name');
         $missing = array_values(array_diff(self::REQUIRED_COLUMNS, $have));
+        // El board de cada mano (textura): ids de carta 1-52 en tourney_hand_summary
+        $haveSummary = array_column($this->tmp()->select(
+            "select column_name from information_schema.columns where table_name = 'tourney_hand_summary'"
+        ), 'column_name');
+        $missing = array_merge($missing, array_map(fn($c) => "tourney_hand_summary.{$c}", array_diff(self::REQUIRED_SUMMARY_COLUMNS, $haveSummary)));
         if ($missing) {
             throw new \RuntimeException('El volcado de PT4 no trae columnas que necesita el importador: ' . implode(', ', $missing));
         }
     }
+
+    /** Columnas de tourney_hand_summary que usa el importador (cartas del board). */
+    private const REQUIRED_SUMMARY_COLUMNS = ['card_1', 'card_2', 'card_3', 'card_4', 'card_5'];
 
     /**
      * Etiqueta de posición (UTG/MP/CO/BTN/SB/BB) a partir de una columna de posición de PT4.

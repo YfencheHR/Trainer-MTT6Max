@@ -59,6 +59,26 @@ class IsoFrequenciesTest extends TestCase
         $this->assertSame(0.0, $worst['call'], 'la peor mano ni sube ni iguala');
     }
 
+    public function test_archived_frozen_copies_do_not_weigh_in_the_population(): void
+    {
+        $this->bot(['BB' => [400, 80, 0]]);   // la población viva sube el 20 %
+        $newcomer = Bot::create(['nombre' => 'Nuevo', 'tipo' => 'pool', 'vpip' => 30, 'pfr' => 20]);
+        $alone = $this->tables()->isoFrequencies($newcomer, 'BB', 'A5o');
+
+        // Una copia congelada (archivada) con muchísima muestra que sube siempre: no debe mover la población
+        $copy = Bot::create(['nombre' => 'Copia', 'tipo' => 'pool', 'vpip' => 30, 'pfr' => 20]);
+        $copy->forceFill(['archived_at' => now()])->save();
+        DB::table('bot_iso_stats')->insert(['bot_id' => $copy->id, 'position' => 'BB', 'opportunities' => 100000, 'raises' => 100000, 'calls' => 0,
+            'created_at' => now(), 'updated_at' => now()]);
+        $this->assertSame($alone, $this->tables()->isoFrequencies($newcomer, 'BB', 'A5o'));
+
+        // Lo mismo en un perfil vivo sí la mueve (la prueba detecta el cambio)
+        $live = Bot::create(['nombre' => 'Vivo', 'tipo' => 'pool', 'vpip' => 30, 'pfr' => 20]);
+        DB::table('bot_iso_stats')->insert(['bot_id' => $live->id, 'position' => 'BB', 'opportunities' => 100000, 'raises' => 100000, 'calls' => 0,
+            'created_at' => now(), 'updated_at' => now()]);
+        $this->assertNotSame($alone, $this->tables()->isoFrequencies($newcomer, 'BB', 'A5o'));
+    }
+
     public function test_a_small_sample_is_pulled_toward_what_the_population_does_and_no_data_gives_nothing(): void
     {
         $bot = $this->bot(['BB' => [400, 80, 0]]);    // la población (solo este bot) sube el 20 %

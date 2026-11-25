@@ -53,10 +53,6 @@ class RealHandContext
         $history = [];
         foreach (array_slice($hand['actions'], 0, $index) as $prev) {
             $s = &$state[$prev['player']];
-            if (($prev['street'] ?? '') !== $a['street']) {
-                // calle anterior: las apuestas de la calle en curso empiezan de cero
-                $s['bet'] = 0;
-            }
             $s['stack'] -= $prev['amount'];
             $s['total'] += $prev['amount'];
             if ($prev['street'] === $a['street']) {
@@ -70,23 +66,8 @@ class RealHandContext
                 'amount' => $prev['amount'], 'pot_before' => $prev['pot_before'],
             ];
         }
-        // Las apuestas de calles anteriores no cuentan en la calle actual
-        foreach ($players as $p) {
-            $state[$p['name']]['bet'] = 0;
-        }
-        foreach ($hand['actions'] as $k => $prev) {
-            if ($k >= $index) {
-                break;
-            }
-            if ($prev['street'] === $a['street']) {
-                $state[$prev['player']]['bet'] += $prev['amount'];
-            }
-        }
-        if ($a['street'] === 'preflop') {
-            foreach ($players as $p) {
-                $state[$p['name']]['bet'] += $p['position'] === 'SB' ? $sb : ($p['position'] === 'BB' ? $bb : 0);
-            }
-        }
+        // `bet` = lo puesto en la calle actual: las ciegas (solo preflop, ya sumadas arriba) y lo apostado en ella; las calles anteriores no cuentan.
+        // Los antes no figuran en las acciones, así que el stack de los demás jugadores es aproximado (el de quien decide es exacto: stack_before).
 
         $toCall = (int) $a['to_call'];
         $stack = (int) $a['stack_before'];
