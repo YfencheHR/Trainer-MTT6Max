@@ -23,10 +23,29 @@ use Throwable;
  */
 class RealHandReplay
 {
+    /** Decisiones que el decisor no pudo contestar en la última ejecución. */
+    private int $decisionErrors = 0;
+
+    private ?string $firstDecisionError = null;
+
     public const CLASSES = ['fold', 'check', 'call', 'aggr'];
 
     public function __construct(private HandHistoryParser $parser, private BrainRunner $runner, private BrainAssembler $assembler)
     {
+    }
+
+    /** @return \Generator<int, string> el texto de cada mano de un TSV «id_hand<TAB>historial» (volcado de tourney_hand_histories) */
+    public static function handsFromTsv(string $file): \Generator
+    {
+        $fh = fopen($file, 'r');
+        try {
+            while (($line = fgets($fh)) !== false) {
+                [, $text] = array_pad(explode("\t", rtrim($line, "\n"), 2), 2, '');
+                yield $text;
+            }
+        } finally {
+            fclose($fh);
+        }
     }
 
     /** @return array<string, Bot> jugador real → bot de su perfil vivo (con más manos si está en varios) */
@@ -51,6 +70,7 @@ class RealHandReplay
      * @param  array<string, Bot>  $byName  jugador real → bot de su perfil
      * @param  array{limit?: int, streets?: array<int, string>, max_players?: int, marginal?: bool, candidates?: int, every?: int}  $options
      *         every: 1 de cada N manos (por hash de la mano), para no quedarse con el principio del archivo
+     *         decider: callable(array $ctx, Bot $bot, int $seed): array con la forma de BrainRunner::decide (trace.distribution); por defecto, el motor de reglas
      * @return array{rows: array<int, array>, errors: int, first_error: ?string}
      */
     public function run(iterable $hands, array $byName, array $options = []): array
@@ -65,6 +85,8 @@ class RealHandReplay
         $rows = [];
         $errors = 0;
         $firstError = null;
+        $this->decisionErrors = 0;
+        $this->firstDecisionError = null;
         $brains = [];
         $seed = 1;
 
@@ -84,7 +106,7 @@ class RealHandReplay
                     continue;
                 }
                 try {
-                    $got = $this->replayPlayer($hand, $name, $byName[$name], $builder, $brains, $streets, $candidates, $marginal, $seed);
+                    $got = $this->replayPlayer($hand, $name, $byName[$name], $builder, $brains, $streets, $candidates, $marginal, $seed, $options['decider'] ?? null);
                 } catch (Throwable $e) {
                     $errors++;
                     $firstError ??= $e->getMessage().' @ '.basename($e->getFile()).':'.$e->getLine();
@@ -98,7 +120,7 @@ class RealHandReplay
             }
         }
 
-        return ['rows' => $rows, 'errors' => $errors, 'first_error' => $firstError];
+        return ['rows' => $rows, 'errors' => $errors + $this->decisionErrors, 'first_error' => $firstError ?? $this->firstDecisionError];
     }
 
     private function coarse(string $action): string
@@ -138,7 +160,7 @@ class RealHandReplay
     }
 
     /** @return array<int, array> una fila por decisión del jugador en las calles pedidas */
-    private function replayPlayer(array $hand, string $name, Bot $bot, RealHandContext $builder, array &$brains, array $streets, int $candidates, bool $marginal, int &$seed): array
+    private function replayPlayer(array $hand, string $name, Bot $bot, RealHandContext $builder, array &$brains, array $streets, int $candidates, bool $marginal, int &$seed, ?callable $decider = null): array
     {
         $brain = $brains[$bot->id] ??= $this->assembler->forBot($bot);
         $player = null;
@@ -174,7 +196,16 @@ class RealHandReplay
 
                     continue;
                 }
-                $result = $this->runner->decide($ctx, $brain, $seed++);
+                try {
+                    $result = $decider ? $decider($ctx, $bot, $seed++) : $this->runner->decide($ctx, $brain, $seed++);
+                } catch (Throwable $e) {
+                    // Un fallo del decisor (p. ej. el modelo no da probabilidad a ninguna acción legal) pierde esa decisión, no las demás de la mano
+                    $this->decisionErrors++;
+                    $this->firstDecisionError ??= $e->getMessage();
+                    $dists[$k] = null;
+
+                    continue;
+                }
                 $dists[$k] = $this->coarseDistribution($result['trace']['distribution'] ?? [$result['action'] => 100], $facing);
                 $scenarios[] = $result['trace']['preflop_strategy']['scenario'] ?? null;
                 $features = $result['trace']['features'] ?? [];
@@ -201,7 +232,7 @@ class RealHandReplay
                 $ess = 1 / max(1e-9, array_sum(array_map(fn($w) => $w * $w, $weights)));
                 $rows[] = [
                     'street' => $a['street'], 'spot' => $facing ? 'ante apuesta' : 'primero en hablar', 'pot' => $this->potType($hand, $i),
-                    'real' => $real, 'dist' => $pred, 'bot' => $bot->nombre, 'player' => $name, 'known' => (bool) $known, 'ess' => round($ess, 1),
+                    'real' => $real, 'dist' => $pred, 'bot' => $bot->nombre, 'player' => $name, 'id' => $hand['hand_id'].'|'.$name.'|'.$i, 'known' => (bool) $known, 'ess' => round($ess, 1),
                     'stack_bb' => round($a['stack_before'] / max(1, (int) $hand['big_blind']), 1),
                     'position' => $a['position'] ?? null,
                     'texture' => BoardTexture::classify($a['board'] ?? []),

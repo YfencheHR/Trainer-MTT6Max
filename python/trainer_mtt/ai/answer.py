@@ -15,13 +15,15 @@ class ActionAnswer:
         return legal
 
     @staticmethod
-    def schema(legal_actions, form=None):
+    def schema(legal_actions, form=None, analysis=False):
         """Esquema JSON que obliga al modelo a dar un número por cada acción permitida y nada más.
 
         `form` = {campo: [valores posibles]}: las preguntas del cuestionario que el modelo contesta ANTES de las probabilidades
         (en este orden, así razona por el camino). Esos campos se ignoran al leer la distribución.
+        `analysis`: un campo de texto libre antes de las probabilidades (razonamiento breve); también se ignora al leer.
         """
-        properties = {name: {'type': 'string', 'enum': list(options)} for name, options in (form or {}).items()}
+        properties = {'analysis': {'type': 'string'}} if analysis else {}
+        properties.update({name: {'type': 'string', 'enum': list(options)} for name, options in (form or {}).items()})
         properties.update({a: {'type': 'number', 'minimum': 0, 'maximum': 1} for a in legal_actions})
 
         return {'type': 'object', 'properties': properties, 'required': list(properties), 'additionalProperties': False}

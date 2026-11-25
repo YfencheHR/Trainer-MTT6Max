@@ -4,6 +4,10 @@ return [
     // Motor por defecto de los bots: 'rules' (reglas actuales) o 'ai' (modelo local). Cada bot lo puede cambiar con metadata.engine.
     'engine' => env('AI_ENGINE', 'rules'),
 
+    // Razonamiento del modelo (experimento): null = respuesta directa (2 s), 'brief' = un análisis breve antes de las probabilidades,
+    // 'think' = el modo de razonamiento del modelo (~60 s por decisión). Ver el estudio en Trainer-MTT-DOCS/14.
+    'reasoning' => env('AI_REASONING'),
+
     // Calles que decide la IA (cada una tiene su servicio en python/streets). Las demás siguen con reglas.
     'streets' => array_values(array_filter(array_map('trim', explode(',', env('AI_STREETS', 'preflop,flop,turn,river'))))),
 

@@ -63,6 +63,10 @@ class AiBrain
         if (! $allowed) {
             throw new \RuntimeException('No hay ninguna acción permitida');
         }
+        // Experimento (ver config/ai.php): razonamiento breve o completo del modelo; sin configurar, respuesta directa
+        if (in_array($mode = config('ai.reasoning'), ['brief', 'think'], true)) {
+            $state['reasoning'] = $mode;
+        }
 
         $distribution = $this->contract->restrictToLegal($this->client->decide($state, $allowed, $seed), $ctx['legal']);
         if (! $distribution) {

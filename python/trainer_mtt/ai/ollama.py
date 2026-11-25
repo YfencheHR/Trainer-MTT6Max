@@ -23,12 +23,12 @@ class OllamaClient:
     def models(self):
         return [m['name'] for m in self._request('/api/tags').get('models', [])]
 
-    def chat(self, model, messages, schema, seed=None):
+    def chat(self, model, messages, schema, seed=None, think=False):
         options = {'temperature': 0}
         if seed is not None:
             options['seed'] = int(seed)
         body = self._request('/api/chat', {
-            'model': model, 'messages': messages, 'format': schema, 'stream': False, 'think': False, 'options': options,
+            'model': model, 'messages': messages, 'format': schema, 'stream': False, 'think': bool(think), 'options': options,
         })
 
         return body.get('message', {}).get('content', '')
