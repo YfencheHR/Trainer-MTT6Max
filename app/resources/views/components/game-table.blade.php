@@ -61,6 +61,32 @@
             </div>
           @endfor
         </div>
+
+        {{-- Resumen de la mano: quién gana, cuánto y con qué; se queda hasta que empieza la siguiente --}}
+        <div x-show="gameCompleted && handResult" x-cloak x-transition.opacity.duration.400ms
+          style="min-width: 260px; max-width: 420px; padding: 0.6rem 1rem; background: rgba(17,24,39,0.92); border: 1px solid #fbbf24; border-radius: 0.7rem; box-shadow: 0 0 22px rgba(251,191,36,0.35); text-align: center;">
+          <template x-for="winner in (handResult?.winners || [])" :key="winner.id">
+            <p style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #fbbf24;">
+              🏆 <span x-text="winner.name"></span> gana <span x-text="formatBB(winner.amount)"></span>
+              <span x-show="winner.hand_name" style="color: #e5e7eb; font-weight: 600;"> con <span x-text="winner.hand_name"></span></span>
+            </p>
+          </template>
+          <template x-if="handResult && handResult.pots.length > 1">
+            <div style="margin-top: 0.35rem; font-size: 0.7rem; color: #9ca3af;">
+              <template x-for="pot in handResult.pots" :key="pot.label">
+                <p style="margin: 0;"><span x-text="pot.label"></span> (<span x-text="formatBB(pot.amount)"></span>): <span x-text="pot.winners.map(w => w.name).join(', ')"></span></p>
+              </template>
+            </div>
+          </template>
+          <p x-show="handResult && !handResult.showdown" style="margin: 0.2rem 0 0; font-size: 0.7rem; color: #9ca3af;">Todos se retiraron: no hay showdown</p>
+          {{-- Cuenta atrás hasta la siguiente mano (solo si avanza sola) --}}
+          <div x-show="advanceTotal > 0 && advanceLeft > 0" style="margin-top: 0.5rem;">
+            <div style="height: 3px; background: #374151; border-radius: 2px; overflow: hidden;">
+              <div style="height: 100%; background: #fbbf24; transition: width .1s linear;" :style="{ width: (100 * advanceLeft / advanceTotal) + '%' }"></div>
+            </div>
+            <button type="button" @click="skipResultPause()" style="margin-top: 0.4rem; background: transparent; border: 1px solid #4b5563; color: #d1d5db; font-size: 0.7rem; padding: 0.15rem 0.7rem; border-radius: 999px; cursor: pointer;">Continuar ▶</button>
+          </div>
+        </div>
       </div>
 
       {{-- Apuestas de los jugadores --}}
@@ -79,11 +105,15 @@
             <div x-show="lastAction && lastAction.player_id === getSafePlayer({{ $slot }}).id && !gameCompleted"
               style="position: absolute; top: -1.35rem; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap; background: #fbbf24; color: #1f2937; font-size: 0.68rem; font-weight: 800; padding: 0.1rem 0.55rem; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,0.5);"
               x-text="lastAction ? lastAction.text.replace(/^hizo /, '').toUpperCase() : ''"></div>
+            {{-- Ganador de la mano --}}
+            <div x-show="gameCompleted && {{ $pl }}.won > 0" x-cloak
+              style="position: absolute; top: -1.35rem; left: 50%; transform: translateX(-50%); z-index: 5; white-space: nowrap; background: #fbbf24; color: #1f2937; font-size: 0.72rem; font-weight: 800; padding: 0.12rem 0.65rem; border-radius: 999px; box-shadow: 0 2px 10px rgba(251,191,36,0.7);"
+              x-text="'🏆 +' + formatBB({{ $pl }}.won)"></div>
             <div style="background: linear-gradient(180deg, #1c2430, #151b24); border-radius: 0.6rem; padding: 0.45rem 0.5rem 0.4rem; transition: opacity .2s, box-shadow .2s;"
               :style="{
-                opacity: {{ $pl }}.is_folded ? 0.4 : 1,
-                border: {{ $pl }}.is_turn ? '2px solid #fbbf24' : '1px solid #2e3a48',
-                boxShadow: {{ $pl }}.is_turn ? '0 0 14px rgba(251,191,36,0.6)' : '0 3px 10px rgba(0,0,0,0.55)'
+                opacity: ({{ $pl }}.is_folded || (gameCompleted && handResult && !({{ $pl }}.won > 0) && !{{ $pl }}.hole_cards?.length)) ? 0.4 : 1,
+                border: ({{ $pl }}.is_turn || (gameCompleted && {{ $pl }}.won > 0)) ? '2px solid #fbbf24' : '1px solid #2e3a48',
+                boxShadow: (gameCompleted && {{ $pl }}.won > 0) ? '0 0 26px rgba(251,191,36,0.95)' : ({{ $pl }}.is_turn ? '0 0 14px rgba(251,191,36,0.6)' : '0 3px 10px rgba(0,0,0,0.55)')
               }">
 
               {{-- Cabecera: posición + avatar + nombre --}}

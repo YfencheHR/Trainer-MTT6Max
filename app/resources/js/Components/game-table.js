@@ -34,6 +34,12 @@ export function gameTable(handId, userId, initialState = null) {
     raiseAmount: 0,
     nextHandLoading: false,
     nextHandProgress: '',
+    handResult: s.result || null,        // quién ganó, cuánto y con qué (solo con la mano terminada)
+    resultPauseMs: 3500,                 // pausa para ver el resultado cuando todos se retiraron
+    resultPauseShowdownMs: 6000,         // y cuando hubo showdown
+    advanceTotal: 0,                     // cuenta atrás hasta la siguiente mano (0 = no hay)
+    advanceLeft: 0,
+    skipPause: false,
     botDelayMs: 900,
     showAllCards: false,
     echo: null,
@@ -140,6 +146,7 @@ export function gameTable(handId, userId, initialState = null) {
       this.currentStreet = String(state.current_street || 'preflop');
       this.isAllIn = Boolean(state.is_all_in);
       this.gameCompleted = state.status === 'completed';
+      this.handResult = this.gameCompleted ? (state.result || null) : null;
       this.currentPlayerId = state.current_player_id ?? null;
       if (window.Alpine?.store('gameLog')) window.Alpine.store('gameLog').set(state.log);
       if (window.Alpine?.store('tournamentInfo')) window.Alpine.store('tournamentInfo').set(state.tournament);
@@ -228,8 +235,8 @@ export function gameTable(handId, userId, initialState = null) {
       if (this.gameCompleted && this.shouldAutoAdvance() && !this.handAdvancePending) {
         this.handAdvancePending = true;
         try {
-          await new Promise(resolve => setTimeout(resolve, 1800));
-          if (this.gameCompleted && this.shouldAutoAdvance() && !this.nextHandLoading) {
+          await this.showResultPause(handId);
+          if (this.handId === handId && this.gameCompleted && this.shouldAutoAdvance() && !this.nextHandLoading) {
             await this.nextHand();
           }
         } finally {
@@ -237,6 +244,27 @@ export function gameTable(handId, userId, initialState = null) {
         }
       }
     },
+    /**
+     * Pausa tras terminar la mano para ver quién gana y con qué: más larga si hubo showdown. Se puede saltar con «Continuar».
+     */
+    async showResultPause(handId) {
+      const total = this.handResult?.showdown ? this.resultPauseShowdownMs : this.resultPauseMs;
+      const step = 100;
+      this.skipPause = false;
+      this.advanceTotal = total;
+      this.advanceLeft = total;
+      while (this.advanceLeft > 0 && !this.skipPause && this.handId === handId && this.gameCompleted && this.shouldAutoAdvance()) {
+        await new Promise(resolve => setTimeout(resolve, step));
+        this.advanceLeft -= step;
+      }
+      this.advanceTotal = 0;
+      this.advanceLeft = 0;
+    },
+
+    skipResultPause() {
+      this.skipPause = true;
+    },
+
     async playerFold() { await this.executePlayerAction('fold', 0); },
     async playerCall() { await this.executePlayerAction('call', 0); },
     async playerCheck() { await this.executePlayerAction('check', 0); },

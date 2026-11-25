@@ -51,6 +51,7 @@ class HandPlayService
                 'is_current' => !$p['is_bot'], // héroe
                 'is_turn' => !$completed && $meta['turn'] === $p['id'],
                 'is_folded' => $p['folded'],
+                'won' => $completed ? (int) ($meta['awards'][$p['id']] ?? 0) : 0, // fichas que se lleva al terminar la mano
                 'is_all_in' => $p['all_in'],
                 'is_eliminated' => false,
                 'hole_cards' => $reveal ? $p['hole_cards'] : [],
@@ -97,6 +98,7 @@ class HandPlayService
             'is_all_in' => collect($players)->contains(fn($p) => $p['all_in']),
             'status' => $hand->status,
             'winner_id' => $meta['winner_id'] ?? null,
+            'result' => $completed ? $this->handResult($hand, $players, $meta) : null,
             'log' => $this->normalizeLog($meta['log']),
             'current_bet' => $this->maxBet($players),
             'min_raise_to' => $this->minRaiseTo($players, $meta),
@@ -106,6 +108,34 @@ class HandPlayService
             'hero_actions' => $this->heroLegal($players, $meta, $completed),
             'big_blind' => (int) ($meta['bb'] ?? 100),
             'dynamic_ranges' => $dynamicRanges,
+        ];
+    }
+
+    /**
+     * Resumen de la mano terminada para la mesa: quién ganó, cuánto y con qué mano, y cómo se repartió cada bote.
+     * `showdown` es false cuando todos foldearon y nadie enseñó cartas.
+     */
+    private function handResult(TournamentHand $hand, array $players, array $meta): array
+    {
+        $names = array_column($players, 'name', 'id');
+        $pots = array_map(fn($pot) => [
+            'label' => $pot['label'] ?? 'Bote',
+            'amount' => (int) ($pot['amount'] ?? 0),
+            'winners' => array_map(fn($id) => ['id' => $id, 'name' => $names[$id] ?? '?'], $pot['winners'] ?? []),
+            'hand_name' => $pot['hand_name'] ?? null,
+        ], $hand->pots ?? []);
+
+        $winners = [];
+        foreach ($meta['awards'] ?? [] as $id => $amount) {
+            $hand_name = collect($pots)->first(fn($pot) => collect($pot['winners'])->contains('id', $id))['hand_name'] ?? null;
+            $winners[] = ['id' => (int) $id, 'name' => $names[$id] ?? '?', 'amount' => (int) $amount, 'hand_name' => $hand_name];
+        }
+
+        return [
+            'winners' => $winners,
+            'pots' => $pots,
+            'showdown' => ($meta['street'] ?? '') === 'showdown',
+            'total' => (int) array_sum($meta['awards'] ?? []),
         ];
     }
 
