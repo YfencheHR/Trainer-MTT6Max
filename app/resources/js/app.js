@@ -100,11 +100,16 @@ Alpine.store('gameState', {
   },
 })
 
-// Componente para mostrar rangos dinámicos de bots
+// Componente para mostrar los rangos de los rivales: una lista compacta (una fila por rival) y UNA sola matriz, la del rival seleccionado.
+// La lista se actualiza en el sitio (mismos objetos) para que el panel no salte ni se redibuje entero en cada acción.
 window.botsActionRanges = function(handId) {
+  const RANKS = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
+  const COLORS = ["#4b5563", "#1d4ed8", "#b91c1c", "#15803d"];   // fold, call, raise, check
   return {
     handId: handId,
     activeBots: [],
+    selectedId: null,     // rival cuya matriz se ve
+    pinned: false,        // true si el usuario eligió uno: deja de seguir al que actúa
 
     init() {
       this.$watch(
@@ -119,16 +124,41 @@ window.botsActionRanges = function(handId) {
       setTimeout(() => this.updateBots(), 100);
     },
 
+    selected() {
+      return this.activeBots.find(bot => bot.id === this.selectedId) || null;
+    },
+
+    select(bot) {
+      this.selectedId = bot.id;
+      this.pinned = true;
+    },
+
+    // Peso de cada mano en combinaciones: par 6, suited 4, offsuit 12 (1326 en total)
+    weight(hand) {
+      return hand.length === 2 ? 6 : (hand.endsWith("s") ? 4 : 12);
+    },
+
+    // % del total de combinaciones con cada acción (fold, call, raise, check) y % de manos que entran al bote
+    summary(bot) {
+      const share = [0, 0, 0, 0];
+      for (const [hand, f] of Object.entries(bot.ranges || {})) {
+        const total = f.reduce((a, b) => a + b, 0);
+        if (total <= 0) continue;
+        const w = this.weight(hand);
+        f.forEach((v, k) => { share[k] += w * (v / total); });
+      }
+      const pct = share.map(v => Math.round(1000 * v / 1326) / 10);
+      return { fold: pct[0], call: pct[1], raise: pct[2], check: pct[3], played: Math.round(10 * (pct[1] + pct[2] + pct[3])) / 10 };
+    },
+
     // Rejilla 13x13: pares en la diagonal, suited encima, offsuit debajo. Cada celda es la mano en texto con el fondo
     // dividido en los colores de sus acciones (fold gris, call azul, raise rojo, check verde), como las tablas de los rivales.
     cells(bot) {
-      const R = ["A","K","Q","J","T","9","8","7","6","5","4","3","2"];
-      const colors = ["#4b5563", "#1d4ed8", "#b91c1c", "#15803d"];
       const out = [];
       for (let i = 0; i < 13; i++) {
         for (let j = 0; j < 13; j++) {
-          const hand = i === j ? R[i] + R[i] : (i < j ? R[i] + R[j] + "s" : R[j] + R[i] + "o");
-          const f = (bot.ranges || {})[hand];
+          const hand = i === j ? RANKS[i] + RANKS[i] : (i < j ? RANKS[i] + RANKS[j] + "s" : RANKS[j] + RANKS[i] + "o");
+          const f = bot ? (bot.ranges || {})[hand] : null;
           const total = f ? f.reduce((a, b) => a + b, 0) : 0;
           let bg = "#0f1419";
           if (total > 0) {
@@ -137,7 +167,7 @@ window.botsActionRanges = function(handId) {
             f.forEach((v, k) => {
               if (v <= 0) return;
               const end = pos + v * 100 / total;
-              stops.push(colors[k] + " " + pos.toFixed(2) + "% " + end.toFixed(2) + "%");
+              stops.push(COLORS[k] + " " + pos.toFixed(2) + "% " + end.toFixed(2) + "%");
               pos = end;
             });
             bg = "linear-gradient(90deg, " + stops.join(", ") + ")";
@@ -148,23 +178,41 @@ window.botsActionRanges = function(handId) {
       return out;
     },
 
-    // Solo se listan los bots que han entrado en la mano (backend: bots_ranges).
-    // Si luego foldean se mantiene el rango de su última acción antes del fold.
+    // Solo se listan los rivales que han entrado en la mano (backend: bots_ranges). Si luego foldean se mantiene el rango de su
+    // última acción antes del fold. Los objetos se reutilizan: así la lista no se reconstruye en cada actualización.
     updateBots() {
       const players = this.$store.handStatistics?.data?.players || [];
       const botsRanges = this.$store.gameState?.botsRanges || {};
+      const current = this.$store.gameState?.currentPlayerId ?? null;
+      const next = players.filter(player => player.is_bot && botsRanges[player.id]);
 
-      this.activeBots = players
-        .filter(player => player.is_bot && botsRanges[player.id])
-        .map(player => ({
-          id: player.id,
+      const known = new Map(this.activeBots.map(bot => [bot.id, bot]));
+      const list = next.map(player => {
+        const bot = known.get(player.id) || { id: player.id };
+        Object.assign(bot, {
           name: player.name,
           position: player.position,
           is_folded: player.is_folded,
           is_all_in: player.is_all_in,
           action: botsRanges[player.id].action ?? null,
           ranges: botsRanges[player.id].ranges ?? null,
-        }));
+        });
+        bot.summary = this.summary(bot);
+        return bot;
+      });
+      const same = list.length === this.activeBots.length && list.every((bot, i) => bot === this.activeBots[i]);
+      if (!same) this.activeBots = list;
+
+      // Nueva mano o el seleccionado ya no está: se suelta la selección manual
+      if (this.selectedId !== null && !list.some(bot => bot.id === this.selectedId)) {
+        this.selectedId = null;
+        this.pinned = false;
+      }
+      // Sin selección manual se sigue al rival al que le toca; si no hay, se queda en el último elegido o en el primero
+      if (!this.pinned) {
+        const acting = list.find(bot => bot.id === current);
+        this.selectedId = (acting || list.find(bot => bot.id === this.selectedId) || list[0] || {}).id ?? null;
+      }
     }
   };
 }
