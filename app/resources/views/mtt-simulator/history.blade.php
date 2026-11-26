@@ -235,7 +235,7 @@
         if (!this.open || this.data || this.loading) return;
         this.loading = true;
         try {
-          const r = await fetch(`/mtt-simulator/hand/${this.id}/history`, { headers: { 'Accept': 'application/json' } });
+          const r = await fetch(@js(route('mtt-simulator.hand.history', ['hand' => '__ID__'])).replace('__ID__', this.id), { headers: { 'Accept': 'application/json' } });
           const j = await r.json();
           if (!j.success) throw new Error(j.message || 'Error');
           this.data = j.data;

@@ -11,7 +11,7 @@
       'scheme' => config('services.reverb_client.scheme'),
     ]) }}">
     <title>Trainer MTT - 6 Max Poker</title>
-    <link rel="icon" type="image/png" href="/images/poker-trainer-icon.png" />
+    <link rel="icon" type="image/png" href="{{ asset('images/poker-trainer-icon.png') }}" />
     <link rel="stylesheet" href="{{ asset('assets/fonts.css') }}" />
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}" />
     @stack('head-scripts')

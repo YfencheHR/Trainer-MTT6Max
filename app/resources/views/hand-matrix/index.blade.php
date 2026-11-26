@@ -144,11 +144,9 @@
 
     // Cargar TODA la estructura de filtros de una sola vez
     async function loadFilterStructure() {
-      console.log('📥 Loading entire filter structure from server...');
       try {
         const response = await fetch('{{ route("hand-matrix.get-filter-structure") }}');
         filterStructure = await response.json();
-        console.log('✅ Filter structure loaded:', filterStructure);
 
         // Poblar scenarios
         populateScenarios();
@@ -182,7 +180,6 @@
         option.textContent = scenario;
         select.appendChild(option);
       });
-      console.log('✅ Scenarios populated:', Object.keys(filterStructure));
     }
 
     function populatePositions(scenario) {
@@ -198,7 +195,6 @@
           select.appendChild(option);
         });
       }
-      console.log('✅ Positions populated for', scenario);
     }
 
     function populateStackDepths(scenario, position) {
@@ -215,19 +211,16 @@
           select.appendChild(option);
         });
       }
-      console.log('✅ Stack depths populated for', scenario, position);
     }
 
     // Agregar event listeners a los selectores
     function attachFilterListeners() {
-      console.log('🎯 attachFilterListeners() called');
       const scenario = document.getElementById('scenarioFilter');
       const position = document.getElementById('positionFilter');
       const stackDepth = document.getElementById('stackDepthFilter');
 
       if (scenario) {
         scenario.addEventListener('change', (e) => {
-          console.log('⚡ Scenario changed to:', e.target.value);
           populatePositions(e.target.value);
           const firstPosition = Object.keys(filterStructure[e.target.value])[0];
           if (firstPosition) {
@@ -240,14 +233,12 @@
       if (position) {
         position.addEventListener('change', (e) => {
           const scenario = document.getElementById('scenarioFilter').value;
-          console.log('⚡ Position changed to:', e.target.value);
           populateStackDepths(scenario, e.target.value);
           checkAndLoadMatrix();
         });
       }
       if (stackDepth) {
         stackDepth.addEventListener('change', () => {
-          console.log('⚡ Stack depth changed');
           checkAndLoadMatrix();
         });
       }
@@ -260,22 +251,17 @@
       const stackDepth = document.getElementById('stackDepthFilter').value;
 
       if (scenario && position && stackDepth) {
-        console.log('✅ All filters set. Loading matrix...');
         updateMatrixValues();
       } else {
-        console.log('⚠️ Waiting for all filters to be selected');
       }
     }
 
     // Ejecutar cuando el documento esté listo
-    console.log('⏳ Page ready state:', document.readyState);
-    console.log('📥 Loading filter structure from server...');
 
     // Listener global para el botón Guardar usando delegación
     document.addEventListener('click', async (e) => {
       if (e.target.id !== 'saveBtn') return;
 
-      console.log('💾 Save button clicked');
       const changes = [];
       const inputs = document.querySelectorAll('input[name^="ev_"]');
 
@@ -295,11 +281,9 @@
       });
 
       if (changes.length === 0) {
-        console.log('⚠️ No changes to save');
         return;
       }
 
-      console.log(`📊 Saving ${changes.length} changes`);
 
       try {
         const response = await fetch('{{ route("hand-matrix.batch-update") }}', {
@@ -312,7 +296,6 @@
         });
 
         if (response.ok) {
-          console.log('✅ Save successful');
 
           // Actualizar valores originales
           inputs.forEach(input => {
@@ -365,7 +348,6 @@
           originalValues[handId] = input.value;
         }
       });
-      console.log('✅ Original values initialized:', Object.keys(originalValues).length);
     }
 
     function attachChangeListeners() {
@@ -385,10 +367,8 @@
           });
           if (hasChanges) {
             saveBtn.disabled = false;
-            console.log('✅ Enable Save button');
           } else {
             saveBtn.disabled = true;
-            console.log('❌ Disable Save button');
           }
         });
       });
@@ -396,20 +376,15 @@
 
     // Actualizar matriz cuando cambian los filtros - UNA SOLA PETICIÓN
     async function updateMatrixValues() {
-      console.log('🔴 updateMatrixValues() called');
       const scenario = document.getElementById('scenarioFilter').value;
       const position = document.getElementById('positionFilter').value;
       const stackDepth = document.getElementById('stackDepthFilter').value;
 
-      console.log('📊 Filters:', { scenario, position, stackDepth });
 
       try {
-        console.log('📡 Fetching all matrix values in ONE request...');
         const stackDepthMax = document.getElementById('stackDepthFilter').selectedOptions[0].dataset.max;
         const response = await fetch(`{{ route('hand-matrix.get-matrix-values') }}?scenario=${scenario}&position=${position}&stack_depth=${stackDepth}&stack_depth_max=${stackDepthMax}`);
-        console.log('✅ Response received:', response.status);
         const allData = await response.json();
-        console.log('📝 Total hands received:', allData.length);
         matrixStrategyData = {};
 
         let updated = 0;
@@ -447,7 +422,6 @@
           }
         });
 
-        console.log(`✏️ Updated ${updated} cells out of ${allData.length}`);
 
         // Reinicializar valores originales después de cargar la matriz
         setTimeout(() => {
