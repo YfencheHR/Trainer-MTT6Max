@@ -2,7 +2,20 @@
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
+docker-compose.override.yml
 *.log
+
+# Datos y secretos de cada instalación: nunca van al repositorio (copias y volcados de PokerTracker, historiales de manos, claves)
+*.backup
+*.dump
+*.tsv
+*.hh
+Databases/
+*.pem
+*.key
+auth.json
 
 # Local editor and agent settings
 .claude/
