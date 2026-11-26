@@ -129,7 +129,7 @@ Eso es todo: no hay ningún paso más. La primera vez tarda unos minutos porque 
 
 **Para actualizar** a una versión nueva, descarga los cambios y vuelve a ejecutar el mismo comando: la base de datos se actualiza al arrancar y tus datos se conservan. Se puede ejecutar tantas veces como quieras sin riesgo.
 
-**Puertos.** La aplicación usa el 8000, Reverb el 8081, PostgreSQL el 5433, Redis el 6380 y el servicio Python el 5001, todos solo en `127.0.0.1`. Si alguno está ocupado por otro programa, define en un archivo `.env` de la carpeta del proyecto `APP_PORT`, `REVERB_PORT`, `POSTGRES_PORT`, `REDIS_PORT` o `PYTHON_PORT` (por ejemplo `APP_PORT=8002`) y vuelve a ejecutar el comando; `init.ps1` abre la dirección correcta.
+**Puertos.** La aplicación usa el 8000, Reverb el 8081, PostgreSQL el 5433, Redis el 6380 y el servicio Python el 5001, todos solo en `127.0.0.1`. Si alguno está ocupado por otro programa, define en un archivo `.env` de la carpeta del proyecto `APP_PORT`, `REVERB_HOST_PORT`, `POSTGRES_HOST_PORT`, `REDIS_HOST_PORT` o `PYTHON_HOST_PORT` (por ejemplo `APP_PORT=8002`) y vuelve a ejecutar el comando; `init.ps1` abre la dirección correcta.
 
 **Sin login.** La aplicación no tiene usuarios ni contraseña: está pensada para usarse en tu propio equipo. No la expongas a internet.
 
