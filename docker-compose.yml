@@ -3,6 +3,7 @@ name: trainer-mtt
 services:
   # Laravel Application
   app:
+    container_name: trainer-mtt-app
     image: trainer-mtt-app
     build:
       context: .
@@ -56,6 +57,7 @@ services:
 
   # Laravel Reverb WebSocket server
   reverb:
+    container_name: trainer-mtt-reverb
     image: trainer-mtt-app
     working_dir: /app
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
@@ -94,6 +96,7 @@ services:
 
   # PostgreSQL Database
   postgres:
+    container_name: trainer-mtt-postgres
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: trainer_mtt
@@ -113,6 +116,7 @@ services:
 
   # Redis Cache
   redis:
+    container_name: trainer-mtt-redis
     image: redis:7-alpine
     ports:
       - "127.0.0.1:${REDIS_HOST_PORT:-6380}:6379"
@@ -128,6 +132,7 @@ services:
 
   # Servicio Python de simulación de equity
   python-service:
+    container_name: trainer-mtt-python
     build:
       context: .
       dockerfile: docker/python/Dockerfile
@@ -147,6 +152,7 @@ services:
 
   # Modelo de IA local que decide por los bots. Todo dentro de Docker; la tarjeta NVIDIA se le da con docker-compose.gpu.yml
   ollama:
+    container_name: trainer-mtt-ollama
     image: ollama/ollama:latest
     restart: unless-stopped
     volumes:
