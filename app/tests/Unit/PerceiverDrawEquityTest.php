@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Bots\Brain\Perceiver;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 use Tests\TestCase;
@@ -10,6 +11,8 @@ use Tests\TestCase;
 /** range_equity sale de la simulación (que ya incluye los proyectos): no se le suman las salidas otra vez. */
 class PerceiverDrawEquityTest extends TestCase
 {
+    use RefreshDatabase;
+
     private function perceive(array $hole, array $board): array
     {
         $context = [

@@ -3,12 +3,15 @@
 namespace Tests\Unit;
 
 use App\Services\Bots\Brain\Perceiver;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
 use Tests\TestCase;
 
 class PerceiverBluffCapacityTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_opponent_bluff_capacity_is_zero_without_showdown_evidence(): void
     {
         $features = $this->perceive([])['features'];
