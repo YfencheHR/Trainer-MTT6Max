@@ -5,7 +5,7 @@ return [
     'engine' => env('AI_ENGINE', 'rules'),
 
     // Razonamiento del modelo (experimento): null = respuesta directa (2 s), 'brief' = un análisis breve antes de las probabilidades,
-    // 'think' = el modo de razonamiento del modelo (~60 s por decisión). Ver el estudio en Trainer-MTT-DOCS/14.
+    // 'think' = el modo de razonamiento del modelo (~60 s por decisión).
     'reasoning' => env('AI_REASONING'),
 
     // Calles que decide la IA (cada una tiene su servicio en python/streets). Las demás siguen con reglas.
