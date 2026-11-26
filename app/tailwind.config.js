@@ -2,7 +2,7 @@
 export default {
   content: [
     "./resources/views/**/*.{blade,html}",
-    "./resources/js/**/*.{js,jsx,ts,tsx,vue}",
+    "./resources/js/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
     extend: {
