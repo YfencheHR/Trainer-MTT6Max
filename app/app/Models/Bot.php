@@ -90,11 +90,6 @@ class Bot extends Model
         return $this->hasMany(BotPreflopHandStat::class, 'bot_id');
     }
 
-    public function preflopVsOpenerStats(): HasMany
-    {
-        return $this->hasMany(BotPreflopVsOpenerStat::class, 'bot_id');
-    }
-
     /** Tabla preflop general del perfil (la editable y la de respaldo); las de cada tramo de stack: stackPreflopRanges(). */
     public function preflopHandRanges(): HasMany
     {
@@ -190,64 +185,5 @@ class Bot extends Model
         }
 
         return $out;
-    }
-
-    public function getStats(int $nivel = 1, ?string $posicion = null, ?string $accion = null, ?string $rango_ciegas = null)
-    {
-        $query = $this->hudStats();
-
-        if ($nivel) {
-            $query->where('nivel', $nivel);
-        }
-
-        if ($posicion) {
-            $query->where('posicion', $posicion);
-        }
-
-        if ($accion) {
-            $query->where('accion', $accion);
-        }
-
-        if ($rango_ciegas) {
-            $query->where('rango_ciegas', $rango_ciegas);
-        }
-
-        return $query->first();
-    }
-
-    /**
-     * Obtener rango activo
-     */
-    public function getRango(?string $posicion = null, ?string $accion = null, ?string $rango_ciegas = null)
-    {
-        $query = $this->ranges()
-            ->where('activo', true)
-            ->latest('updated_at');
-
-        if ($posicion) {
-            $query->where('posicion', $posicion);
-        }
-
-        if ($accion) {
-            $query->where('accion', $accion);
-        }
-
-        if ($rango_ciegas) {
-            $query->where('rango_ciegas', $rango_ciegas);
-        }
-
-        return $query->first();
-    }
-
-    /**
-     * Obtener estado actual del juego
-     */
-    public function getCurrentGameState()
-    {
-        return $this->gameStates()
-            ->whereNull('updated_at')
-            ->orWhere('updated_at', '>', now()->subHours(1))
-            ->latest('updated_at')
-            ->first();
     }
 }

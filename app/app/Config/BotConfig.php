@@ -33,21 +33,9 @@ class BotConfig
         return $config['niveles'];
     }
 
-    public static function getNivel($id)
-    {
-        $niveles = self::getNiveles();
-        return collect($niveles)->firstWhere('id', $id);
-    }
-
     public static function getStatLabels()
     {
         $config = self::loadConfig();
         return $config['stat_labels'];
-    }
-
-    public static function getStatLabel($stat)
-    {
-        $labels = self::getStatLabels();
-        return $labels[$stat] ?? ucfirst(str_replace('_', ' ', $stat));
     }
 }

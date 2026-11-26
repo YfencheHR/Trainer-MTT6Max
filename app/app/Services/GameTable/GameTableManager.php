@@ -20,9 +20,4 @@ class GameTableManager
 
         return $state;
     }
-
-    public function getPositionService(): TablePositionService
-    {
-        return $this->positionService;
-    }
 }

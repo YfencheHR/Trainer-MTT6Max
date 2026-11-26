@@ -958,26 +958,6 @@ class HandPlayService
         };
     }
 
-    private function holesName(array $holes): string
-    {
-        if (count($holes) !== 2) {
-            return '';
-        }
-        $c1 = $holes[0] ?? null;
-        $c2 = $holes[1] ?? null;
-
-        if (!is_string($c1) || !is_string($c2)) {
-            return '';
-        }
-
-        $v1 = substr((string) $c1, 0, -1);
-        $v2 = substr((string) $c2, 0, -1);
-        $s1 = substr((string) $c1, -1);
-        $s2 = substr((string) $c2, -1);
-
-        return $v1 . $v2 . ($s1 === $s2 ? 's' : 'o');
-    }
-
     /**
      * Divide el bote en principal + laterales según lo aportado por cada jugador.
      * Cada bote: ['amount' => int, 'eligible' => [ids no foldeados que llegan a ese nivel]].

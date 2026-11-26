@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Bot;
 use App\Models\BotPreflopHandStat;
-use App\Models\BotPreflopHandRange;
 use App\Services\Bots\Brain\PreflopRanking;
 use App\Services\Bots\RivalPreflopTables;
 use Database\Seeders\BotSeeder;

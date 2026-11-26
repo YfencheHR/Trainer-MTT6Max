@@ -1375,29 +1375,6 @@ class Pt4Importer
         return $out;
     }
 
-    /**
-     * Un bot con poca muestra no tiene todas las situaciones: lo que le falta se completa con la media de su perfil
-     * más parecido (que se apoya en muchas más manos). Solo rellena huecos; nunca pisa un dato propio.
-     */
-    private function fillMissing(Bot $bot, ?Bot $like): void
-    {
-        $row = $bot->generalStats();
-        $src = $like?->generalStats();
-        if (!$row || !$src) {
-            return;
-        }
-        $fill = [];
-        foreach (collect(\App\Config\BotStreets::STREETS)->flatMap(fn($s) => array_merge($s['stats'], $s['adaptativas'])) as $c) {
-            if ($row->{$c} === null && $src->{$c} !== null) {
-                $fill[$c] = $src->{$c};
-            }
-        }
-        if ($fill) {
-            $row->update($fill);
-            $bot->update(['descripcion' => $bot->descripcion . " Estadísticas con poca muestra: " . implode(', ', array_keys($fill)) . " tomadas del perfil {$like->nombre}."]);
-        }
-    }
-
     private function perfil(float $vpip, float $pfr): string
     {
         $tight = $vpip < 24;

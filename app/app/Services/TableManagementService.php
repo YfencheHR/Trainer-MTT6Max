@@ -102,38 +102,6 @@ class TableManagementService
     }
 
     /**
-     * Reorganizar mesas cuando se elimina un jugador
-     */
-    public function reorganizeTablesAfterElimination(Tournament $tournament): void
-    {
-        $activePlayers = $tournament->players()
-            ->where('is_eliminated', false)
-            ->count();
-
-        if ($activePlayers === 0) {
-            // Todos eliminados
-            $tournament->tables()->update(['is_active' => false]);
-            return;
-        }
-
-        // Obtener mesas activas
-        $tables = $tournament->activeTables()->get();
-        $totalTablesNeeded = $this->calculateTablesNeeded($activePlayers);
-
-        // Si necesitamos menos mesas, desactivar las extras
-        if ($totalTablesNeeded < $tables->count()) {
-            $tablesToDeactivate = $tables->skip($totalTablesNeeded);
-
-            foreach ($tablesToDeactivate as $table) {
-                $table->update(['is_active' => false]);
-            }
-        }
-
-        // Redistribuir jugadores en mesas activas
-        $this->balanceTables($tournament);
-    }
-
-    /**
      * Nivelar los jugadores entre mesas activas
      */
     private function balanceTables(Tournament $tournament): void

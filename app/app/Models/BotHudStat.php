@@ -91,33 +91,4 @@ class BotHudStat extends Model
     {
         return $this->belongsTo(Bot::class);
     }
-
-    /**
-     * Obtener aggression factor para un street
-     */
-    public function getAF(string $street = 'preflop'): ?float
-    {
-        return match($street) {
-            'flop' => $this->af_flop,
-            'turn' => $this->af_turn,
-            'river' => $this->af_river,
-            default => $this->af_preflop
-        };
-    }
-
-    /**
-     * Obtener continuación bet para flop
-     */
-    public function getCBET(): ?int
-    {
-        return $this->cbet;
-    }
-
-    /**
-     * Verificar si estadísticas tienen confianza suficiente
-     */
-    public function isConfident(float $threshold = 0.5): bool
-    {
-        return $this->confidence >= $threshold && $this->sample_size >= 30;
-    }
 }

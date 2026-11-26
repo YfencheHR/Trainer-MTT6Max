@@ -37,14 +37,6 @@ class Matrix extends Component
     }
 
     /**
-     * Obtiene el número de filas
-     */
-    public function rowCount(): int
-    {
-        return ceil(count($this->items) / $this->columns);
-    }
-
-    /**
      * Obtiene índice global de una celda en una posición
      */
     public function getItemIndex(int $rowIndex, int $cellIndex): int

@@ -27,12 +27,6 @@ class EvCalculator
         return $toCall / ($pot + $toCall);
     }
 
-    /** Pot odds como razón "bote : apuesta" (p. ej. 3.0 = te pagan 3 a 1). */
-    public function potOdds(float $pot, float $toCall): ?float
-    {
-        return $toCall > 0 ? $pot / $toCall : null;
-    }
-
     /**
      * EV de igualar:  equity × bote − (1 − equity) × lo que pagas.
      *
@@ -42,47 +36,6 @@ class EvCalculator
     public function callEv(float $equity, float $pot, float $toCall): float
     {
         return $equity * $pot - (1 - $equity) * $toCall;
-    }
-
-    /**
-     * EV de apostar/subir (también all-in) CON fold equity.
-     *
-     * @param float $pot      fichas en el centro antes de nuestra apuesta
-     * @param float $bet      lo que ponemos
-     * @param float $foldProb probabilidad de que el rival se retire (0-1)
-     * @param float $equity   equity cuando el rival iguala
-     *
-     *   EV = %fold × bote  +  %iguala × [ equity × (bote + apuesta) − (1 − equity) × apuesta ]
-     *
-     * @return array{ev:float, fold_part:float, win_part:float, lose_part:float}
-     */
-    public function betEv(float $equity, float $pot, float $bet, float $foldProb): array
-    {
-        $called = 1 - $foldProb;
-        $foldPart = $foldProb * $pot;
-        $winPart = $called * $equity * ($pot + $bet);
-        $losePart = $called * (1 - $equity) * $bet;
-
-        return [
-            'ev' => $foldPart + $winPart - $losePart,
-            'fold_part' => $foldPart,   // gana el bote sin ver más cartas
-            'win_part' => $winPart,     // paga y gana
-            'lose_part' => $losePart,   // paga y pierde
-        ];
-    }
-
-    /**
-     * Foldeo mínimo para que una apuesta sea rentable aunque, cuando pagan, la equity sea baja.
-     * (EV = 0 despejando %fold:  f = −EVcall / (bote − EVcall), con EVcall = EV si iguala.)
-     */
-    public function breakEvenFold(float $equity, float $pot, float $bet): float
-    {
-        $evIfCalled = $equity * ($pot + $bet) - (1 - $equity) * $bet;
-        if ($evIfCalled >= 0) {
-            return 0.0;
-        }
-
-        return -$evIfCalled / ($pot - $evIfCalled);
     }
 
     /**
@@ -110,14 +63,5 @@ class EvCalculator
     public function difference(float $evTaken, float $evAlternative): float
     {
         return $evTaken - $evAlternative;
-    }
-
-    /**
-     * EV "ajustado" de un all-in: lo que se espera ganar según la equity, no lo que salió.
-     * esperado = equity × (lo que se puede ganar del bote) − lo invertido.
-     */
-    public function expectedNet(float $equity, float $potWon, float $invested): float
-    {
-        return $equity * $potWon - $invested;
     }
 }

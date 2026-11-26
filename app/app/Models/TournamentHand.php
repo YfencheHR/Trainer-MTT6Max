@@ -89,11 +89,6 @@ class TournamentHand extends Model
         return (float) ($this->$column ?? 0);
     }
 
-    public function isHeroWinner(): bool
-    {
-        return $this->result === 'win' || ($this->result === 'split' && in_array($this->hero_seat, (array) $this->winning_seat));
-    }
-
     public function getTotalPot(): float
     {
         return ($this->pot_river ?? $this->pot_turn ?? $this->pot_flop ?? $this->pot_preflop ?? 0);

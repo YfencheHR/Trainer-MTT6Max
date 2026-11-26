@@ -49,31 +49,6 @@ class Table extends Model
     }
 
     /**
-     * Obtener asientos disponibles
-     */
-    public function getAvailableSeats(): array
-    {
-        $occupied = $this->players()->pluck('table_players.seat_number')->toArray();
-        $available = [];
-
-        for ($i = 1; $i <= $this->max_players; $i++) {
-            if (!in_array($i, $occupied)) {
-                $available[] = $i;
-            }
-        }
-
-        return $available;
-    }
-
-    /**
-     * Verificar si la mesa está llena
-     */
-    public function isFull(): bool
-    {
-        return $this->getActivePlayerCount() >= $this->max_players;
-    }
-
-    /**
      * Verificar si la mesa está vacía
      */
     public function isEmpty(): bool

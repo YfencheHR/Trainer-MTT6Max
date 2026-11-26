@@ -117,47 +117,6 @@ class EquityCalculator
     }
 
     /**
-     * Equity de una mano contra manos conocidas de rivales.
-     *
-     * @return array{equity:float, win:float, tie:float, lose:float}
-     */
-    public function equityVsKnown(array $hero, array $opponents, array $board = [], ?int $samples = null): array
-    {
-        $hands = ['hero' => $hero];
-        foreach (array_values($opponents) as $i => $o) {
-            $hands['o' . $i] = $o;
-        }
-
-        $heroInts = FastHandEvaluator::cards($hero);
-        $opp = [];
-        foreach (array_values($opponents) as $i => $o) {
-            $opp['o' . $i] = FastHandEvaluator::cards($o);
-        }
-        $boardInts = FastHandEvaluator::cards($board);
-
-        $win = $tie = $n = 0;
-        $hole = ['hero' => $heroInts] + $opp;
-        foreach ($this->runouts($hole, $boardInts, $samples ?? $this->defaultSamples) as $full) {
-            $hs = FastHandEvaluator::score([...$heroInts, ...$full]);
-            $bestOpp = -1;
-            foreach ($opp as $cards) {
-                $bestOpp = max($bestOpp, FastHandEvaluator::score([...$cards, ...$full]));
-            }
-            if ($hs > $bestOpp) {
-                $win++;
-            } elseif ($hs === $bestOpp) {
-                $tie++;
-            }
-            $n++;
-        }
-
-        $win = $n ? $win / $n : 0;
-        $tie = $n ? $tie / $n : 0;
-
-        return ['equity' => $win + $tie / 2, 'win' => $win, 'tie' => $tie, 'lose' => 1 - $win - $tie];
-    }
-
-    /**
      * Equity contra rivales cuyas cartas NO se conocen (manos aleatorias). Para uso en juego.
      */
     public function equityVsRandom(array $hero, int $opponents, array $board = [], ?int $samples = null): float

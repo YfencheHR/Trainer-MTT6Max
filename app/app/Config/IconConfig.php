@@ -19,12 +19,6 @@ class IconConfig
         return self::$config;
     }
 
-    /** Lista plana de iconos (compatibilidad). */
-    public static function getIcons(): array
-    {
-        return array_values(array_unique(array_merge(...array_map(fn($g) => array_column($g['icons'], 'i'), self::getGroups()))));
-    }
-
     /** @return array<int, array{name: string, icons: array<int, array{i: string, n: string}>}> */
     public static function getGroups(): array
     {

@@ -173,22 +173,6 @@ class EquitySimulationClient
     }
 
     /**
-     * Limpia el caché del servicio Python
-     */
-    public function clearCache(): bool
-    {
-        try {
-            $response = Http::timeout(5)->post($this->baseUrl . '/api/cache/clear');
-            return $response->successful();
-        } catch (\Exception $e) {
-            Log::error('Failed to clear cache', [
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
-    }
-
-    /**
      * Health check del servicio Python
      */
     public function healthCheck(): bool

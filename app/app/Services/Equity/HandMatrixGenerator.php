@@ -179,32 +179,4 @@ class HandMatrixGenerator
         $table = $this->loadTable($type, $depth);
         return $table['tables'][$hand] ?? null;
     }
-
-    /**
-     * Obtiene recomendación de acción
-     */
-    public function getHandRecommendation(string $hand, string $situation, string $depth): array
-    {
-        $inAttack = $this->isInAttackRange($hand, $depth);
-        $inDefense = $this->isInDefenseRange($hand, $depth);
-
-        if ($situation === 'OPEN') {
-            return [
-                'action' => $inAttack ? 'OPEN' : 'FOLD',
-                'in_range' => $inAttack,
-            ];
-        }
-
-        if ($situation === 'DEFEND') {
-            return [
-                'action' => $inDefense ? 'DEFEND' : 'FOLD',
-                'in_range' => $inDefense,
-            ];
-        }
-
-        return [
-            'action' => 'FOLD',
-            'in_range' => false,
-        ];
-    }
 }

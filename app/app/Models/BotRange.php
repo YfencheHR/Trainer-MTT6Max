@@ -53,47 +53,4 @@ class BotRange extends Model
 
         return $rango[$mano] ?? 0.0;
     }
-
-    /**
-     * Verificar si una mano está en un rango
-     */
-    public function manoEnRango(string $mano, string $tipo = 'raise'): bool
-    {
-        return $this->getPeso($mano, $tipo) > 0.0;
-    }
-
-    /**
-     * Obtener todas las manos para un tipo de acción
-     */
-    public function getManos(string $tipo = 'raise'): array
-    {
-        $rango = match($tipo) {
-            'call' => $this->rango_call,
-            'limp' => $this->rango_limp,
-            'fold' => $this->rango_fold,
-            default => $this->rango_raise
-        };
-
-        return array_keys($rango ?? []);
-    }
-
-    /**
-     * Ordenar manos por peso
-     */
-    public function getManosOrdenadas(string $tipo = 'raise'): array
-    {
-        $rango = match($tipo) {
-            'call' => $this->rango_call,
-            'limp' => $this->rango_limp,
-            'fold' => $this->rango_fold,
-            default => $this->rango_raise
-        };
-
-        if (!$rango) {
-            return [];
-        }
-
-        arsort($rango);
-        return array_keys($rango);
-    }
 }

@@ -102,10 +102,6 @@ class EquitySimulator:
 
         return [share if index in winners else 0.0 for index in range(len(hole_cards))]
 
-    def calculate_ev(self, equity, pot_bb, stack_bb, action_cost_bb):
-        """EV simplificado de una acción: equity * bote - coste de la acción (en bb)."""
-        return equity * pot_bb - action_cost_bb
-
     def get_cache_stats(self):
         return self.cache.stats()
 

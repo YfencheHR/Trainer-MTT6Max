@@ -83,12 +83,6 @@ class HandContext:
         """¿Trae este jugador la iniciativa a esta calle?"""
         return self.previous_aggressor() == self.state.get('position')
 
-    def preflop_aggressor(self):
-        """Posición del último que subió preflop (None si nadie)."""
-        raises = [h for h in self.history if h[0] == 'preflop' and h[2] in ('raise', 'allin')]
-
-        return raises[-1][1] if raises else None
-
     def rival_had_initiative(self, rival):
         return rival is not None and rival.get('position') == self.previous_aggressor()
 
