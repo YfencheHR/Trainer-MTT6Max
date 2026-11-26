@@ -25,7 +25,14 @@ param(
 $ErrorActionPreference = 'Continue'
 Set-Location -LiteralPath $PSScriptRoot
 
-$Url = 'http://localhost:8001'
+# Puerto de la aplicacion: el de APP_PORT en el .env de la raiz (si el 8000 esta ocupado por otro programa) o el 8000 por defecto
+$AppPort = '8000'
+$rootEnv = Join-Path $PSScriptRoot '.env'
+if (Test-Path -LiteralPath $rootEnv) {
+    $line = Get-Content -LiteralPath $rootEnv | Where-Object { $_ -match '^\s*APP_PORT=\d+\s*$' } | Select-Object -First 1
+    if ($line) { $AppPort = ($line -replace '^\s*APP_PORT=', '').Trim() }
+}
+$Url = "http://localhost:$AppPort"
 
 function Write-Step([string]$Text) { Write-Host "`n>> $Text" -ForegroundColor Cyan }
 function Stop-Install([string]$Text) { Write-Host "`nERROR: $Text" -ForegroundColor Red; exit 1 }

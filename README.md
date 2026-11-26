@@ -44,9 +44,9 @@ Mejoras recientes: la respuesta ante limpers (subir para aislar, pagar o foldear
 
 Está en proceso de pulido. Quedan por hacer, entre otras cosas, tablas más finas por posición del abridor, que la defensa de la ciega grande ante aperturas sea menos amplia y perfiles Pool más finos (hoy un grupo puede reunir a miles de jugadores).
 
-### IA local en las cuatro calles (rama `feature/ia-bots`, en pruebas)
+### IA local en las cuatro calles (opcional, en pruebas)
 
-En esta rama los bots pueden decidir preflop, flop, turn y river con un modelo de lenguaje local (Qwen3 32B por defecto, servido por Ollama dentro de Docker; con tarjeta NVIDIA opcional mediante `docker-compose.gpu.yml`). El modelo se elige al instalar. El interruptor es por bot (`metadata.engine` = `ai` o `rules`) y, si el servicio falla, cada decisión vuelve a las reglas.
+Los bots pueden decidir preflop, flop, turn y river con un modelo de lenguaje local (Qwen3 32B por defecto, servido por Ollama dentro de Docker; con tarjeta NVIDIA opcional mediante `docker-compose.gpu.yml`). **Es opcional y viene desactivada: por defecto deciden las reglas.** El modelo se elige al instalar y ocupa varios GB (el 32B, decenas), así que conviene una GPU con memoria suficiente. El interruptor es global (`AI_ENGINE=ai` o `rules`) y por bot (`metadata.engine`); si el servicio falla, cada decisión vuelve a las reglas.
 
 Principios del diseño:
 
@@ -98,7 +98,7 @@ Importa únicamente datos que tengas derecho a utilizar. La base temporal de tra
 - **Aplicación web:** Laravel 13, PHP 8.3 o superior y Blade. Los recursos CSS y JavaScript se sirven como archivos estáticos.
 - **Interfaz:** Blade con Tailwind CSS y Alpine.js. Los archivos servidos por Laravel están en `app/public/assets`; se generan con Vite (`npm run build` desde `app/`, solo para desarrollar: el código fuente está en `app/resources`).
 - **Persistencia:** la configuración incluida en Docker usa PostgreSQL 15.
-- **Servicios del entorno Docker:** Redis 7, Laravel Reverb (actualizaciones de la mesa en tiempo real) un servicio Python/Flask para simulación de equity, generación de tablas y herramientas de la IA, y (en esta rama) Ollama para el modelo local.
+- **Servicios del entorno Docker:** Redis 7, Laravel Reverb (actualizaciones de la mesa en tiempo real) un servicio Python/Flask para simulación de equity, generación de tablas y herramientas de la IA, y Ollama para el modelo local (opcional).
 
 La lógica del juego y de los bots vive principalmente en `app/app/Services`; los modelos y controladores Laravel están en `app/app`, las páginas Blade en `app/resources/views` y las rutas en `app/routes`.
 
@@ -128,6 +128,10 @@ Eso es todo: no hay ningún paso más. La primera vez tarda unos minutos porque 
 **Una vez instalado no hay que usar la consola.** Importar historiales de PokerTracker, crear bots, jugar torneos y consultar los resultados se hace desde la propia aplicación. Al importar, los rangos de los rivales se generan solos.
 
 **Para actualizar** a una versión nueva, descarga los cambios y vuelve a ejecutar el mismo comando: la base de datos se actualiza al arrancar y tus datos se conservan. Se puede ejecutar tantas veces como quieras sin riesgo.
+
+**Puertos.** La aplicación usa el 8000, Reverb el 8081, PostgreSQL el 5433, Redis el 6380 y el servicio Python el 5001, todos solo en `127.0.0.1`. Si alguno está ocupado por otro programa, define en un archivo `.env` de la carpeta del proyecto `APP_PORT`, `REVERB_PORT`, `POSTGRES_PORT`, `REDIS_PORT` o `PYTHON_PORT` (por ejemplo `APP_PORT=8002`) y vuelve a ejecutar el comando; `init.ps1` abre la dirección correcta.
+
+**Sin login.** La aplicación no tiene usuarios ni contraseña: está pensada para usarse en tu propio equipo. No la expongas a internet.
 
 Docker incluye una clave de aplicación de desarrollo y publica los servicios solo en `127.0.0.1`. La clave es para uso local; define tu propia `APP_KEY` antes de exponer la aplicación fuera de tu equipo.
 
