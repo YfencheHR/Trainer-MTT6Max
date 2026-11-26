@@ -85,7 +85,7 @@
     <div>
       <h2 class="text-2xl font-bold mb-4" style="color: #d1d5db;">{{ __('tournaments.hands_history') }}</h2>
       <div class="space-y-3">
-        @forelse ($tournament->hands()->with('table')->latest()->get() as $hand)
+        @forelse ($hands as $hand)
           @php
             // Sin jugador humano en la mano no hay «ganar» ni «perder» del héroe: se muestra quién ganó el bote. Las manos antiguas sin bote guardado lo
             // sacan del resultado de la mano.
@@ -137,6 +137,18 @@
           </div>
         @endforelse
       </div>
+
+      @if ($hands->hasPages())
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; color: #9ca3af; font-size: 0.85rem;">
+          @if (! $hands->onFirstPage())
+            <a href="{{ $hands->previousPageUrl() }}" style="color: #60a5fa; text-decoration: none;">← {{ __('tournaments.previous') }}</a>
+          @endif
+          <span>{{ __('tournaments.page_of', ['page' => $hands->currentPage(), 'pages' => $hands->lastPage()]) }}</span>
+          @if ($hands->hasMorePages())
+            <a href="{{ $hands->nextPageUrl() }}" style="color: #60a5fa; text-decoration: none;">{{ __('tournaments.next') }} →</a>
+          @endif
+        </div>
+      @endif
     </div>
   </div>
 @endsection

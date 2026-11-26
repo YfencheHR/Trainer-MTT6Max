@@ -12,14 +12,12 @@ return [
     'no_completed' => 'No hay torneos completados',
 
     'players' => 'jugadores',
-    'players_short' => 'jug',
     'hands_played' => 'manos',
     'level' => 'Nivel',
 
     'continue' => 'Continuar',
     'view' => 'Ver',
     'view_details' => 'Ver Detalles',
-    'view_history' => 'Ver Historial',
 
     'starting_stack' => 'Stack Inicial',
     'big_blind' => 'Ciega Grande Inicial',
@@ -37,7 +35,6 @@ return [
     'type' => 'Tipo',
     'type_normal' => 'Normal',
     'speed' => 'Velocidad del Torneo',
-    'select_speed' => 'Selecciona velocidad',
     'speed_typical' => 'Típica',
     'speed_fast' => 'Rápida',
     'speed_very_fast' => 'Muy Rápida',
@@ -62,17 +59,9 @@ return [
     'no_imported_bots' => 'Debes seleccionar al menos un bot importado (desde PokerTracker) para crear un torneo',
     'no_bots_with_complete_stats' => 'Los bots seleccionados no tienen estadísticas completas. Importa datos de PokerTracker o asegúrate de que los bots tengan VPIP, PFR, 3-bet, C-bet y DONK',
 
-    'play_area' => 'Área de Juego',
-    'play_coming_soon' => 'Interfaz de juego próximamente...',
-    'new_hand' => 'Nueva Mano',
-    'replay_last' => 'Repetir Última Mano',
     'statistics' => 'Estadísticas',
     'settings' => 'Configuración',
-    'hands_list' => 'Manos Recientes',
-    'no_hands_yet' => 'Aún no se han jugado manos',
-    'continue_playing' => 'Continuar Jugando',
     'end_tournament' => 'Finalizar Torneo',
-    'confirm_end' => '¿Estás seguro de que deseas finalizar este torneo?',
 
     'config' => 'Configuración del Torneo',
     'status' => 'Estado',
@@ -87,10 +76,6 @@ return [
     'hero_cards' => 'Cartas',
     'community' => 'Mesa',
     'no_hands' => 'Sin manos en este torneo',
-    'won_hands' => 'Manos ganadas',
-    'win_rate' => 'Porcentaje de victorias',
-    'average_pot' => 'Bote promedio',
-    'net_profit' => 'Ganancia neta',
 
     'player_time_config' => 'Configuración de Tiempo del Jugador',
     'time_mode' => 'Modo de Tiempo',
@@ -164,9 +149,11 @@ return [
     'window_lost_title' => 'Se ha continuado en otra ventana',
     'window_lost_text' => 'Otra ventana ha tomado el torneo y esta se ha detenido. Si quieres seguir jugando aquí, recupera el torneo (la otra ventana se detendrá).',
     'window_continue_here' => 'Continuar aquí',
-    'window_stay_there' => 'Dejarlo en la otra ventana',
     'window_leave' => 'Salir al listado',
     'hand_in_progress' => 'En juego',
+    'previous' => 'Anterior',
+    'next' => 'Siguiente',
+    'page_of' => 'Página :page de :pages',
 
     // Repetir una mano con decisiones nuevas
     'replay_not_available' => 'Esta mano no se puede repetir: no tiene historial detallado o aún no ha terminado.',

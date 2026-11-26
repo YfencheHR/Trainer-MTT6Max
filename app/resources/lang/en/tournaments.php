@@ -12,14 +12,12 @@ return [
     'no_completed' => 'No completed tournaments',
 
     'players' => 'players',
-    'players_short' => 'players',
     'hands_played' => 'hands',
     'level' => 'Level',
 
     'continue' => 'Continue',
     'view' => 'View',
     'view_details' => 'View Details',
-    'view_history' => 'View History',
 
     'starting_stack' => 'Starting Stack',
     'big_blind' => 'Big Blind',
@@ -37,7 +35,6 @@ return [
     'type' => 'Type',
     'type_normal' => 'Normal',
     'speed' => 'Tournament Speed',
-    'select_speed' => 'Select speed',
     'speed_typical' => 'Typical',
     'speed_fast' => 'Fast',
     'speed_very_fast' => 'Very Fast',
@@ -62,17 +59,9 @@ return [
     'no_imported_bots' => 'You must select at least one imported bot (from PokerTracker) to create a tournament',
     'no_bots_with_complete_stats' => 'Selected bots do not have complete statistics. Import data from PokerTracker or ensure bots have VPIP, PFR, 3-bet, C-bet, and DONK stats',
 
-    'play_area' => 'Game Area',
-    'play_coming_soon' => 'Game interface coming soon...',
-    'new_hand' => 'New Hand',
-    'replay_last' => 'Replay Last Hand',
     'statistics' => 'Statistics',
     'settings' => 'Settings',
-    'hands_list' => 'Recent Hands',
-    'no_hands_yet' => 'No hands played yet',
-    'continue_playing' => 'Continue Playing',
     'end_tournament' => 'End Tournament',
-    'confirm_end' => 'Are you sure you want to end this tournament?',
 
     'config' => 'Tournament Configuration',
     'status' => 'Status',
@@ -87,10 +76,6 @@ return [
     'hero_cards' => 'Cards',
     'community' => 'Board',
     'no_hands' => 'No hands in this tournament',
-    'won_hands' => 'Hands won',
-    'win_rate' => 'Win rate',
-    'average_pot' => 'Average pot',
-    'net_profit' => 'Net profit',
     'tournament_info' => 'Tournament info',
     'game_log' => 'Hand log',
     'blinds' => 'Blinds',
@@ -155,9 +140,11 @@ return [
     'window_lost_title' => 'The game was continued in another window',
     'window_lost_text' => 'Another window took the tournament and this one has stopped. To keep playing here, take it back (the other window will stop).',
     'window_continue_here' => 'Continue here',
-    'window_stay_there' => 'Leave it in the other window',
     'window_leave' => 'Back to the list',
     'hand_in_progress' => 'In progress',
+    'previous' => 'Previous',
+    'next' => 'Next',
+    'page_of' => 'Page :page of :pages',
 
     // Replaying a hand with new decisions
     'replay_not_available' => 'This hand cannot be replayed: it has no detailed history or has not finished yet.',
@@ -194,4 +181,14 @@ return [
     'replay_loading' => 'Preparing the table…',
     'replay_press_play' => 'Press Play to watch the hand step by step.',
     'replay_watch' => 'Watch on the table',
+
+    // Time settings of the player
+    'player_time_config' => 'Player Time Settings',
+    'time_mode' => 'Time Mode',
+    'time_unlimited' => 'No Time Limit (Unlimited Decisions)',
+    'time_standard' => 'Standard Time (With Limit)',
+    'time_per_decision' => 'Time per Decision',
+    'bank_time' => 'Time Bank',
+    'seconds' => 'seconds',
+    'time_info' => 'The time per decision applies to every action. The time bank is extra time that is spent when you use more than the time allowed.',
 ];

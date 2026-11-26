@@ -8,7 +8,6 @@ use App\Models\TournamentHand;
 use App\Services\Tournament\TournamentFactory;
 use App\Services\Tournament\TournamentRoundService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class TournamentController extends Controller
 {
@@ -209,9 +208,10 @@ class TournamentController extends Controller
 
     public function show(Tournament $tournament)
     {
-        $tournament->load('hands');
+        // Las manos se paginan: cada una lleva su historial en JSON y un torneo largo tiene miles
+        $hands = $tournament->hands()->with('table')->latest()->paginate(30);
 
-        return view('mtt-simulator.show', compact('tournament'));
+        return view('mtt-simulator.show', compact('tournament', 'hands'));
     }
 
     public function start(Tournament $tournament)

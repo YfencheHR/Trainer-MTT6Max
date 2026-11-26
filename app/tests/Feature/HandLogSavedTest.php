@@ -54,4 +54,18 @@ class HandLogSavedTest extends TestCase
 
         $this->get(route('mtt-simulator.show', $hand->tournament_id))->assertOk()->assertSee('🏆 ' . $winner['name'], false);
     }
+
+    public function test_the_tournament_page_paginates_its_hands(): void
+    {
+        $tournament = Tournament::create(['title' => 'MTT-paginas', 'status' => 'in_progress', 'config' => ['players' => []]]);
+        foreach (range(1, 35) as $n) {
+            TournamentHand::create(['tournament_id' => $tournament->id, 'hand_number' => $n, 'level' => 1, 'status' => 'completed', 'result' => 'bots', 'hero_seat' => 0, 'button_seat' => 0,
+                'blind_level_config' => [], 'hero_cards' => [], 'community_cards' => [], 'stacks_before' => [], 'stacks_after' => [], 'players_in_hand' => [], 'actions' => []]);
+        }
+
+        $first = $this->get(route('mtt-simulator.show', $tournament))->assertOk();
+        $first->assertSee('page=2', false)->assertSee(__('tournaments.page_of', ['page' => 1, 'pages' => 2]));
+        $this->assertSame(30, substr_count($first->getContent(), 'cursor-pointer'), 'una página lista 30 manos');
+        $this->assertSame(5, substr_count($this->get(route('mtt-simulator.show', ['tournament' => $tournament, 'page' => 2]))->getContent(), 'cursor-pointer'));
+    }
 }
