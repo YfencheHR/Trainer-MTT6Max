@@ -13,13 +13,13 @@ class GameController extends Controller
         try {
             $hand = TournamentHand::find($handId);
 
-            if (!$hand) {
+            if (! $hand) {
                 return response()->json(['error' => 'Hand not found'], 404);
             }
 
             $hand->load('tournament.players');
 
-            $playersArray = $hand->tournament->players->map(fn($p) => [
+            $playersArray = $hand->tournament->players->map(fn ($p) => [
                 'id' => (int) $p->id,
                 'name' => (string) $p->name,
                 'stack' => (int) $p->current_stack,
@@ -27,14 +27,14 @@ class GameController extends Controller
                 'is_current' => false,
                 'is_eliminated' => (bool) $p->is_eliminated,
                 'hole_cards' => [],
-                'has_rival_data' => !$p->is_bot,
+                'has_rival_data' => ! $p->is_bot,
             ])->values()->toArray();
 
             // Marcar el primer jugador como héroe (is_current: true)
-            if (!empty($playersArray)) {
+            if (! empty($playersArray)) {
                 $playersArray[0]['is_current'] = true;
                 // Mostrar cartas del hero
-                if (is_array($hand->hero_cards) && !empty($hand->hero_cards)) {
+                if (is_array($hand->hero_cards) && ! empty($hand->hero_cards)) {
                     $playersArray[0]['hole_cards'] = $hand->hero_cards;
                 } else {
                     // Datos de prueba si no hay cartas
@@ -70,7 +70,7 @@ class GameController extends Controller
 
             $hand = TournamentHand::find($handId);
 
-            if (!$hand) {
+            if (! $hand) {
                 return response()->json(['error' => 'Hand not found'], 404);
             }
 
@@ -99,7 +99,7 @@ class GameController extends Controller
         try {
             $hand = TournamentHand::find($handId);
 
-            if (!$hand) {
+            if (! $hand) {
                 return response()->json(['error' => 'Hand not found'], 404);
             }
 

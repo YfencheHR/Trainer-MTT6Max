@@ -10,7 +10,8 @@ class SimulationRunTest extends TestCase
 {
     private function fakeLauncher(?string $running = null): object
     {
-        $fake = new class($running) extends SimulationLauncher {
+        $fake = new class($running) extends SimulationLauncher
+        {
             public array $launched = [];
 
             public function __construct(private ?string $busy) {}
@@ -33,7 +34,7 @@ class SimulationRunTest extends TestCase
     public function test_progress_is_read_from_the_log(): void
     {
         $log = "Simulación de 600 jugadores en marcha…\nFASE 1/3 preparando\n0 torneos simulados borrados.\nFASE 2/3 simulando\n"
-            . "[1/1] MTT-1: 600 jugadores\n   ronda 5: 590 jugadores, 99 mesas · 10 s · 90 MB\n   ronda 40: 178 jugadores, 30 mesas · 716 s · 268 MB\n";
+            ."[1/1] MTT-1: 600 jugadores\n   ronda 5: 590 jugadores, 99 mesas · 10 s · 90 MB\n   ronda 40: 178 jugadores, 30 mesas · 716 s · 268 MB\n";
 
         $p = SimulationLauncher::progress($log);
         $this->assertSame(2, $p['phase']);
@@ -41,7 +42,7 @@ class SimulationRunTest extends TestCase
         $this->assertSame(178, $p['alive']);
         $this->assertSame(600, $p['total']);
         $this->assertSame(70, $p['percent'], '(600 − 178) / 599');
-        $this->assertSame(100, SimulationLauncher::progress($log . "FASE 3/3 analizando\n")['percent']);
+        $this->assertSame(100, SimulationLauncher::progress($log."FASE 3/3 analizando\n")['percent']);
         $this->assertNull(SimulationLauncher::progress("Archivo recibido (10 MB)\n"), 'Una importación no tiene progreso de simulación');
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\History;
 
+use App\Models\Tournament;
 use App\Models\TournamentHand;
 use Illuminate\Support\Facades\DB;
 
@@ -81,7 +82,7 @@ class HandHistoryRecorder
     {
         static $cache = [];
 
-        return $cache[$hand->tournament_id] ??= (bool) data_get(\App\Models\Tournament::find($hand->tournament_id)?->config, 'simulated');
+        return $cache[$hand->tournament_id] ??= (bool) data_get(Tournament::find($hand->tournament_id)?->config, 'simulated');
     }
 
     /**
@@ -99,9 +100,9 @@ class HandHistoryRecorder
     /**
      * Cierra la mano: resultado de cada jugador, botes y board completo.
      *
-     * @param array $awards    [player_id => fichas ganadas]
-     * @param array $pots      [['label','amount','winners'=>[ids],'hand_name']]
-     * @param array $handNames [player_id => nombre de la mano mostrada en el showdown]
+     * @param  array  $awards  [player_id => fichas ganadas]
+     * @param  array  $pots  [['label','amount','winners'=>[ids],'hand_name']]
+     * @param  array  $handNames  [player_id => nombre de la mano mostrada en el showdown]
      */
     public function finish(TournamentHand $hand, array $players, array $awards, array $pots, array $meta, array $handNames): void
     {

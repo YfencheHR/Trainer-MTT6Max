@@ -18,7 +18,7 @@ class TournamentHistoryService
     /**
      * Vista general paginada por rondas.
      *
-     * @param array{table?:?int,hero?:bool,player?:?int} $filters
+     * @param  array{table?:?int,hero?:bool,player?:?int}  $filters
      */
     public function overview(Tournament $t, array $filters, int $page): array
     {
@@ -50,7 +50,7 @@ class TournamentHistoryService
                 'level' => $first?->level,
                 'small_blind' => $first?->blind_level_config['small_blind'] ?? null,
                 'big_blind' => $first?->blind_level_config['big_blind'] ?? null,
-                'hands' => $list->map(fn($h) => $this->summary($h))->values()->all(),
+                'hands' => $list->map(fn ($h) => $this->summary($h))->values()->all(),
                 'events' => ($events[$round] ?? collect())->values()->all(),
             ];
         }
@@ -68,14 +68,14 @@ class TournamentHistoryService
     {
         $q = TournamentHand::where('tournament_id', $t->id)->where('status', 'completed');
 
-        if (!empty($f['table'])) {
+        if (! empty($f['table'])) {
             $q->where('table_id', $f['table']);
         }
-        if (!empty($f['hero'])) {
-            $q->whereHas('handPlayers.player', fn($p) => $p->where('is_bot', false));
+        if (! empty($f['hero'])) {
+            $q->whereHas('handPlayers.player', fn ($p) => $p->where('is_bot', false));
         }
-        if (!empty($f['player'])) {
-            $q->whereHas('handPlayers', fn($p) => $p->where('tournament_player_id', $f['player']));
+        if (! empty($f['player'])) {
+            $q->whereHas('handPlayers', fn ($p) => $p->where('tournament_player_id', $f['player']));
         }
 
         return $q;
@@ -100,7 +100,7 @@ class TournamentHistoryService
         }
 
         $winner = $players->sortByDesc('won')->first();
-        $hero = $players->first(fn($hp) => !$hp->player->is_bot);
+        $hero = $players->first(fn ($hp) => ! $hp->player->is_bot);
 
         return $base + [
             'players' => $players->count(),
@@ -108,7 +108,7 @@ class TournamentHistoryService
             'winner_won' => (int) $winner->won,
             'winner_hand' => $winner->hand_name,
             'pot' => (int) $players->sum('won'),
-            'showdown' => $players->contains(fn($hp) => $hp->went_to_showdown),
+            'showdown' => $players->contains(fn ($hp) => $hp->went_to_showdown),
             'hero' => $hero ? [
                 'position' => $hero->position,
                 'cards' => $hero->hole_cards,
@@ -122,7 +122,7 @@ class TournamentHistoryService
     public function detail(TournamentHand $hand): array
     {
         $hand->load(['table', 'handPlayers.player', 'handActions']);
-        $names = $hand->handPlayers->mapWithKeys(fn(HandPlayer $hp) => [$hp->tournament_player_id => $hp->player->name]);
+        $names = $hand->handPlayers->mapWithKeys(fn (HandPlayer $hp) => [$hp->tournament_player_id => $hp->player->name]);
 
         return [
             'hand' => [
@@ -136,12 +136,12 @@ class TournamentHistoryService
                 'board' => $hand->board_full ?? $hand->community_cards ?? [],
                 'pots' => $hand->pots ?? [],
             ],
-            'players' => $hand->handPlayers->map(fn(HandPlayer $hp) => [
+            'players' => $hand->handPlayers->map(fn (HandPlayer $hp) => [
                 'id' => $hp->tournament_player_id,
                 'seat' => $hp->seat,
                 'position' => $hp->position,
                 'name' => $hp->player->name,
-                'is_hero' => !$hp->player->is_bot,
+                'is_hero' => ! $hp->player->is_bot,
                 'stack_start' => $hp->stack_start,
                 'stack_end' => $hp->stack_end,
                 'won' => $hp->won,
@@ -154,7 +154,7 @@ class TournamentHistoryService
                 'ev_luck' => $hp->ev_luck,
                 'allin_equity' => $hp->allin_equity,
             ])->values()->all(),
-            'actions' => $hand->handActions->map(fn(HandAction $a) => [
+            'actions' => $hand->handActions->map(fn (HandAction $a) => [
                 'seq' => $a->sequence,
                 'street' => $a->street,
                 'player' => $a->tournament_player_id ? ($names[$a->tournament_player_id] ?? '?') : null,
@@ -202,11 +202,11 @@ class TournamentHistoryService
                         'button_seat' => $h->button_seat,
                         'board_full' => $h->board_full,
                         'pots' => $h->pots,
-                        'players' => $h->handPlayers->map(fn($hp) => $hp->only([
+                        'players' => $h->handPlayers->map(fn ($hp) => $hp->only([
                             'tournament_player_id', 'seat', 'position', 'stack_start', 'stack_end', 'hole_cards',
                             'stats_before', 'folded_street', 'went_to_showdown', 'hand_name', 'won', 'ev_net', 'ev_luck', 'allin_equity',
                         ]))->values()->all(),
-                        'actions' => $h->handActions->map(fn($a) => $a->only([
+                        'actions' => $h->handActions->map(fn ($a) => $a->only([
                             'sequence', 'street', 'tournament_player_id', 'type', 'amount', 'to_amount', 'pot_before',
                             'pot_after', 'stack_before', 'stack_after', 'to_call', 'players_active', 'cards', 'decision',
                             'equity', 'required_equity', 'ev_taken', 'ev_alternative', 'ev_diff', 'ev_best', 'ev_verdict', 'ev_model',
@@ -221,7 +221,7 @@ class TournamentHistoryService
             'tournament' => $t->only(['id', 'title', 'status', 'config', 'started_at', 'ended_at']),
             'players' => $t->players()->get(['id', 'name', 'bot_id', 'is_bot', 'starting_stack', 'current_stack', 'is_eliminated', 'placement'])->all(),
             'tables' => $t->tables()->get(['id', 'table_number', 'is_active'])->all(),
-            'events' => TournamentEvent::where('tournament_id', $t->id)->orderBy('id')->get()->map(fn($e) => $e->only([
+            'events' => TournamentEvent::where('tournament_id', $t->id)->orderBy('id')->get()->map(fn ($e) => $e->only([
                 'round', 'table_id', 'tournament_player_id', 'type', 'message', 'payload', 'created_at',
             ]))->all(),
             'hands' => $hands,

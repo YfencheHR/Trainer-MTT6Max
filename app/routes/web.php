@@ -1,18 +1,22 @@
 <?php
 
 use App\Http\Controllers\BotController;
+use App\Http\Controllers\EquitySimulationController;
 use App\Http\Controllers\GamePlayController;
 use App\Http\Controllers\HandMatrixController;
 use App\Http\Controllers\HandReplayController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\MadeHandController;
+use App\Http\Controllers\SimulationController;
 use App\Http\Controllers\TournamentController;
 use App\Http\Controllers\TournamentHistoryController;
 use App\Http\Controllers\TournamentWindowController;
+use App\Models\Bot;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    $bots = \App\Models\Bot::latest()->limit(6)->get();
+    $bots = Bot::latest()->limit(6)->get();
+
     return view('dashboard', ['bots' => $bots]);
 })->name('dashboard');
 
@@ -74,7 +78,7 @@ Route::prefix('mtt-simulator/hand')->group(function () {
 Route::get('/import', [ImportController::class, 'index'])->name('import.index');
 Route::post('/import/upload', [ImportController::class, 'chunk'])->name('import.upload');
 Route::get('/import/status/{run}', [ImportController::class, 'status'])->name('import.status');
-Route::post('/import/simulate', [\App\Http\Controllers\SimulationController::class, 'run'])->name('import.simulate');
+Route::post('/import/simulate', [SimulationController::class, 'run'])->name('import.simulate');
 
 // Historial del torneo (todas las mesas, ronda a ronda)
 Route::get('/mtt-simulator/{tournament}/history', [TournamentHistoryController::class, 'index'])->name('mtt-simulator.history');
@@ -89,15 +93,15 @@ Route::post('/mtt-simulator/{tournament}/window/release', [TournamentWindowContr
 
 // Equity Simulation Routes
 Route::prefix('equity')->group(function () {
-    Route::get('/', [\App\Http\Controllers\EquitySimulationController::class, 'index'])->name('equity.index');
-    Route::get('/simulator', [\App\Http\Controllers\EquitySimulationController::class, 'simulator'])->name('equity.simulator');
+    Route::get('/', [EquitySimulationController::class, 'index'])->name('equity.index');
+    Route::get('/simulator', [EquitySimulationController::class, 'simulator'])->name('equity.simulator');
 
     // API endpoints
-    Route::post('/api/simulate', [\App\Http\Controllers\EquitySimulationController::class, 'simulate'])->name('equity.api.simulate');
-    Route::get('/api/range', [\App\Http\Controllers\EquitySimulationController::class, 'getRange'])->name('equity.api.range');
-    Route::get('/api/check-hand', [\App\Http\Controllers\EquitySimulationController::class, 'checkHand'])->name('equity.api.check-hand');
-    Route::post('/api/compare', [\App\Http\Controllers\EquitySimulationController::class, 'compare'])->name('equity.api.compare');
-    Route::get('/api/status', [\App\Http\Controllers\EquitySimulationController::class, 'status'])->name('equity.api.status');
+    Route::post('/api/simulate', [EquitySimulationController::class, 'simulate'])->name('equity.api.simulate');
+    Route::get('/api/range', [EquitySimulationController::class, 'getRange'])->name('equity.api.range');
+    Route::get('/api/check-hand', [EquitySimulationController::class, 'checkHand'])->name('equity.api.check-hand');
+    Route::post('/api/compare', [EquitySimulationController::class, 'compare'])->name('equity.api.compare');
+    Route::get('/api/status', [EquitySimulationController::class, 'status'])->name('equity.api.status');
 });
 
 // API Routes

@@ -34,7 +34,7 @@ TXT;
 
     private function builder(): array
     {
-        $hand = (new HandHistoryParser())->parse(self::HAND);
+        $hand = (new HandHistoryParser)->parse(self::HAND);
         $bot = Bot::create(['nombre' => 'Pool X', 'tipo' => 'pool', 'vpip' => 30, 'pfr' => 20]);
 
         return [$hand, new RealHandContext(['Alice' => $bot, 'Carol' => $bot]), $bot];

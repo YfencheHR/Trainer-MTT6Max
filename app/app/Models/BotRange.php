@@ -20,7 +20,7 @@ class BotRange extends Model
         'rango_limp',
         'rango_fold',
         'notas',
-        'activo'
+        'activo',
     ];
 
     protected $casts = [
@@ -28,7 +28,7 @@ class BotRange extends Model
         'rango_call' => 'json',
         'rango_limp' => 'json',
         'rango_fold' => 'json',
-        'activo' => 'boolean'
+        'activo' => 'boolean',
     ];
 
     /**
@@ -44,7 +44,7 @@ class BotRange extends Model
      */
     public function getPeso(string $mano, string $tipo = 'raise'): float
     {
-        $rango = match($tipo) {
+        $rango = match ($tipo) {
             'call' => $this->rango_call,
             'limp' => $this->rango_limp,
             'fold' => $this->rango_fold,

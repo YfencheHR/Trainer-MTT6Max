@@ -11,4 +11,4 @@ foreach ([
     $_SERVER[$name] = $value;
 }
 
-require dirname(__DIR__) . '/vendor/autoload.php';
+require dirname(__DIR__).'/vendor/autoload.php';

@@ -61,7 +61,7 @@ class BotsReplayCommand extends Command
         $this->newLine();
         $this->line('Decisiones comparadas: '.count($result['rows']).($result['errors'] ? " ({$result['errors']} jugadores con error, ignorados)" : ''));
         $this->table(['Grupo', 'n', 'Acierta la más probable', '± (95 %)', 'Prob. media de lo real', 'Pérdida log', 'Siempre lo más común'], array_map(
-            fn($l) => [$l['name'], $l['n'], $l['accuracy'].' %', $l['ci'], $l['probability'].' %', $l['loss'], $l['baseline'].' %'],
+            fn ($l) => [$l['name'], $l['n'], $l['accuracy'].' %', $l['ci'], $l['probability'].' %', $l['loss'], $l['baseline'].' %'],
             RealHandReplay::summarize($result['rows'])
         ));
         file_put_contents(storage_path('app/'.$this->option('out')), json_encode($result['rows'], JSON_UNESCAPED_UNICODE));

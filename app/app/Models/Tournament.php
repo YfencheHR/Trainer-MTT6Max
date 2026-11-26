@@ -58,10 +58,10 @@ class Tournament extends Model
 
     public static function generateTitle(): string
     {
-        return 'MTT-' . now()->timestamp . substr(uniqid(), -3);
+        return 'MTT-'.now()->timestamp.substr(uniqid(), -3);
     }
 
-    public function getConfig(string $key = null)
+    public function getConfig(?string $key = null)
     {
         if ($key === null) {
             return $this->config;

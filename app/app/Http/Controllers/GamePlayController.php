@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Events\GameHandUpdated;
-use App\Models\TournamentHand;
 use App\Models\Table;
 use App\Models\Tournament;
+use App\Models\TournamentHand;
+use App\Services\Bots\RangeFilter;
 use App\Services\HandPlayService;
 use App\Services\Tournament\TournamentRoundService;
 use Illuminate\Http\JsonResponse;
@@ -13,20 +14,18 @@ use Illuminate\Http\Request;
 
 class GamePlayController extends Controller
 {
-    public function __construct(protected HandPlayService $service, protected TournamentRoundService $rounds)
-    {
-    }
+    public function __construct(protected HandPlayService $service, protected TournamentRoundService $rounds) {}
 
     /** GET /mtt-simulator/hand/{hand}/state */
     public function getHandState(TournamentHand $hand): JsonResponse
     {
-        return $this->respond(fn() => $this->service->state($hand));
+        return $this->respond(fn () => $this->service->state($hand));
     }
 
     /** GET /mtt-simulator/hand/{hand}/log  (manos anteriores de la mesa) */
     public function logHistory(TournamentHand $hand): JsonResponse
     {
-        return $this->respond(fn() => ['log' => $this->service->logHistory($hand)]);
+        return $this->respond(fn () => ['log' => $this->service->logHistory($hand)]);
     }
 
     /** POST /mtt-simulator/hand/{hand}/action */
@@ -70,7 +69,7 @@ class GamePlayController extends Controller
                     true,
                     $result['message'] ?? 'El torneo ha terminado',
                 );
-            } elseif (!empty($result['hand_id'])) {
+            } elseif (! empty($result['hand_id'])) {
                 $nextHand = TournamentHand::findOrFail($result['hand_id']);
                 $this->broadcastHandUpdate($hand->id, $this->service->state($nextHand));
             }
@@ -94,7 +93,7 @@ class GamePlayController extends Controller
         $data = $request->validate(['round' => 'required|integer|min:1']);
         abort_unless((int) $table->tournament_id === (int) $tournament->id, 404);
 
-        return $this->respond(fn() => $this->rounds->resolveTable($tournament, $table, (int) $data['round']));
+        return $this->respond(fn () => $this->rounds->resolveTable($tournament, $table, (int) $data['round']));
     }
 
     /** GET /mtt-simulator/hand/{hand}/ranges/{player} */
@@ -104,7 +103,7 @@ class GamePlayController extends Controller
             $tp = $hand->table ? $hand->table->players()->find($player) : $hand->tournament->players()->find($player);
             abort_unless($tp, 404, 'Jugador no encontrado en la mano');
 
-            $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+            $rangeFilter = app(RangeFilter::class);
             $ranges = $rangeFilter->getCurrentRange($hand, $tp);
 
             return [
@@ -122,6 +121,7 @@ class GamePlayController extends Controller
             return response()->json(['success' => true, 'data' => $fn()]);
         } catch (\Throwable $e) {
             report($e);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
         }
     }

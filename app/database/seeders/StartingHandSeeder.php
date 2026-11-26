@@ -16,7 +16,9 @@ class StartingHandSeeder extends Seeder
 
         foreach ($cards as $card1) {
             foreach ($cards as $card2) {
-                if ($card1->id >= $card2->id) continue;
+                if ($card1->id >= $card2->id) {
+                    continue;
+                }
 
                 $rank1 = $card1->rank;
                 $rank2 = $card2->rank;
@@ -28,17 +30,17 @@ class StartingHandSeeder extends Seeder
                 sort($ranks);
 
                 if ($rank1 === $rank2) {
-                    $handCode = $rank1 . $rank2;
+                    $handCode = $rank1.$rank2;
                     $handType = 'Pair';
                 } elseif ($suit1 === $suit2) {
-                    $handCode = $ranks[1] . $ranks[0] . 's';
+                    $handCode = $ranks[1].$ranks[0].'s';
                     $handType = 'Suited';
                 } else {
-                    $handCode = $ranks[1] . $ranks[0] . 'o';
+                    $handCode = $ranks[1].$ranks[0].'o';
                     $handType = 'Offsuit';
                 }
 
-                if (!in_array($handCode, $handCodes)) {
+                if (! in_array($handCode, $handCodes)) {
                     $handCodes[] = $handCode;
                     $hands[] = [
                         'card1_id' => $card1->id,
@@ -46,7 +48,7 @@ class StartingHandSeeder extends Seeder
                         'hand_code' => $handCode,
                         'hand_type' => $handType,
                         'created_at' => now(),
-                        'updated_at' => now()
+                        'updated_at' => now(),
                     ];
                 }
             }

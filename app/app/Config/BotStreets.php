@@ -40,6 +40,6 @@ class BotStreets
             return '—';
         }
 
-        return self::isRatio($stat) ? rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.') : (int) round($value) . '%';
+        return self::isRatio($stat) ? rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.') : (int) round($value).'%';
     }
 }

@@ -26,12 +26,13 @@ class ActionCatalog
 
     /** Subidas preflop: "open" en ciegas grandes; "x" = múltiplo de la apuesta actual. */
     private const OPEN_BB = ['open_2bb' => 2.0, 'open_2_5bb' => 2.5, 'open_3bb' => 3.0];
+
     private const RAISE_MULT = ['raise_x2_2' => 2.2, 'raise_x3' => 3.0, 'raise_x4' => 4.0];
 
     /** Acciones de apuesta por fracción del bote (las que puede dimensionar la matriz de apuestas). */
     public const BET_ACTIONS = ['bet_third', 'bet_half', 'bet_twothirds', 'bet_pot', 'bet_overbet'];
 
-    public const SPECIALS =['slowplay', 'check_raise', 'float_call', 'bluff_raise'];
+    public const SPECIALS = ['slowplay', 'check_raise', 'float_call', 'bluff_raise'];
 
     /** @return array<string, array{label:string, family:string, special:bool}> */
     public static function all(): array
@@ -43,7 +44,7 @@ class ActionCatalog
             'allin' => ['label' => 'All-in', 'family' => 'aggressive'],
         ];
         foreach (array_keys(self::POT_FRACTIONS) as $id) {
-            $out[$id] = ['label' => 'Apuesta/subida ' . (self::POT_FRACTIONS[$id] * 100) . '% del bote', 'family' => 'aggressive'];
+            $out[$id] = ['label' => 'Apuesta/subida '.(self::POT_FRACTIONS[$id] * 100).'% del bote', 'family' => 'aggressive'];
         }
         foreach (self::OPEN_BB as $id => $bb) {
             $out[$id] = ['label' => "Abrir a {$bb}bb (+1bb por limper)", 'family' => 'aggressive'];
@@ -71,15 +72,15 @@ class ActionCatalog
     /**
      * Traduce una acción de la matriz a una acción legal del motor.
      *
-     * @param array $ctx  legal, pot, to_call, current_bet, stack, bet (lo ya puesto en la calle),
-     *                    big_blind, limpers, preflop_raises, flags (del jugador)
+     * @param  array  $ctx  legal, pot, to_call, current_bet, stack, bet (lo ya puesto en la calle),
+     *                      big_blind, limpers, preflop_raises, flags (del jugador)
      * @return array{action:string, amount:int, tag:?string, flags:array, note:?string}
      */
     public function resolve(string $id, array $ctx): array
     {
         $legal = $ctx['legal'];
         $flags = $ctx['flags'] ?? [];
-        $out = fn(string $a, int $amt = 0, ?string $tag = null, array $set = [], ?string $note = null) => [
+        $out = fn (string $a, int $amt = 0, ?string $tag = null, array $set = [], ?string $note = null) => [
             'action' => $a, 'amount' => $amt, 'tag' => $tag, 'flags' => $set, 'note' => $note,
         ];
 
@@ -114,7 +115,7 @@ class ActionCatalog
                 if ($legal['check']) {
                     return $out('check', 0, 'check_raise', ['check_raise' => true]);
                 }
-                if (!empty($flags['check_raise'])) {
+                if (! empty($flags['check_raise'])) {
                     return $this->raise('bet_pot', $ctx, $out, 'check_raise');
                 }
 

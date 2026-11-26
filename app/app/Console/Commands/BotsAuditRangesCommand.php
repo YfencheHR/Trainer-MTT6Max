@@ -24,9 +24,12 @@ class BotsAuditRangesCommand extends Command
     protected $description = 'Regenera y audita los rangos preflop de los bots Pool (invariantes, monotonía y comparación con manos registradas)';
 
     private const DB_POSITION = ['HJ' => 'MP'];
+
     /** Manos que no deberían foldear nunca (ni ante 3-bet ni ante apertura): ERROR si ocurre. No se fuerza en la generación, solo se comprueba. */
     private const PREMIUM_NEVER_FOLD = ['AA', 'KK', 'QQ', 'AKs', 'AKo'];
+
     private const PREMIUM_WARN = ['JJ', 'TT', 'AQs'];
+
     /** Nodos con manos vistas en showdown que se usan para la cobertura (el fold no tiene cartas visibles). */
     private const COVERAGE_NODES = ['open', 'limp', '3bet', 'call_open', 'reraise', 'call_3bet'];
 
@@ -45,7 +48,7 @@ class BotsAuditRangesCommand extends Command
     {
         $bots = $this->argument('bot')
             ? Bot::whereKey($this->argument('bot'))->get()
-            : Bot::all()->filter(fn(Bot $b) => $b->isPool())->values();
+            : Bot::all()->filter(fn (Bot $b) => $b->isPool())->values();
 
         if ($bots->isEmpty()) {
             $this->error('No hay bots que auditar.');
@@ -70,8 +73,8 @@ class BotsAuditRangesCommand extends Command
                 $bot->id, mb_substr($bot->nombre, 0, 28), $report['never_fold'], $report['premium_warn'],
                 $report['monotonic'], $report['gaps'],
                 (int) $cov['seen'],
-                $cov['seen'] > 0 ? $this->f(100 * $baseline['covered'] / max(1, $baseline['seen'])) . ' → ' . $this->f(100 * $cov['covered'] / $cov['seen']) . '%' : '-',
-                $cov['seen'] > 0 ? $this->f($baseline['fit']) . ' → ' . $this->f($cov['fit']) . '%' : '-',
+                $cov['seen'] > 0 ? $this->f(100 * $baseline['covered'] / max(1, $baseline['seen'])).' → '.$this->f(100 * $cov['covered'] / $cov['seen']).'%' : '-',
+                $cov['seen'] > 0 ? $this->f($baseline['fit']).' → '.$this->f($cov['fit']).'%' : '-',
                 $report['tilt'] ? 'sí' : 'no (poca muestra)',
             ];
 
@@ -128,12 +131,12 @@ class BotsAuditRangesCommand extends Command
 
             // 2. Monotonía (de más fuerte a más débil)
             $ordered = collect($table['attack'])->sortBy('percentile')->values();
-            $inRange = $ordered->filter(fn($a) => $a['open'] > 5);
-            $mono['open'] += $this->inversions($ordered->map(fn($a) => $a['open'])->all(), true, $tolerance);
-            $mono['reraise'] += $this->inversions($inRange->filter(fn($a) => RivalPreflopTables::bluffScore($a['hand']) <= 0)->map(fn($a) => $a['open_response']['reraise'])->all(), true, $tolerance);
-            $mono['fold'] += $this->inversions($inRange->map(fn($a) => $a['open_response']['fold'])->all(), false, $tolerance);
+            $inRange = $ordered->filter(fn ($a) => $a['open'] > 5);
+            $mono['open'] += $this->inversions($ordered->map(fn ($a) => $a['open'])->all(), true, $tolerance);
+            $mono['reraise'] += $this->inversions($inRange->filter(fn ($a) => RivalPreflopTables::bluffScore($a['hand']) <= 0)->map(fn ($a) => $a['open_response']['reraise'])->all(), true, $tolerance);
+            $mono['fold'] += $this->inversions($inRange->map(fn ($a) => $a['open_response']['fold'])->all(), false, $tolerance);
             if ($position !== 'UTG') {
-                $mono['3bet'] += $this->inversions(collect($table['defense'])->sortBy('percentile')->filter(fn($d) => RivalPreflopTables::bluffScore($d['hand']) <= 0)->map(fn($d) => $d['three_bet'])->values()->all(), true, $tolerance);
+                $mono['3bet'] += $this->inversions(collect($table['defense'])->sortBy('percentile')->filter(fn ($d) => RivalPreflopTables::bluffScore($d['hand']) <= 0)->map(fn ($d) => $d['three_bet'])->values()->all(), true, $tolerance);
             }
         }
 
@@ -145,7 +148,7 @@ class BotsAuditRangesCommand extends Command
             'premium_warn' => $premium,
             'monotonic' => array_sum($mono),
             'mono' => $mono,
-            'gaps' => count(array_filter($comparison, fn($c) => abs($c['obs'] - $c['gen']) > $gap)),
+            'gaps' => count(array_filter($comparison, fn ($c) => abs($c['obs'] - $c['gen']) > $gap)),
             'compared' => count($comparison),
             'lines' => $lines,
             'comparison' => $comparison,
@@ -209,7 +212,6 @@ class BotsAuditRangesCommand extends Command
         return $out;
     }
 
-
     /**
      * Cobertura del rango generado frente a las manos que el rival enseñó en showdown. Para cada nodo (posición × acción):
      *  - cobertura: % de las manos vistas jugando esa acción que el rango generado incluye (frecuencia >= 1 %);
@@ -255,20 +257,20 @@ class BotsAuditRangesCommand extends Command
                 if ($total <= 0) {
                     continue;
                 }
-                $nodeCovered = array_sum(array_map(fn($i) => $i[2] >= 1.0 ? $i[1] : 0.0, $items));
-                $nodeFit = array_sum(array_map(fn($i) => $i[1] * $i[2], $items));
+                $nodeCovered = array_sum(array_map(fn ($i) => $i[2] >= 1.0 ? $i[1] : 0.0, $items));
+                $nodeFit = array_sum(array_map(fn ($i) => $i[1] * $i[2], $items));
                 $seen += $total;
                 $covered += $nodeCovered;
                 $fitSum += $nodeFit;
 
                 // Bordes (percentil del 90 % acumulado)
-                usort($items, fn($a, $b) => $a[0] <=> $b[0]);
-                $obsEdge = $this->edge(array_map(fn($i) => [$i[0], $i[1]], $items));
+                usort($items, fn ($a, $b) => $a[0] <=> $b[0]);
+                $obsEdge = $this->edge(array_map(fn ($i) => [$i[0], $i[1]], $items));
                 $generated = [];
                 foreach ($maps[$path[0]] as $hand => $entry) {
                     $generated[] = [$entry['percentile'], $freq($entry) * (strlen($hand) === 2 ? 6 : (str_ends_with($hand, 's') ? 4 : 12))];
                 }
-                usort($generated, fn($a, $b) => $a[0] <=> $b[0]);
+                usort($generated, fn ($a, $b) => $a[0] <=> $b[0]);
 
                 $rows[] = [
                     'pos' => $position, 'node' => $label, 'seen' => (int) $total,
@@ -302,25 +304,25 @@ class BotsAuditRangesCommand extends Command
     private function detail(Bot $bot, array $report): void
     {
         $this->info("Bot {$bot->id} · {$bot->nombre}");
-        $this->line('  monotonía por nodo: ' . json_encode($report['mono']));
+        $this->line('  monotonía por nodo: '.json_encode($report['mono']));
         foreach (array_slice($report['lines'], 0, 40) as $line) {
             $this->line("  $line");
         }
         if (count($report['lines']) > 40) {
-            $this->line('  … y ' . (count($report['lines']) - 40) . ' más');
+            $this->line('  … y '.(count($report['lines']) - 40).' más');
         }
 
         $gap = (float) $this->option('gap');
-        $rows = array_map(fn($c) => [
-            $c['pos'], self::NODES[$c['node']][0], $c['n'], $this->f($c['obs']) . '%', $this->f($c['gen']) . '%',
-            ($c['gen'] - $c['obs'] >= 0 ? '+' : '') . $this->f($c['gen'] - $c['obs']) . (abs($c['gen'] - $c['obs']) > $gap ? '  <<' : ''),
+        $rows = array_map(fn ($c) => [
+            $c['pos'], self::NODES[$c['node']][0], $c['n'], $this->f($c['obs']).'%', $this->f($c['gen']).'%',
+            ($c['gen'] - $c['obs'] >= 0 ? '+' : '').$this->f($c['gen'] - $c['obs']).(abs($c['gen'] - $c['obs']) > $gap ? '  <<' : ''),
         ], $report['comparison']);
         $this->table(['pos', 'nodo', 'oportunidades', 'observado', 'generado', 'gen-obs'], $rows);
 
         $this->line('  Inclinación por tipo de mano (puntos de percentil; negativo = se juega más de lo que dice el ranking): '
-            . ($report['tilt'] ? json_encode($report['tilt']) : 'ninguna (muestra insuficiente)'));
-        $coverageRows = array_map(fn($c) => [
-            $c['pos'], $c['node'], $c['seen'], $this->f($c['cov']) . '%', $this->f($c['fit']) . '%',
+            .($report['tilt'] ? json_encode($report['tilt']) : 'ninguna (muestra insuficiente)'));
+        $coverageRows = array_map(fn ($c) => [
+            $c['pos'], $c['node'], $c['seen'], $this->f($c['cov']).'%', $this->f($c['fit']).'%',
             $c['obs_edge'] === null ? '-' : $this->f($c['obs_edge']), $c['gen_edge'] === null ? '-' : $this->f($c['gen_edge']),
         ], $report['coverage']['rows']);
         $this->table(['pos', 'nodo', 'manos vistas', 'cobertura', 'ajuste', 'borde obs (p90)', 'borde gen (p90)'], $coverageRows);

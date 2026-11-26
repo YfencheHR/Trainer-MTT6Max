@@ -8,8 +8,11 @@ namespace App\Services\Bots\Brain;
 class PreflopOpponentDanger
 {
     private const ACTION_ORDER = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+
     private const SCORE_WEIGHTS = ['vpip' => 0.35, 'pfr' => 0.30, 'three_bet' => 0.35];
+
     private const MAX_OPERATOR = 40.0;
+
     private const THREAT_POINTS = 25.0;
 
     /**
@@ -85,8 +88,7 @@ class PreflopOpponentDanger
                 && ($playerOrder = array_search($player['position'] ?? null, self::ACTION_ORDER, true)) !== false
                 && $playerOrder > $myOrder
         );
-        usort($players, fn ($left, $right) =>
-            array_search($left['position'], self::ACTION_ORDER, true)
+        usort($players, fn ($left, $right) => array_search($left['position'], self::ACTION_ORDER, true)
             <=> array_search($right['position'], self::ACTION_ORDER, true)
         );
 
@@ -102,7 +104,7 @@ class PreflopOpponentDanger
         }
 
         foreach ($ctx['players'] ?? [] as $player) {
-            if (($player['id'] ?? null) === ($ctx['me']['id'] ?? null) || !empty($player['folded']) || !empty($player['all_in'])) {
+            if (($player['id'] ?? null) === ($ctx['me']['id'] ?? null) || ! empty($player['folded']) || ! empty($player['all_in'])) {
                 continue;
             }
             $stats = $this->statsFor($player);
@@ -126,7 +128,7 @@ class PreflopOpponentDanger
             $weighted = 0.0;
             $weight = 0.0;
             foreach ($population as $entry) {
-                if ($entry['id'] === $excludeId || !is_numeric($entry['stats'][$metric] ?? null)) {
+                if ($entry['id'] === $excludeId || ! is_numeric($entry['stats'][$metric] ?? null)) {
                     continue;
                 }
                 $confidence = (float) $entry['confidence'];
@@ -144,7 +146,7 @@ class PreflopOpponentDanger
         $score = 0.0;
         $weight = 0.0;
         foreach (self::SCORE_WEIGHTS as $metric => $metricWeight) {
-            if (!is_numeric($stats[$metric] ?? null) || !is_numeric($baseline[$metric] ?? null)) {
+            if (! is_numeric($stats[$metric] ?? null) || ! is_numeric($baseline[$metric] ?? null)) {
                 continue;
             }
 

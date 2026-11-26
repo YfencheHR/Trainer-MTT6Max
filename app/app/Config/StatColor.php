@@ -9,9 +9,10 @@ class StatColor
     private static function loadConfig()
     {
         if (self::$config === null) {
-            $configPath = __DIR__ . '/stat-colors.json';
+            $configPath = __DIR__.'/stat-colors.json';
             self::$config = json_decode(file_get_contents($configPath), true);
         }
+
         return self::$config;
     }
 
@@ -34,6 +35,7 @@ class StatColor
     {
         $config = self::loadConfig();
         $statConfig = $config[$stat] ?? $config['default'];
+
         return $statConfig['segments'];
     }
 
@@ -67,8 +69,8 @@ class StatColor
         $g = (int) ($g1 + ($g2 - $g1) * $progress);
         $b = (int) ($b1 + ($b2 - $b1) * $progress);
 
-        return '#' . str_pad(dechex($r), 2, '0', STR_PAD_LEFT) .
-                     str_pad(dechex($g), 2, '0', STR_PAD_LEFT) .
+        return '#'.str_pad(dechex($r), 2, '0', STR_PAD_LEFT).
+                     str_pad(dechex($g), 2, '0', STR_PAD_LEFT).
                      str_pad(dechex($b), 2, '0', STR_PAD_LEFT);
     }
 }

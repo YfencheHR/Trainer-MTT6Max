@@ -6,7 +6,7 @@ class StatSegments
 {
     public static function getSegments($stat)
     {
-        return match($stat) {
+        return match ($stat) {
             'vpip' => [
                 ['min' => '0', 'max' => '12', 'color' => '#10b981', 'label' => 'Nit - Muy conservador'],
                 ['min' => '12', 'max' => '20', 'color' => '#f59e0b', 'label' => 'Tight Nit - Conservador'],

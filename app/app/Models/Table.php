@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Table extends Model
 {
@@ -24,7 +25,7 @@ class Table extends Model
         return $this->belongsTo(Tournament::class);
     }
 
-    public function hands(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function hands(): HasMany
     {
         return $this->hasMany(TournamentHand::class, 'table_id');
     }
@@ -37,7 +38,7 @@ class Table extends Model
             'table_id',
             'tournament_player_id'
         )->withPivot('seat_number', 'is_active')
-        ->withTimestamps();
+            ->withTimestamps();
     }
 
     /**

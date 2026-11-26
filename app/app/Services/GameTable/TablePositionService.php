@@ -9,6 +9,7 @@ namespace App\Services\GameTable;
 class TablePositionService
 {
     private const RADIUS_X = 44; // % del ancho
+
     private const RADIUS_Y = 50; // % del alto
 
     public function getPositionStyle(int $numPlayers, int $slot): string

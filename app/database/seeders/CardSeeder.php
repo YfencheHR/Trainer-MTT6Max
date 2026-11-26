@@ -14,7 +14,7 @@ class CardSeeder extends Seeder
             ['name' => 'Picas', 'symbol' => '♠'],
             ['name' => 'Corazones', 'symbol' => '♥'],
             ['name' => 'Tréboles', 'symbol' => '♣'],
-            ['name' => 'Espadas', 'symbol' => '♦']
+            ['name' => 'Espadas', 'symbol' => '♦'],
         ];
 
         foreach ($ranks as $rank) {
@@ -22,8 +22,8 @@ class CardSeeder extends Seeder
                 Card::create([
                     'rank' => $rank,
                     'suit' => $suit['name'],
-                    'code' => $rank . strtoupper(substr($suit['name'], 0, 1)),
-                    'image_path' => '/images/cards/' . strtolower($rank) . '-' . strtolower(substr($suit['name'], 0, 1)) . '.svg'
+                    'code' => $rank.strtoupper(substr($suit['name'], 0, 1)),
+                    'image_path' => '/images/cards/'.strtolower($rank).'-'.strtolower(substr($suit['name'], 0, 1)).'.svg',
                 ]);
             }
         }

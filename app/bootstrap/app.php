@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureTournamentWindow;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Solo la ventana activa de un torneo puede jugarlo
-        $middleware->alias(['tournament.window' => \App\Http\Middleware\EnsureTournamentWindow::class]);
+        $middleware->alias(['tournament.window' => EnsureTournamentWindow::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

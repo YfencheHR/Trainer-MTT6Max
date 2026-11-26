@@ -20,8 +20,7 @@ class AiBrain
         private FlopRanges $ranges,
         private PreflopTargets $targets,
         private BrainRepository $brains,
-    ) {
-    }
+    ) {}
 
     /** Cuánto se adapta este bot al rival según su habilidad (nivel de su cerebro); sin cerebro conocido, el valor por defecto. */
     public function adaptationFor(array $ctx): float

@@ -40,6 +40,6 @@ class HandGroupValue extends Model
     public function scopeByStackDepth($query, $stackDepth)
     {
         return $query->where('stack_depth_min', '<=', $stackDepth)
-                     ->where('stack_depth_max', '>=', $stackDepth);
+            ->where('stack_depth_max', '>=', $stackDepth);
     }
 }

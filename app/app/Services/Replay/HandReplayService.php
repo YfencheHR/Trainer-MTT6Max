@@ -30,9 +30,7 @@ class HandReplayService
     /** Para no chocar con la mano original en la restricción de números de mano únicos. */
     private const NUMBER_OFFSET = 1_000_000;
 
-    public function __construct(private HandPlayService $play)
-    {
-    }
+    public function __construct(private HandPlayService $play) {}
 
     /**
      * Repite la mano `$times` veces (cada una con decisiones nuevas) y guarda cada repetición.
@@ -75,7 +73,7 @@ class HandReplayService
     /** Las acciones guardadas de una repetición (o de la mano jugada tal como quedó copiada en ella), con la misma forma que `actionsOf`. */
     public function replayActions(HandReplay $replay, string $side = 'replay'): array
     {
-        return $replay->actions()->where('side', $side)->get()->map(fn($a) => [
+        return $replay->actions()->where('side', $side)->get()->map(fn ($a) => [
             'street' => $a->street, 'player_id' => (int) $a->tournament_player_id, 'player_name' => $a->player_name, 'bot_id' => $a->bot_id,
             'action' => $a->action, 'amount' => (int) $a->amount, 'pot_before' => $a->pot_before, 'to_call' => $a->to_call, 'stack_before' => $a->stack_before,
             'equity' => $a->equity, 'distribution' => $a->distribution, 'reason' => $a->reason,
@@ -88,7 +86,7 @@ class HandReplayService
         $names = collect((array) $hand->players_in_hand)->pluck('name', 'id');
         $bots = TournamentPlayer::whereIn('id', $names->keys())->pluck('bot_id', 'id');
 
-        return $hand->handActions()->whereIn('type', self::DECISIONS)->orderBy('sequence')->get()->map(fn($a) => [
+        return $hand->handActions()->whereIn('type', self::DECISIONS)->orderBy('sequence')->get()->map(fn ($a) => [
             'street' => $a->street, 'player_id' => (int) $a->tournament_player_id, 'player_name' => (string) ($names[$a->tournament_player_id] ?? '?'),
             'bot_id' => $bots[$a->tournament_player_id] ?? null, 'action' => $a->type, 'amount' => (int) ($a->type === 'raise' || $a->type === 'allin' ? ($a->to_amount ?? $a->amount) : $a->amount),
             'pot_before' => $a->pot_before, 'to_call' => $a->to_call, 'stack_before' => $a->stack_before, 'equity' => $a->equity,
@@ -126,7 +124,7 @@ class HandReplayService
 
         return [
             'pot' => (int) ($hand->actions['pot_won'] ?? $hand->getTotalPot()),
-            'winners' => $won->map(fn($w) => ['id' => (int) $w->tournament_player_id, 'name' => $names[$w->tournament_player_id] ?? '?', 'won' => (int) $w->won])->values()->all(),
+            'winners' => $won->map(fn ($w) => ['id' => (int) $w->tournament_player_id, 'name' => $names[$w->tournament_player_id] ?? '?', 'won' => (int) $w->won])->values()->all(),
         ];
     }
 
@@ -244,7 +242,7 @@ class HandReplayService
      */
     public function divergence(array $played, array $replayed): array
     {
-        $same = fn($a, $b) => $a['player_id'] === $b['player_id'] && $a['street'] === $b['street'] && $a['action'] === $b['action'] && $a['amount'] === $b['amount'];
+        $same = fn ($a, $b) => $a['player_id'] === $b['player_id'] && $a['street'] === $b['street'] && $a['action'] === $b['action'] && $a['amount'] === $b['amount'];
         $max = max(count($played), count($replayed));
         for ($i = 0; $i < $max; $i++) {
             $a = $played[$i] ?? null;

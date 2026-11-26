@@ -9,11 +9,11 @@ class Matrix extends Component
     /**
      * Componente para renderizar matrices de poker (13×13 manos)
      *
-     * @param int $columns - Número de columnas (típicamente 13)
-     * @param array $items - Array de items para renderizar
-     * @param string $cellComponent - Componente a usar por celda
-     * @param string $id - ID HTML del contenedor
-     * @param string $class - Clases CSS adicionales
+     * @param  int  $columns  - Número de columnas (típicamente 13)
+     * @param  array  $items  - Array de items para renderizar
+     * @param  string  $cellComponent  - Componente a usar por celda
+     * @param  string  $id  - ID HTML del contenedor
+     * @param  string  $class  - Clases CSS adicionales
      */
     public function __construct(
         public int $columns = 13,

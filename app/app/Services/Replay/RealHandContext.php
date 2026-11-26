@@ -18,15 +18,13 @@ class RealHandContext
     private array $profiles = [];
 
     /** @param array<string, Bot> $botByName  jugador real → bot de su perfil */
-    public function __construct(private array $botByName)
-    {
-    }
+    public function __construct(private array $botByName) {}
 
     /**
-     * @param  array  $hand   mano de HandHistoryParser::parse()
-     * @param  int    $index  posición de la acción en $hand['actions']
-     * @param  array|null $holeCards  cartas con las que se pregunta al bot (si no se dan, las reales: solo las conocen el héroe y quien llega al showdown)
-     * @return array|null     contexto, o null si no se puede (jugador sin bot o sin cartas)
+     * @param  array  $hand  mano de HandHistoryParser::parse()
+     * @param  int  $index  posición de la acción en $hand['actions']
+     * @param  array|null  $holeCards  cartas con las que se pregunta al bot (si no se dan, las reales: solo las conocen el héroe y quien llega al showdown)
+     * @return array|null contexto, o null si no se puede (jugador sin bot o sin cartas)
      */
     public function build(array $hand, int $index, ?array $holeCards = null): ?array
     {

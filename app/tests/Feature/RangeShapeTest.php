@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Bot;
+use App\Services\Bots\Brain\BotProfile;
 use App\Services\Bots\Brain\PreflopRanking;
 use App\Services\Bots\RivalPreflopTables;
 use Database\Seeders\BotSeeder;
@@ -18,7 +19,7 @@ class RangeShapeTest extends TestCase
     {
         $this->seed(BotSeeder::class);
 
-        return (new RivalPreflopTables(new PreflopRanking()))->generate(Bot::where('tipo', $tipo)->firstOrFail());
+        return (new RivalPreflopTables(new PreflopRanking))->generate(Bot::where('tipo', $tipo)->firstOrFail());
     }
 
     public function test_premium_hands_never_fold_for_any_profile(): void
@@ -54,12 +55,12 @@ class RangeShapeTest extends TestCase
     public function test_generated_defense_matches_the_profile_targets(): void
     {
         $this->seed(BotSeeder::class);
-        $combos = fn(string $h) => strlen($h) === 2 ? 6 : (str_ends_with($h, 's') ? 4 : 12);
+        $combos = fn (string $h) => strlen($h) === 2 ? 6 : (str_ends_with($h, 's') ? 4 : 12);
 
         foreach (['tag', 'lag', 'calling_station', 'nit'] as $tipo) {
             $bot = Bot::where('tipo', $tipo)->firstOrFail();
-            $profile = \App\Services\Bots\Brain\BotProfile::forBot($bot);
-            $tables = (new RivalPreflopTables(new PreflopRanking()))->generate($bot);
+            $profile = BotProfile::forBot($bot);
+            $tables = (new RivalPreflopTables(new PreflopRanking))->generate($bot);
 
             foreach (['CO', 'BTN', 'SB', 'BB'] as $position) {
                 $defense = collect($tables[$position]['defense'])->keyBy('hand');

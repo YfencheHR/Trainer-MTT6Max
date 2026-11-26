@@ -25,14 +25,14 @@ return new class extends Migration
                 'maniaco',
                 'ballena',
                 'usuario_real',
-                'pool'
+                'pool',
             ]);
             $table->enum('perfil', [
                 'tight-pasivo',
                 'tight-agresivo',
                 'loose-agresivo',
                 'loose-pasivo',
-                'errático'
+                'errático',
             ])->nullable();
             $table->integer('vpip')->nullable();
             $table->integer('pfr')->nullable();

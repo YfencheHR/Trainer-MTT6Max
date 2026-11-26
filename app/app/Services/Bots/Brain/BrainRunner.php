@@ -43,7 +43,7 @@ class BrainRunner
         private PreflopStrategyMatrix $preflopStrategies,
         private PreflopOpponentDanger $preflopDanger,
         private BetSizeMatrix $bets,
-        private ClearCallGuard $clearCall = new ClearCallGuard(),
+        private ClearCallGuard $clearCall = new ClearCallGuard,
     ) {}
 
     /**

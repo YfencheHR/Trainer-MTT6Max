@@ -15,9 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureTournamentWindow
 {
-    public function __construct(private TournamentWindowLock $windows)
-    {
-    }
+    public function __construct(private TournamentWindowLock $windows) {}
 
     public function handle(Request $request, Closure $next): Response
     {

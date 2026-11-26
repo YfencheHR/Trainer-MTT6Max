@@ -4,15 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Tournament;
 use App\Models\TournamentHand;
+use App\Services\Ev\DecisionEvAnalyzer;
 use App\Services\History\TournamentHistoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TournamentHistoryController extends Controller
 {
-    public function __construct(private TournamentHistoryService $history)
-    {
-    }
+    public function __construct(private TournamentHistoryService $history) {}
 
     /** GET /mtt-simulator/{tournament}/history */
     public function index(Tournament $tournament, Request $request)
@@ -40,8 +39,8 @@ class TournamentHistoryController extends Controller
         }
 
         // Manos grabadas antes del módulo de EV: se analizan la primera vez que se consultan
-        if (!$hand->ev_analyzed_at && $hand->handActions()->exists()) {
-            app(\App\Services\Ev\DecisionEvAnalyzer::class)->analyze($hand);
+        if (! $hand->ev_analyzed_at && $hand->handActions()->exists()) {
+            app(DecisionEvAnalyzer::class)->analyze($hand);
             $hand->save();
         }
 
@@ -53,6 +52,6 @@ class TournamentHistoryController extends Controller
     {
         return response()
             ->json($this->history->export($tournament), 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
-            ->header('Content-Disposition', 'attachment; filename="torneo-' . $tournament->id . '-historial.json"');
+            ->header('Content-Disposition', 'attachment; filename="torneo-'.$tournament->id.'-historial.json"');
     }
 }

@@ -32,9 +32,7 @@ class DecisionEvAnalyzer
 
     private const STREETS = ['preflop' => 'Preflop', 'flop' => 'Flop', 'turn' => 'Turn', 'river' => 'River'];
 
-    public function __construct(private EquityCalculator $equity, private EvCalculator $ev)
-    {
-    }
+    public function __construct(private EquityCalculator $equity, private EvCalculator $ev) {}
 
     /**
      * Analiza la mano, guarda los resultados y devuelve las entradas de log para el héroe
@@ -51,11 +49,11 @@ class DecisionEvAnalyzer
         }
 
         $bb = max(1, (int) ($hand->blind_level_config['big_blind'] ?? 1));
-        $cards = $players->map(fn($p) => $p->hole_cards)->all();
+        $cards = $players->map(fn ($p) => $p->hole_cards)->all();
 
         $lastDecision = null;
         foreach ($actions as $i => $a) {
-            if (!in_array($a->type, ['deal', 'post_sb', 'post_bb'], true)) {
+            if (! in_array($a->type, ['deal', 'post_sb', 'post_bb'], true)) {
                 $lastDecision = $i;
             }
         }
@@ -71,19 +69,21 @@ class DecisionEvAnalyzer
         foreach ($actions as $i => $a) {
             if ($a->type === 'deal') {
                 $board = array_merge($board, $a->cards ?? []);
+
                 continue;
             }
             $pid = $a->tournament_player_id;
             if (in_array($a->type, ['post_sb', 'post_bb'], true)) {
                 $invested[$pid] += $a->amount;
+
                 continue;
             }
 
-            $alive = array_values(array_filter($players->keys()->all(), fn($id) => empty($folded[$id])));
+            $alive = array_values(array_filter($players->keys()->all(), fn ($id) => empty($folded[$id])));
             $update = $this->evaluate($a, $pid, $alive, $cards, $board, $bb, $cache);
             DB::table('hand_actions')->where('id', $a->id)->update($update);
 
-            if (($update['ev_verdict'] ?? 'na') !== 'na' && !$players[$pid]->player->is_bot) {
+            if (($update['ev_verdict'] ?? 'na') !== 'na' && ! $players[$pid]->player->is_bot) {
                 $heroDecisions[] = [$a, $update];
             }
 
@@ -113,12 +113,12 @@ class DecisionEvAnalyzer
         $out = ['ev_model' => self::MODEL, 'ev_verdict' => 'na'];
 
         $opponents = array_diff($alive, [$pid]);
-        if (!$opponents) {
+        if (! $opponents) {
             return $out;
         }
 
-        $key = implode(',', $alive) . '|' . implode(',', $board);
-        if (!isset($cache[$key])) {
+        $key = implode(',', $alive).'|'.implode(',', $board);
+        if (! isset($cache[$key])) {
             $cache[$key] = $this->equity->equities(array_intersect_key($cards, array_flip($alive)), $board);
         }
         $eq = $cache[$key][$pid];
@@ -130,7 +130,7 @@ class DecisionEvAnalyzer
             in_array($a->type, ['fold', 'call'], true)
             || ($a->type === 'allin' && $a->amount <= $toCall)
         );
-        if (!$callLike) {
+        if (! $callLike) {
             return $out; // check / apuesta / subida: hace falta un modelo de fold equity
         }
 
@@ -156,16 +156,16 @@ class DecisionEvAnalyzer
      */
     private function adjustedAllIn(TournamentHand $hand, $players, $actions, ?int $lastDecision, array $boardAtEnd, array $foldedAtEnd, array $invested, array $cards): array
     {
-        if ($lastDecision === null || !$players->contains(fn($p) => $p->went_to_showdown)) {
+        if ($lastDecision === null || ! $players->contains(fn ($p) => $p->went_to_showdown)) {
             return [];
         }
         // ¿hubo cartas repartidas después de la última decisión? (run-out)
-        $runout = $actions->slice($lastDecision + 1)->contains(fn($a) => $a->type === 'deal');
-        if (!$runout) {
+        $runout = $actions->slice($lastDecision + 1)->contains(fn ($a) => $a->type === 'deal');
+        if (! $runout) {
             return [];
         }
 
-        $alive = array_values(array_filter($players->keys()->all(), fn($id) => empty($foldedAtEnd[$id])));
+        $alive = array_values(array_filter($players->keys()->all(), fn ($id) => empty($foldedAtEnd[$id])));
         if (count($alive) < 2) {
             return [];
         }
@@ -194,7 +194,7 @@ class DecisionEvAnalyzer
     /** Capas de bote (principal + laterales) a partir de lo aportado por cada jugador. */
     private function layers(array $invested, array $alive): array
     {
-        $levels = array_values(array_unique(array_map(fn($id) => $invested[$id], $alive)));
+        $levels = array_values(array_unique(array_map(fn ($id) => $invested[$id], $alive)));
         sort($levels);
 
         $layers = [];
@@ -207,7 +207,7 @@ class DecisionEvAnalyzer
             foreach ($invested as $inv) {
                 $amount += max(0, min($inv, $level) - $prev);
             }
-            $layers[] = ['amount' => $amount, 'eligible' => array_values(array_filter($alive, fn($id) => $invested[$id] >= $level))];
+            $layers[] = ['amount' => $amount, 'eligible' => array_values(array_filter($alive, fn ($id) => $invested[$id] >= $level))];
             $prev = $level;
         }
         $excess = 0;
@@ -225,8 +225,8 @@ class DecisionEvAnalyzer
 
     private function logEntries($players, int $bb, array $heroDecisions, array $allIn): array
     {
-        $hero = $players->first(fn($p) => !$p->player->is_bot);
-        if (!$hero) {
+        $hero = $players->first(fn ($p) => ! $p->player->is_bot);
+        if (! $hero) {
             return [];
         }
 
@@ -240,19 +240,19 @@ class DecisionEvAnalyzer
             $eq = $this->pct($u['equity']);
             $req = $this->pct($u['required_equity']);
             $folded = $a->type === 'fold';
-            $what = $folded ? 'Fold' : (($a->type === 'allin' ? 'All-in ' : 'Call ') . $this->bb($a->amount, $bb));
+            $what = $folded ? 'Fold' : (($a->type === 'allin' ? 'All-in ' : 'Call ').$this->bb($a->amount, $bb));
 
             $text = match (true) {
                 $u['ev_verdict'] === 'neutral' => "Decisión neutra: equity {$eq} ≈ necesaria {$req}",
-                $u['ev_verdict'] === 'gain' && $folded => "Te retiraste con equity {$eq} (necesitabas {$req}): evitaste perder " . $this->bb(abs($diff), $bb),
-                $u['ev_verdict'] === 'gain' => "Igualaste con equity {$eq} (necesitabas {$req}): ganaste " . $this->bb(abs($diff), $bb) . ' de EV',
-                $folded => "Te retiraste con equity {$eq} y solo necesitabas {$req}: igualar valía +" . $this->bb(abs($diff), $bb),
-                default => "Igualaste con equity {$eq} y necesitabas {$req}: perdiste " . $this->bb(abs($diff), $bb) . ' de EV',
+                $u['ev_verdict'] === 'gain' && $folded => "Te retiraste con equity {$eq} (necesitabas {$req}): evitaste perder ".$this->bb(abs($diff), $bb),
+                $u['ev_verdict'] === 'gain' => "Igualaste con equity {$eq} (necesitabas {$req}): ganaste ".$this->bb(abs($diff), $bb).' de EV',
+                $folded => "Te retiraste con equity {$eq} y solo necesitabas {$req}: igualar valía +".$this->bb(abs($diff), $bb),
+                default => "Igualaste con equity {$eq} y necesitabas {$req}: perdiste ".$this->bb(abs($diff), $bb).' de EV',
             };
 
             $entries[] = [
                 'time' => $time, 'type' => 'ev', 'verdict' => $u['ev_verdict'],
-                'text' => (self::STREETS[$a->street] ?? $a->street) . ' · ' . $what,
+                'text' => (self::STREETS[$a->street] ?? $a->street).' · '.$what,
                 'detail' => $text,
                 'ev' => $this->signedBb($diff, $bb),
             ];
@@ -276,8 +276,8 @@ class DecisionEvAnalyzer
             $luck = $mine['ev_luck'];
             $entries[] = [
                 'time' => $time, 'type' => 'ev_allin', 'verdict' => $luck > 0 ? 'gain' : ($luck < 0 ? 'loss' : 'neutral'),
-                'text' => '🎲 All-in: equity ' . $this->pct($mine['equity']) . ' · EV ' . $this->signedBb($mine['ev_net'], $bb) . ' · resultado ' . $this->signedBb($mine['net'], $bb),
-                'detail' => $luck === 0 ? 'Sin suerte ni mala suerte' : ($luck > 0 ? 'Suerte: +' : 'Mala suerte: −') . $this->bb(abs($luck), $bb),
+                'text' => '🎲 All-in: equity '.$this->pct($mine['equity']).' · EV '.$this->signedBb($mine['ev_net'], $bb).' · resultado '.$this->signedBb($mine['net'], $bb),
+                'detail' => $luck === 0 ? 'Sin suerte ni mala suerte' : ($luck > 0 ? 'Suerte: +' : 'Mala suerte: −').$this->bb(abs($luck), $bb),
                 'ev' => $this->signedBb($luck, $bb),
             ];
         }
@@ -287,16 +287,16 @@ class DecisionEvAnalyzer
 
     private function pct(?float $v): string
     {
-        return round(($v ?? 0) * 100) . '%';
+        return round(($v ?? 0) * 100).'%';
     }
 
     private function bb(float|int $chips, int $bb): string
     {
-        return rtrim(rtrim(number_format($chips / max(1, $bb), 1, ',', ''), '0'), ',') . 'bb';
+        return rtrim(rtrim(number_format($chips / max(1, $bb), 1, ',', ''), '0'), ',').'bb';
     }
 
     private function signedBb(float|int $chips, int $bb): string
     {
-        return ($chips > 0 ? '+' : ($chips < 0 ? '−' : '')) . $this->bb(abs($chips), $bb);
+        return ($chips > 0 ? '+' : ($chips < 0 ? '−' : '')).$this->bb(abs($chips), $bb);
     }
 }

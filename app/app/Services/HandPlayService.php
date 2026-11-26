@@ -2,7 +2,18 @@
 
 namespace App\Services;
 
+use App\Config\StatColor;
+use App\Models\Bot;
+use App\Models\TournamentEvent;
 use App\Models\TournamentHand;
+use App\Models\TournamentPlayer;
+use App\Services\Bots\BotDecisionService;
+use App\Services\Bots\Brain\BotProfile;
+use App\Services\Bots\RangeFilter;
+use App\Services\Ev\DecisionEvAnalyzer;
+use App\Services\Ev\EvCalculator;
+use App\Services\History\HandHistoryRecorder;
+use App\Services\Stats\TournamentStatsService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,7 +27,9 @@ use Illuminate\Support\Facades\DB;
 class HandPlayService
 {
     private const TABLE_SIZE = 6;
+
     private const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+
     private const SUITS = ['♠', '♥', '♦', '♣'];
 
     /**
@@ -37,12 +50,12 @@ class HandPlayService
         $n = count($players);
         $btn = (int) ($meta['btn'] ?? 0) % max(1, $n);
         $hideHud = (bool) data_get($hand->tournament->config, 'game_settings.no_hud_data', false);
-        $rows = \App\Models\TournamentPlayer::with('bot.hudStats')
+        $rows = TournamentPlayer::with('bot.hudStats')
             ->whereIn('id', array_column($players, 'id'))->get()->keyBy('id');
-        $stats = app(\App\Services\Stats\TournamentStatsService::class)->summaries(array_column($players, 'id'));
+        $stats = app(TournamentStatsService::class)->summaries(array_column($players, 'id'));
 
         $out = array_map(function ($p, $i) use ($meta, $completed, $showAll, $n, $btn, $hideHud, $rows, $stats) {
-            $reveal = !$p['is_bot'] || $showAll || ($completed && !$p['folded']);
+            $reveal = ! $p['is_bot'] || $showAll || ($completed && ! $p['folded']);
             $showBet = (bool) ($p['bet_visible'] ?? false)
                 || ($meta['street'] === 'preflop' && (int) $p['bet'] > 0);
 
@@ -53,14 +66,14 @@ class HandPlayService
                 'bet' => (int) $p['bet'],
                 'show_bet' => $showBet,
                 'is_bot' => $p['is_bot'],
-                'is_current' => !$p['is_bot'], // héroe
-                'is_turn' => !$completed && $meta['turn'] === $p['id'],
+                'is_current' => ! $p['is_bot'], // héroe
+                'is_turn' => ! $completed && $meta['turn'] === $p['id'],
                 'is_folded' => $p['folded'],
                 'won' => $completed ? (int) ($meta['awards'][$p['id']] ?? 0) : 0, // fichas que se lleva al terminar la mano
                 'is_all_in' => $p['all_in'],
                 'is_eliminated' => false,
                 'hole_cards' => $reveal ? $p['hole_cards'] : [],
-                'has_rival_data' => !$p['is_bot'],
+                'has_rival_data' => ! $p['is_bot'],
                 'position' => $this->positionLabel($n, ($i - $btn + $n) % $n),
                 'stats' => $stats[$p['id']],
                 'hud' => $hideHud ? null : $this->hudFor($rows[$p['id']] ?? null, $stats[$p['id']]),
@@ -70,10 +83,10 @@ class HandPlayService
         // Obtener rangos dinámicos del jugador actual
         $currentPlayerId = $completed ? null : $meta['turn'];
         $dynamicRanges = null;
-        if ($currentPlayerId && !$completed && !$light) {
+        if ($currentPlayerId && ! $completed && ! $light) {
             $tp = $hand->table ? $hand->table->players()->find($currentPlayerId) : $hand->tournament->players()->find($currentPlayerId);
             if ($tp && $tp->bot) {
-                $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+                $rangeFilter = app(RangeFilter::class);
                 $ranges = $rangeFilter->getCurrentRange($hand, $tp);
                 if ($ranges) {
                     $dynamicRanges = [
@@ -86,10 +99,10 @@ class HandPlayService
         }
 
         // Rangos de los bots que han entrado en la mano (incluye los que luego foldearon)
-        $botIds = array_column(array_filter($players, fn($p) => $p['is_bot']), 'id');
+        $botIds = array_column(array_filter($players, fn ($p) => $p['is_bot']), 'id');
         $botsRanges = (object) ($light ? [] : array_map(
-            fn($b) => ['action' => $b['action'], 'ranges' => $this->rangeCodes($b['ranges'])],
-            app(\App\Services\Bots\RangeFilter::class)->getEnteredRanges($hand, $botIds)
+            fn ($b) => ['action' => $b['action'], 'ranges' => $this->rangeCodes($b['ranges'])],
+            app(RangeFilter::class)->getEnteredRanges($hand, $botIds)
         ));
 
         return [
@@ -100,7 +113,7 @@ class HandPlayService
             'pot' => (int) $meta['pot'],
             'current_street' => $completed ? 'completed' : $meta['street'],
             'current_player_id' => $currentPlayerId,
-            'is_all_in' => collect($players)->contains(fn($p) => $p['all_in']),
+            'is_all_in' => collect($players)->contains(fn ($p) => $p['all_in']),
             'status' => $hand->status,
             'winner_id' => $meta['winner_id'] ?? null,
             'result' => $completed ? $this->handResult($hand, $players, $meta) : null,
@@ -123,16 +136,16 @@ class HandPlayService
     private function handResult(TournamentHand $hand, array $players, array $meta): array
     {
         $names = array_column($players, 'name', 'id');
-        $pots = array_map(fn($pot) => [
+        $pots = array_map(fn ($pot) => [
             'label' => $pot['label'] ?? __('tournaments.pot'),
             'amount' => (int) ($pot['amount'] ?? 0),
-            'winners' => array_map(fn($id) => ['id' => $id, 'name' => $names[$id] ?? '?'], $pot['winners'] ?? []),
+            'winners' => array_map(fn ($id) => ['id' => $id, 'name' => $names[$id] ?? '?'], $pot['winners'] ?? []),
             'hand_name' => $pot['hand_name'] ?? null,
         ], $hand->pots ?? []);
 
         $winners = [];
         foreach ($meta['awards'] ?? [] as $id => $amount) {
-            $hand_name = collect($pots)->first(fn($pot) => collect($pot['winners'])->contains('id', $id))['hand_name'] ?? null;
+            $hand_name = collect($pots)->first(fn ($pot) => collect($pot['winners'])->contains('id', $id))['hand_name'] ?? null;
             $winners[] = ['id' => (int) $id, 'name' => $names[$id] ?? '?', 'amount' => (int) $amount, 'hand_name' => $hand_name];
         }
 
@@ -150,13 +163,13 @@ class HandPlayService
      */
     private function slimRanges(array $ranges): array
     {
-        return array_map(fn($r) => array_filter((array) $r, fn($v) => $v > 0), $ranges);
+        return array_map(fn ($r) => array_filter((array) $r, fn ($v) => $v > 0), $ranges);
     }
 
     /** Rango compacto para el panel de rivales: por mano [fold, call, raise, check] en enteros. */
     private function rangeCodes(array $ranges): array
     {
-        return array_map(fn($r) => [
+        return array_map(fn ($r) => [
             (int) round($r['fold'] ?? 0),
             (int) round($r['call'] ?? 0),
             (int) round($r['raise'] ?? 0),
@@ -164,9 +177,9 @@ class HandPlayService
         ], $ranges);
     }
 
-    private function history(): \App\Services\History\HandHistoryRecorder
+    private function history(): HandHistoryRecorder
     {
-        return app(\App\Services\History\HandHistoryRecorder::class);
+        return app(HandHistoryRecorder::class);
     }
 
     private function log(array &$meta, string $text, string $type = 'info', array $extra = []): void
@@ -178,14 +191,15 @@ class HandPlayService
     private function bb(int $chips, array $meta): string
     {
         $bb = max(1, (int) ($meta['bb'] ?? 100));
-        return rtrim(rtrim(number_format($chips / $bb, 1, ',', ''), '0'), ',') . 'bb';
+
+        return rtrim(rtrim(number_format($chips / $bb, 1, ',', ''), '0'), ',').'bb';
     }
 
     /** Admite entradas antiguas (string) y limita el tamaño. */
     private function normalizeLog(array $log, int $limit = 60): array
     {
         return array_values(array_map(
-            fn($e) => is_array($e) ? $e : ['time' => '', 'text' => (string) $e, 'type' => 'info'],
+            fn ($e) => is_array($e) ? $e : ['time' => '', 'text' => (string) $e, 'type' => 'info'],
             array_slice($log, -$limit)
         ));
     }
@@ -226,7 +240,7 @@ class HandPlayService
         $others = [];
         $eliminationHistory = [];
         if ($hand->table_id) {
-            $seatedPlayers = \Illuminate\Support\Facades\DB::table('table_players')
+            $seatedPlayers = DB::table('table_players')
                 ->join('tables', 'tables.id', '=', 'table_players.table_id')
                 ->join('tournament_players', 'tournament_players.id', '=', 'table_players.tournament_player_id')
                 ->where('tables.tournament_id', $hand->tournament_id)
@@ -256,14 +270,14 @@ class HandPlayService
                         'stack' => (int) $player->current_stack,
                     ])->values()->all(),
                 ];
-                if (!$isHero) {
+                if (! $isHero) {
                     $others[] = ['id' => (int) $tableId, 'number' => $tableNumber];
                 }
             }
 
         }
 
-        $eliminationHistory = \App\Models\TournamentEvent::with('player:id,name')
+        $eliminationHistory = TournamentEvent::with('player:id,name')
             ->where('tournament_id', $hand->tournament_id)
             ->where('type', 'elimination')
             ->whereNotNull('tournament_player_id')
@@ -299,6 +313,7 @@ class HandPlayService
             'elimination_history' => $eliminationHistory,
         ];
     }
+
     /** Acciones que puede hacer el héroe (solo si es su turno), para pintar los botones. */
     private function heroLegal(array $players, array $meta, bool $completed): ?array
     {
@@ -317,6 +332,7 @@ class HandPlayService
         }
         $l['to_call'] = $l['call'] ?? 0;
         $l['pot'] = (int) $meta['pot'];
+
         return $l;
     }
 
@@ -326,6 +342,7 @@ class HandPlayService
     {
         $n = count($players);
         $btn = (int) ($meta['btn'] ?? 0) % max(1, $n);
+
         return $this->positionLabel($n, ($idx - $btn + $n) % $n);
     }
 
@@ -336,6 +353,7 @@ class HandPlayService
         }
         $map = [3 => ['BTN', 'SB', 'BB'], 4 => ['BTN', 'SB', 'BB', 'CO'],
             5 => ['BTN', 'SB', 'BB', 'UTG', 'CO'], 6 => ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO']];
+
         return ($map[min($n, 6)] ?? $map[6])[$k] ?? '';
     }
 
@@ -344,14 +362,14 @@ class HandPlayService
      * Con muestra suficiente (>= MIN_HANDS_FOR_HUD manos) se muestra lo OBSERVADO en el torneo;
      * antes de eso, el perfil configurado del bot. `source` indica cuál se está viendo.
      */
-    private function hudFor(?\App\Models\TournamentPlayer $row, array $observed): ?array
+    private function hudFor(?TournamentPlayer $row, array $observed): ?array
     {
         $bot = $row?->bot;
-        if (!$bot) {
+        if (! $bot) {
             // Héroe: solo hay datos observados (sin perfil configurado)
             return [
-                'vpip' => $observed['vpip'], 'vpip_color' => $observed['vpip'] !== null ? \App\Config\StatColor::getColor('vpip', $observed['vpip']) : null,
-                'pfr' => $observed['pfr'], 'pfr_color' => $observed['pfr'] !== null ? \App\Config\StatColor::getColor('pfr', $observed['pfr']) : null,
+                'vpip' => $observed['vpip'], 'vpip_color' => $observed['vpip'] !== null ? StatColor::getColor('vpip', $observed['vpip']) : null,
+                'pfr' => $observed['pfr'], 'pfr_color' => $observed['pfr'] !== null ? StatColor::getColor('pfr', $observed['pfr']) : null,
                 'three_bet' => $observed['three_bet'],
                 'four_bet' => null,
                 'limp' => null,
@@ -363,8 +381,8 @@ class HandPlayService
             ];
         }
 
-        $useObserved = $observed['hands'] >= \App\Services\Stats\TournamentStatsService::MIN_HANDS_FOR_HUD;
-        $stat = $bot->hudStats->first(fn($item) => $item->posicion === null && $item->accion === null && $item->rango_ciegas === null)
+        $useObserved = $observed['hands'] >= TournamentStatsService::MIN_HANDS_FOR_HUD;
+        $stat = $bot->hudStats->first(fn ($item) => $item->posicion === null && $item->accion === null && $item->rango_ciegas === null)
             ?? $bot->hudStats->first();
 
         if ($useObserved) {
@@ -378,8 +396,8 @@ class HandPlayService
         }
 
         return [
-            'vpip' => $vpip, 'vpip_color' => $vpip !== null ? \App\Config\StatColor::getColor('vpip', $vpip) : null,
-            'pfr' => $pfr, 'pfr_color' => $pfr !== null ? \App\Config\StatColor::getColor('pfr', $pfr) : null,
+            'vpip' => $vpip, 'vpip_color' => $vpip !== null ? StatColor::getColor('vpip', $vpip) : null,
+            'pfr' => $pfr, 'pfr_color' => $pfr !== null ? StatColor::getColor('pfr', $pfr) : null,
             'three_bet' => $three,
             'four_bet' => $stat->four_bet ?? null,
             'limp' => $stat->limp ?? null,
@@ -394,14 +412,14 @@ class HandPlayService
     /**
      * Extrae todas las stats del bot para decisiones (preflop y postflop por calle)
      */
-    private function botStatsFor(?\App\Models\Bot $bot, array $observed): array
+    private function botStatsFor(?Bot $bot, array $observed): array
     {
-        if (!$bot) {
+        if (! $bot) {
             throw new \LogicException('Bot stats are mandatory for decision making');
         }
 
-        $general = $bot->hudStats->first(fn($row) => $row->posicion === null && $row->accion === null && $row->rango_ciegas === null);
-        if (!$general) {
+        $general = $bot->hudStats->first(fn ($row) => $row->posicion === null && $row->accion === null && $row->rango_ciegas === null);
+        if (! $general) {
             throw new \LogicException("Bot {$bot->id} has no general HUD stats defined");
         }
 
@@ -413,7 +431,7 @@ class HandPlayService
         // Estadísticas postflop por calle, con las claves que lee el Perceiver (f2bet, af, cbet/bet, donk, cr, raise_vs_bet,
         // f2raise y el desglose ip/oop). Antes se leían columnas que no existen (p. ej. "f2bet"): su fold ante apuesta y su
         // subida salían siempre vacíos y el bot caía en valores por defecto (fold 30 %) en vez de los de su perfil.
-        $post = \App\Services\Bots\Brain\BotProfile::postflop($bot->templateTipo(), $general, [], $bot->hudStats);
+        $post = BotProfile::postflop($bot->templateTipo(), $general, [], $bot->hudStats);
         foreach (['flop', 'turn', 'river'] as $street) {
             $stats[$street] = $post[$street];
             $stats[$street]['vb_ratio'] = $post['vb_ratio'];
@@ -424,12 +442,12 @@ class HandPlayService
 
     public function heroAction(TournamentHand $hand, string $action, int $amount = 0): array
     {
-        return $this->locked($hand, fn($h) => $this->doHeroAction($h, $action, $amount));
+        return $this->locked($hand, fn ($h) => $this->doHeroAction($h, $action, $amount));
     }
 
     public function botAction(TournamentHand $hand): array
     {
-        return $this->locked($hand, fn($h) => $this->doBotAction($h));
+        return $this->locked($hand, fn ($h) => $this->doBotAction($h));
     }
 
     /**
@@ -444,10 +462,10 @@ class HandPlayService
             if ($hand->fresh()->status === 'completed') {
                 return;
             }
-            $this->locked($hand, fn($h) => $this->doBotAction($h, false));
+            $this->locked($hand, fn ($h) => $this->doBotAction($h, false));
         }
 
-        throw new \RuntimeException('La mano simulada no terminó (mesa ' . $hand->table_id . ')');
+        throw new \RuntimeException('La mano simulada no terminó (mesa '.$hand->table_id.')');
     }
 
     /**
@@ -474,7 +492,7 @@ class HandPlayService
                 [$action, $amount] = array_shift($queue) ?? ['check', 0];
                 $humanScript[$current['id']] = $queue;
                 try {
-                    return DB::transaction(fn() => $this->apply($h, $current['id'], $action, (int) $amount, false));
+                    return DB::transaction(fn () => $this->apply($h, $current['id'], $action, (int) $amount, false));
                 } catch (\RuntimeException) {
                     $legal = $this->legalActions($h->players_in_hand, $h->actions, $current);
 
@@ -493,6 +511,7 @@ class HandPlayService
     {
         return DB::transaction(function () use ($hand, $fn) {
             $fresh = TournamentHand::whereKey($hand->id)->lockForUpdate()->firstOrFail();
+
             return $fn($fresh);
         });
     }
@@ -518,20 +537,20 @@ class HandPlayService
 
         $meta = $hand->actions;
         $current = $this->find($hand->players_in_hand, $meta['turn']);
-        if (!$current['is_bot']) {
+        if (! $current['is_bot']) {
             throw new \RuntimeException('No es turno de un bot');
         }
 
         // La mesa solo pregunta "¿qué hago?": el servidor decide con lo que ese bot puede saber
         $ctx = $this->botContext($hand, $current);
-        $decision = app(\App\Services\Bots\BotDecisionService::class)->decide($ctx);
+        $decision = app(BotDecisionService::class)->decide($ctx);
 
         $action = $decision['action'];
         $amount = (int) ($decision['amount'] ?? 0);
-        if ($action === 'fold' && !$ctx['legal']['fold']) {
+        if ($action === 'fold' && ! $ctx['legal']['fold']) {
             $action = 'check';
             $amount = 0;
-            $decision['reason'] = ($decision['reason'] ?? 'Fold') . ' (convertido a check: no hay apuesta que igualar)';
+            $decision['reason'] = ($decision['reason'] ?? 'Fold').' (convertido a check: no hay apuesta que igualar)';
         }
 
         // Qué sabía el bot y por qué eligió esto: queda en el historial para analizar y afinar
@@ -540,6 +559,7 @@ class HandPlayService
         $ctx['players'] = array_map(function ($p) {
             unset($p['stats']);
             unset($p['preflop_stats']);
+
             return $p;
         }, $ctx['players']);
         $record = [
@@ -550,11 +570,12 @@ class HandPlayService
         ];
 
         // Intenciones para el resto de la mano (p. ej. check con intención de subir)
-        if (!empty($decision['flags'])) {
+        if (! empty($decision['flags'])) {
             $state = $hand->actions;
             $state['bot_flags'][$current['id']] = array_merge($state['bot_flags'][$current['id']] ?? [], $decision['flags']);
             $hand->actions = $state;
         }
+
         return $this->apply($hand, $current['id'], $action, $amount, $withState, $record);
     }
 
@@ -569,8 +590,8 @@ class HandPlayService
         $btn = (int) ($meta['btn'] ?? 0) % max(1, $n);
         $myIdx = $this->indexOf($players, $me['id']);
 
-        $stats = app(\App\Services\Stats\TournamentStatsService::class)->summaries(array_column($players, 'id'));
-        $playerRows = \App\Models\TournamentPlayer::with('bot.hudStats')
+        $stats = app(TournamentStatsService::class)->summaries(array_column($players, 'id'));
+        $playerRows = TournamentPlayer::with('bot.hudStats')
             ->whereIn('id', array_column($players, 'id'))
             ->get()
             ->keyBy('id');
@@ -582,8 +603,8 @@ class HandPlayService
             $postflopStats = null;
             if ($bot) {
                 $hudStats = $bot->hudStats;
-                $general = $hudStats->first(fn($row) => $row->posicion === null && $row->accion === null && $row->rango_ciegas === null);
-                $postflopStats = \App\Services\Bots\Brain\BotProfile::postflop(
+                $general = $hudStats->first(fn ($row) => $row->posicion === null && $row->accion === null && $row->rango_ciegas === null);
+                $postflopStats = BotProfile::postflop(
                     $bot->templateTipo(),
                     $general,
                     ['vpip' => (float) ($bot->vpip ?? 20), 'pfr' => (float) ($bot->pfr ?? 15)],
@@ -618,13 +639,13 @@ class HandPlayService
             'to_call' => max(0, $this->maxBet($players) - $me['bet']),
             // Equity mínima para que igualar sea rentable (pot odds). Para calcular su equity real un bot puede
             // usar App\Services\Ev\EquityCalculator (equityVsRandom / equityVsRanges) y EvCalculator.
-            'required_equity' => app(\App\Services\Ev\EvCalculator::class)->requiredEquity(
+            'required_equity' => app(EvCalculator::class)->requiredEquity(
                 (int) $meta['pot'], min(max(0, $this->maxBet($players) - $me['bet']), $me['stack'])
             ),
             'board' => $hand->community_cards ?? [],
             'me' => [
                 'id' => $me['id'],
-                'bot_id' => \App\Models\TournamentPlayer::whereKey($me['id'])->value('bot_id'),
+                'bot_id' => TournamentPlayer::whereKey($me['id'])->value('bot_id'),
                 'position' => $this->positionLabel($n, ($myIdx - $btn + $n) % $n),
                 'stack' => $me['stack'],
                 'bet' => $me['bet'],
@@ -656,7 +677,7 @@ class HandPlayService
         $potBefore = (int) $meta['pot'];
         $stackBefore = (int) $p['stack'];
         $toCallBefore = max(0, $this->maxBet($players) - $p['bet']);
-        $activeBefore = count(array_filter($players, fn($x) => !$x['folded']));
+        $activeBefore = count(array_filter($players, fn ($x) => ! $x['folded']));
 
         if ($action === 'call' && $legal['check']) {
             $action = 'check'; // nada que igualar
@@ -664,14 +685,14 @@ class HandPlayService
 
         switch ($action) {
             case 'fold':
-                if (!$legal['fold']) {
+                if (! $legal['fold']) {
                     throw new \RuntimeException('No puedes foldear cuando puedes pasar sin apostar');
                 }
                 $p['folded'] = true;
                 $p['folded_street'] = $meta['street'];
                 break;
             case 'check':
-                if (!$legal['check']) {
+                if (! $legal['check']) {
                     throw new \RuntimeException('No puedes hacer check: hay una apuesta que igualar');
                 }
                 break;
@@ -687,7 +708,7 @@ class HandPlayService
                 }
                 $target = min((int) $amount, $legal['raise']['max']);
                 if ($target < $legal['raise']['min']) {
-                    throw new \RuntimeException('La subida mínima es ' . $legal['raise']['min']);
+                    throw new \RuntimeException('La subida mínima es '.$legal['raise']['min']);
                 }
                 $this->raiseTo($players, $meta, $p, $target);
                 break;
@@ -698,7 +719,7 @@ class HandPlayService
                 $this->raiseTo($players, $meta, $p, $p['stack'] + $p['bet']);
                 break;
             default:
-                throw new \RuntimeException('Acción no soportada: ' . $action);
+                throw new \RuntimeException('Acción no soportada: '.$action);
         }
 
         $p['bet_visible'] = ($p['bet_visible'] ?? false) || $p['bet'] > $betBefore;
@@ -707,18 +728,18 @@ class HandPlayService
         $text = match ($action) {
             'fold' => 'hizo fold',
             'check' => 'hizo check',
-            'call' => 'hizo call ' . $this->bb($p['bet'] - $betBefore, $meta),
-            'raise' => 'hizo ' . $verb . $this->bb($p['bet'], $meta),
-            'allin' => 'hizo all-in ' . ($p['bet'] > $legal['maxBet'] ? 'a ' : 'por ') . $this->bb($p['bet'], $meta),
+            'call' => 'hizo call '.$this->bb($p['bet'] - $betBefore, $meta),
+            'raise' => 'hizo '.$verb.$this->bb($p['bet'], $meta),
+            'allin' => 'hizo all-in '.($p['bet'] > $legal['maxBet'] ? 'a ' : 'por ').$this->bb($p['bet'], $meta),
         };
         $extra = [];
         if ($action === 'fold') {
             $showAll = (bool) data_get($hand->tournament->config, 'game_settings.show_all_cards', false);
-            if ($showAll && !empty($p['hole_cards'])) {
+            if ($showAll && ! empty($p['hole_cards'])) {
                 $extra['cards'] = $p['hole_cards'];
             }
         }
-        $this->log($meta, $p['name'] . ' ' . $text, 'action', $extra);
+        $this->log($meta, $p['name'].' '.$text, 'action', $extra);
 
         $record = [
             'player_id' => $p['id'],
@@ -739,14 +760,14 @@ class HandPlayService
             $hand, $meta, $meta['street'], $p['id'], $action,
             $p['bet'] - $betBefore, $p['bet'], $meta['pot'], $p['stack'], null,
             ['pot_before' => $potBefore, 'stack_before' => $stackBefore, 'to_call' => $toCallBefore,
-             'players_active' => $activeBefore, 'decision' => $decision]
+                'players_active' => $activeBefore, 'decision' => $decision]
         );
         unset($p);
 
         $this->advance($hand, $players, $meta, $idx);
 
         // Actualizar rangos dinámicos del jugador que actuó
-        $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+        $rangeFilter = app(RangeFilter::class);
         $tp = $hand->table ? $hand->table->players()->find($playerId) : $hand->tournament->players()->find($playerId);
         if ($tp && $tp->bot) {
             $rangeFilter->updateAfterAction(
@@ -755,8 +776,8 @@ class HandPlayService
                     'pot' => $meta['pot'],
                     'stack' => $tp->current_stack,
                     'position' => $this->positionFor($players, $meta, $idx),
-                    'action_number' => count(array_filter($players, fn($p) => $p['acted'])),
-                    'actors_count' => count(array_filter($players, fn($p) => !$p['folded'])),
+                    'action_number' => count(array_filter($players, fn ($p) => $p['acted'])),
+                    'actors_count' => count(array_filter($players, fn ($p) => ! $p['folded'])),
                 ]
             );
         }
@@ -766,28 +787,31 @@ class HandPlayService
 
     private function advance(TournamentHand $hand, array $players, array $meta, int $fromIdx): void
     {
-        $alive = array_values(array_filter($players, fn($p) => !$p['folded']));
+        $alive = array_values(array_filter($players, fn ($p) => ! $p['folded']));
         $max = $this->maxBet($players);
-        $pending = array_filter($alive, fn($p) => !$p['all_in'] && (!$p['acted'] || $p['bet'] < $max));
+        $pending = array_filter($alive, fn ($p) => ! $p['all_in'] && (! $p['acted'] || $p['bet'] < $max));
 
         if (count($alive) === 1) {
             $this->finish($hand, $players, $meta, $alive[0]['id']);
+
             return;
         }
         if (empty($pending)) {
-            $canAct = array_filter($alive, fn($p) => !$p['all_in']);
+            $canAct = array_filter($alive, fn ($p) => ! $p['all_in']);
             if ($meta['street'] === 'river' || count($canAct) <= 1) {
                 $this->showdown($hand, $players, $meta);
+
                 return;
             }
             $this->nextStreet($hand, $players, $meta);
+
             return;
         }
 
         $n = count($players);
         for ($i = 1; $i <= $n; $i++) {
             $cand = $players[($fromIdx + $i) % $n];
-            if (!$cand['folded'] && !$cand['all_in'] && (!$cand['acted'] || $cand['bet'] < $max)) {
+            if (! $cand['folded'] && ! $cand['all_in'] && (! $cand['acted'] || $cand['bet'] < $max)) {
                 $meta['turn'] = $cand['id'];
                 break;
             }
@@ -803,7 +827,7 @@ class HandPlayService
         $next = ['preflop' => 'flop', 'flop' => 'turn', 'turn' => 'river'][$meta['street']];
         $count = ['flop' => 3, 'turn' => 4, 'river' => 5][$next];
 
-        $hand->{'pot_' . $meta['street']} = $meta['pot'];   // lo que había en el bote al cerrar la calle que termina
+        $hand->{'pot_'.$meta['street']} = $meta['pot'];   // lo que había en el bote al cerrar la calle que termina
         $meta['street'] = $next;
         foreach ($meta['bot_flags'] ?? [] as $pid => $flags) {
             unset($meta['bot_flags'][$pid]['check_raise']);
@@ -828,7 +852,7 @@ class HandPlayService
         $btn = (int) ($meta['btn'] ?? 0);
         for ($i = 1; $i <= $n; $i++) {
             $cand = $players[($btn + $i) % $n];
-            if (!$cand['folded'] && !$cand['all_in']) {
+            if (! $cand['folded'] && ! $cand['all_in']) {
                 $meta['turn'] = $cand['id'];
                 break;
             }
@@ -856,7 +880,7 @@ class HandPlayService
 
         $scores = [];
         foreach ($players as $p) {
-            if (!$p['folded']) {
+            if (! $p['folded']) {
                 $scores[$p['id']] = $this->score(array_merge($p['hole_cards'], $board));
             }
         }
@@ -881,7 +905,7 @@ class HandPlayService
                 $awards[$id] = ($awards[$id] ?? 0) + $share + ($k === 0 ? $rest : 0);
             }
             $potResults[] = [
-                'label' => $i === 0 ? 'Bote principal' : 'Bote lateral ' . $i,
+                'label' => $i === 0 ? 'Bote principal' : 'Bote lateral '.$i,
                 'amount' => $pot['amount'],
                 'winners' => $winners,
             ];
@@ -898,7 +922,7 @@ class HandPlayService
                 continue;
             }
             $won = $awards[$p['id']] ?? 0;
-            $this->log($meta, $p['name'] . ' muestra', 'showdown', [
+            $this->log($meta, $p['name'].' muestra', 'showdown', [
                 'cards' => $p['hole_cards'],
                 'hand' => $this->handName($scores[$p['id']]),
                 'winner' => $won > 0,
@@ -907,11 +931,11 @@ class HandPlayService
         }
 
         foreach ($potResults as $res) {
-            $names = array_map(fn($id) => $players[$this->indexOf($players, $id)]['name'], $res['winners']);
+            $names = array_map(fn ($id) => $players[$this->indexOf($players, $id)]['name'], $res['winners']);
             $this->log(
                 $meta,
-                "{$res['label']} (" . $this->bb($res['amount'], $meta) . '): ' . implode(', ', $names)
-                    . ' gana con ' . $this->handName($scores[$res['winners'][0]]),
+                "{$res['label']} (".$this->bb($res['amount'], $meta).'): '.implode(', ', $names)
+                    .' gana con '.$this->handName($scores[$res['winners'][0]]),
                 'win'
             );
         }
@@ -920,7 +944,7 @@ class HandPlayService
         foreach ($scores as $id => $score) {
             $handNames[$id] = $this->handName($score);
         }
-        $potsOut = array_map(fn($res) => [
+        $potsOut = array_map(fn ($res) => [
             'label' => $res['label'],
             'amount' => $res['amount'],
             'winners' => $res['winners'],
@@ -934,26 +958,28 @@ class HandPlayService
 
     private const RANK_PLURAL = [2 => 'doses', 3 => 'treses', 4 => 'cuatros', 5 => 'cincos', 6 => 'seises', 7 => 'sietes',
         8 => 'ochos', 9 => 'nueves', 10 => 'dieces', 11 => 'jotas', 12 => 'damas', 13 => 'reyes', 14 => 'ases'];
+
     private const RANK_SINGULAR = [2 => 'Dos', 3 => 'Tres', 4 => 'Cuatro', 5 => 'Cinco', 6 => 'Seis', 7 => 'Siete',
         8 => 'Ocho', 9 => 'Nueve', 10 => 'Diez', 11 => 'Jota', 12 => 'Dama', 13 => 'Rey', 14 => 'As'];
+
     private const RANK_HIGH = [5 => 'al 5', 6 => 'al 6', 7 => 'al 7', 8 => 'al 8', 9 => 'al 9', 10 => 'al 10',
         11 => 'a la Jota', 12 => 'a la Dama', 13 => 'al Rey', 14 => 'al As'];
 
     /** Nombre en español de una mano a partir de su puntuación [categoría, desempates…]. */
     private function handName(array $s): string
     {
-        $pl = fn(int $v) => self::RANK_PLURAL[$v] ?? (string) $v;
+        $pl = fn (int $v) => self::RANK_PLURAL[$v] ?? (string) $v;
 
         return match ($s[0]) {
-            0 => 'Carta alta ' . (self::RANK_SINGULAR[$s[1]] ?? $s[1]),
-            1 => 'Pareja de ' . $pl($s[1]),
-            2 => 'Doble pareja de ' . $pl($s[1]) . ' y ' . $pl($s[2]),
-            3 => 'Trío de ' . $pl($s[1]),
-            4 => 'Escalera ' . (self::RANK_HIGH[$s[1]] ?? $s[1]),
-            5 => 'Color ' . (self::RANK_HIGH[$s[1]] ?? $s[1]),
-            6 => 'Full de ' . $pl($s[1]) . ' y ' . $pl($s[2]),
-            7 => 'Póker de ' . $pl($s[1]),
-            8 => $s[1] === 14 ? 'Escalera real' : 'Escalera de color ' . (self::RANK_HIGH[$s[1]] ?? $s[1]),
+            0 => 'Carta alta '.(self::RANK_SINGULAR[$s[1]] ?? $s[1]),
+            1 => 'Pareja de '.$pl($s[1]),
+            2 => 'Doble pareja de '.$pl($s[1]).' y '.$pl($s[2]),
+            3 => 'Trío de '.$pl($s[1]),
+            4 => 'Escalera '.(self::RANK_HIGH[$s[1]] ?? $s[1]),
+            5 => 'Color '.(self::RANK_HIGH[$s[1]] ?? $s[1]),
+            6 => 'Full de '.$pl($s[1]).' y '.$pl($s[2]),
+            7 => 'Póker de '.$pl($s[1]),
+            8 => $s[1] === 14 ? 'Escalera real' : 'Escalera de color '.(self::RANK_HIGH[$s[1]] ?? $s[1]),
             default => '',
         };
     }
@@ -966,7 +992,7 @@ class HandPlayService
     {
         $levels = [];
         foreach ($players as $p) {
-            if (!$p['folded']) {
+            if (! $p['folded']) {
                 $levels[] = (int) ($p['total'] ?? 0);
             }
         }
@@ -985,7 +1011,7 @@ class HandPlayService
             }
             $eligible = [];
             foreach ($players as $p) {
-                if (!$p['folded'] && (int) ($p['total'] ?? 0) >= $level) {
+                if (! $p['folded'] && (int) ($p['total'] ?? 0) >= $level) {
                     $eligible[] = $p['id'];
                 }
             }
@@ -1012,7 +1038,7 @@ class HandPlayService
             $players[$this->indexOf($players, $id)]['stack'] += $amount;
         }
         if (count($awards) === 1 && ($meta['street'] ?? '') !== 'showdown') {
-            $this->log($meta, $players[$this->indexOf($players, $winnerId)]['name'] . ' gana ' . $this->bb(array_sum($awards), $meta), 'win');
+            $this->log($meta, $players[$this->indexOf($players, $winnerId)]['name'].' gana '.$this->bb(array_sum($awards), $meta), 'win');
         }
 
         $w = $this->indexOf($players, $winnerId);
@@ -1020,7 +1046,7 @@ class HandPlayService
         $meta['awards'] = $awards;
 
         // Estadísticas observadas del torneo (se calculan una sola vez, al cerrar la mano)
-        app(\App\Services\Stats\TournamentStatsService::class)
+        app(TournamentStatsService::class)
             ->recordHand($players, $meta, $awards, $hand->community_cards ?? []);
 
         // Historial estructurado: resultado de cada jugador, botes y board completo
@@ -1030,7 +1056,7 @@ class HandPlayService
         // Análisis de EV: equity contra las cartas reales, EV por decisión y all-in ajustado.
         // Se guarda en el historial y, para el héroe, se añade al log de la mesa.
         try {
-            foreach (app(\App\Services\Ev\DecisionEvAnalyzer::class)->analyze($hand) as $entry) {
+            foreach (app(DecisionEvAnalyzer::class)->analyze($hand) as $entry) {
                 $meta['log'][] = $entry;
             }
         } catch (\Throwable $e) {
@@ -1051,13 +1077,13 @@ class HandPlayService
         $hand->result = ! $hero ? 'bots' : ($heroWon <= 0 ? 'lose' : (count($awards) > 1 ? 'split' : 'win'));
         // Bote de la última calle jugada (el de las anteriores se guarda al cambiar de calle): sin esto el listado de manos mostraba siempre 0
         $lastStreet = in_array($meta['street'] ?? '', ['preflop', 'flop', 'turn', 'river'], true) ? $meta['street'] : 'river';
-        $hand->{'pot_' . $lastStreet} = $meta['pot_won'] ?? 0;
+        $hand->{'pot_'.$lastStreet} = $meta['pot_won'] ?? 0;
         $hand->stacks_after = array_column($players, 'stack', 'id');
         $hand->save();
 
         // Persistir stacks en el torneo
         foreach ($players as $p) {
-            \App\Models\TournamentPlayer::whereKey($p['id'])->update(['current_stack' => $p['stack']]);
+            TournamentPlayer::whereKey($p['id'])->update(['current_stack' => $p['stack']]);
         }
     }
 
@@ -1071,14 +1097,14 @@ class HandPlayService
      */
     public function ensureInitialized(TournamentHand $hand, ?array $deal = null): void
     {
-        if (!empty($hand->players_in_hand) && array_key_exists('turn', $hand->actions ?? [])) {
+        if (! empty($hand->players_in_hand) && array_key_exists('turn', $hand->actions ?? [])) {
             return;
         }
 
         $pending = $hand->actions['pending_log'] ?? [];
 
         if ($deal !== null) {
-            $players = array_map(fn($d) => [
+            $players = array_map(fn ($d) => [
                 'id' => (int) $d['id'], 'name' => (string) $d['name'], 'stack' => (int) $d['stack'], 'bet' => 0, 'bet_visible' => false, 'total' => 0,
                 'folded' => false, 'all_in' => false, 'acted' => false, 'is_bot' => (bool) $d['is_bot'], 'seat' => (int) $d['seat'], 'hole_cards' => $d['hole_cards'],
             ], array_values($deal['players']));
@@ -1098,7 +1124,7 @@ class HandPlayService
             $deck = [];
             foreach (self::RANKS as $r) {
                 foreach (self::SUITS as $s) {
-                    $deck[] = $r . $s;
+                    $deck[] = $r.$s;
                 }
             }
             shuffle($deck);
@@ -1139,7 +1165,7 @@ class HandPlayService
         }
         $this->history()->seat(
             $hand, $players, $positions,
-            app(\App\Services\Stats\TournamentStatsService::class)->summaries(array_column($players, 'id'))
+            app(TournamentStatsService::class)->summaries(array_column($players, 'id'))
         );
 
         $sbIdx = $n === 2 ? $btn : ($btn + 1) % $n;
@@ -1171,15 +1197,15 @@ class HandPlayService
         foreach ($pending as $e) {
             $meta['log'][] = $e; // eventos del torneo (eliminaciones, cambios de mesa)
         }
-        $this->log($meta, '🎰 Mano #' . $hand->hand_number . ' comenzó', 'start');
+        $this->log($meta, '🎰 Mano #'.$hand->hand_number.' comenzó', 'start');
         $heroCards = collect($players)->firstWhere('is_bot', false)['hole_cards'] ?? [];
-        if (!empty($heroCards)) {
+        if (! empty($heroCards)) {
             $this->log($meta, 'Tus cartas', 'deal', ['cards' => $heroCards]);
         }
         $this->log(
             $meta,
-            ($ante > 0 ? "Ante {$ante}. " : '') . 'Ciegas ' . $sb . '/' . $bb
-                . ' (' . $players[$sbIdx]['name'] . ' SB, ' . $players[$bbIdx]['name'] . ' BB)',
+            ($ante > 0 ? "Ante {$ante}. " : '').'Ciegas '.$sb.'/'.$bb
+                .' ('.$players[$sbIdx]['name'].' SB, '.$players[$bbIdx]['name'].' BB)',
             'info',
         );
 
@@ -1187,7 +1213,7 @@ class HandPlayService
         $meta['turn'] = null;
         for ($offset = 0; $offset < $n; $offset++) {
             $candidate = ($first + $offset) % $n;
-            if (!$players[$candidate]['folded'] && !$players[$candidate]['all_in']) {
+            if (! $players[$candidate]['folded'] && ! $players[$candidate]['all_in']) {
                 $meta['turn'] = $players[$candidate]['id'];
                 break;
             }
@@ -1200,7 +1226,7 @@ class HandPlayService
         $hand->save();
 
         // Inicializar rangos dinámicos para todos los jugadores
-        $rangeFilter = app(\App\Services\Bots\RangeFilter::class);
+        $rangeFilter = app(RangeFilter::class);
         foreach ($players as $i => $player) {
             $tp = $hand->table ? $hand->table->players()->find($player['id']) : $hand->tournament->players()->find($player['id']);
             if ($tp) {
@@ -1239,7 +1265,7 @@ class HandPlayService
         $effectiveMax = min($total, $opponentMax);
 
         $raise = null;
-        if (!$locked && $effectiveMax > $max) {
+        if (! $locked && $effectiveMax > $max) {
             $raise = ['min' => min($this->minRaiseTo($players, $meta), $effectiveMax), 'max' => $effectiveMax];
         }
         $playerIndex = $this->indexOf($players, $p['id']);
@@ -1343,6 +1369,7 @@ class HandPlayService
         if ($id === null) {
             throw new \RuntimeException('No hay turno activo');
         }
+
         return $players[$this->indexOf($players, $id)];
     }
 
@@ -1360,21 +1387,28 @@ class HandPlayService
     {
         $best = [0];
         $n = count($cards);
-        for ($a = 0; $a < $n - 4; $a++) for ($b = $a + 1; $b < $n - 3; $b++)
-        for ($c = $b + 1; $c < $n - 2; $c++) for ($d = $c + 1; $d < $n - 1; $d++)
-        for ($e = $d + 1; $e < $n; $e++) {
-            $s = $this->score5([$cards[$a], $cards[$b], $cards[$c], $cards[$d], $cards[$e]]);
-            if ($this->compare($s, $best) > 0) {
-                $best = $s;
+        for ($a = 0; $a < $n - 4; $a++) {
+            for ($b = $a + 1; $b < $n - 3; $b++) {
+                for ($c = $b + 1; $c < $n - 2; $c++) {
+                    for ($d = $c + 1; $d < $n - 1; $d++) {
+                        for ($e = $d + 1; $e < $n; $e++) {
+                            $s = $this->score5([$cards[$a], $cards[$b], $cards[$c], $cards[$d], $cards[$e]]);
+                            if ($this->compare($s, $best) > 0) {
+                                $best = $s;
+                            }
+                        }
+                    }
+                }
             }
         }
+
         return $best;
     }
 
     private function score5(array $cards): array
     {
-        $vals = array_map(fn($c) => array_search(mb_substr($c, 0, 1), self::RANKS) + 2, $cards);
-        $suits = array_map(fn($c) => mb_substr($c, 1, 1), $cards);
+        $vals = array_map(fn ($c) => array_search(mb_substr($c, 0, 1), self::RANKS) + 2, $cards);
+        $suits = array_map(fn ($c) => mb_substr($c, 1, 1), $cards);
         rsort($vals);
 
         $flush = count(array_unique($suits)) === 1;
@@ -1389,18 +1423,35 @@ class HandPlayService
         }
 
         $counts = array_count_values($vals);
-        uksort($counts, fn($x, $y) => $counts[$y] <=> $counts[$x] ?: $y <=> $x);
+        uksort($counts, fn ($x, $y) => $counts[$y] <=> $counts[$x] ?: $y <=> $x);
         $groups = array_values($counts);
         $order = array_keys($counts);
 
-        if ($straightHigh && $flush) return [8, $straightHigh];
-        if ($groups[0] === 4) return [7, ...$order];
-        if ($groups[0] === 3 && $groups[1] === 2) return [6, ...$order];
-        if ($flush) return [5, ...$vals];
-        if ($straightHigh) return [4, $straightHigh];
-        if ($groups[0] === 3) return [3, ...$order];
-        if ($groups[0] === 2 && $groups[1] === 2) return [2, ...$order];
-        if ($groups[0] === 2) return [1, ...$order];
+        if ($straightHigh && $flush) {
+            return [8, $straightHigh];
+        }
+        if ($groups[0] === 4) {
+            return [7, ...$order];
+        }
+        if ($groups[0] === 3 && $groups[1] === 2) {
+            return [6, ...$order];
+        }
+        if ($flush) {
+            return [5, ...$vals];
+        }
+        if ($straightHigh) {
+            return [4, $straightHigh];
+        }
+        if ($groups[0] === 3) {
+            return [3, ...$order];
+        }
+        if ($groups[0] === 2 && $groups[1] === 2) {
+            return [2, ...$order];
+        }
+        if ($groups[0] === 2) {
+            return [1, ...$order];
+        }
+
         return [0, ...$vals];
     }
 
@@ -1413,6 +1464,7 @@ class HandPlayService
                 return $d;
             }
         }
+
         return 0;
     }
 }

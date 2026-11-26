@@ -12,7 +12,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        foreach (DB::table('bots')->where(fn($q) => $q->whereNull('icono')->orWhere('icono', ''))->get(['id', 'tipo', 'perfil']) as $bot) {
+        foreach (DB::table('bots')->where(fn ($q) => $q->whereNull('icono')->orWhere('icono', ''))->get(['id', 'tipo', 'perfil']) as $bot) {
             DB::table('bots')->where('id', $bot->id)->update(['icono' => IconConfig::forTipo($bot->tipo, $bot->perfil)]);
         }
     }

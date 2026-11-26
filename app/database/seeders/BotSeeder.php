@@ -25,8 +25,8 @@ class BotSeeder extends Seeder
                 'metadata' => [
                     'descripcion' => 'Entra CASI EXCLUSIVAMENTE con pares de bolsillo buscando ligar set.',
                     'play_style' => 'Pares solamente → limpia o llama pequeño raise. Si no ligan set en flop → fold',
-                    'exploit' => 'Open amplio (villain no va a defender). Steal blinds constantemente.'
-                ]
+                    'exploit' => 'Open amplio (villain no va a defender). Steal blinds constantemente.',
+                ],
             ],
             [
                 'nombre' => 'Roca',
@@ -40,8 +40,8 @@ class BotSeeder extends Seeder
                 'metadata' => [
                     'descripcion' => 'Extremadamente conservador. Solo manos tier-1.',
                     'play_style' => 'Espera manos premium. Nunca juega marginal. Nunca bluffea.',
-                    'exploit' => 'Roba blinds permanentemente. Es predecible → 3-bet sus opens.'
-                ]
+                    'exploit' => 'Roba blinds permanentemente. Es predecible → 3-bet sus opens.',
+                ],
             ],
             [
                 'nombre' => 'Nit',
@@ -55,8 +55,8 @@ class BotSeeder extends Seeder
                 'metadata' => [
                     'descripcion' => 'Tight pero agresivo preflop. Foldea postflop ante presión.',
                     'play_style' => 'Abre rangos estándar. Agresivo preflop, pasivo postflop.',
-                    'exploit' => '3-bet agresivo (foldea 65%). C-bets fuertes postflop. Presión: abandona manos marginales.'
-                ]
+                    'exploit' => '3-bet agresivo (foldea 65%). C-bets fuertes postflop. Presión: abandona manos marginales.',
+                ],
             ],
             [
                 'nombre' => 'OMC',
@@ -70,8 +70,8 @@ class BotSeeder extends Seeder
                 'metadata' => [
                     'descripcion' => 'Old Man Coffee. Patrón vivo: limpa mucho, solo sube con premium.',
                     'play_style' => 'Limp pasivo con parejas, suites. Solo sube con AA, KK, AK.',
-                    'exploit' => 'Agresión ante sus limps. 3-bet sus opens. Control de blinds.'
-                ]
+                    'exploit' => 'Agresión ante sus limps. 3-bet sus opens. Control de blinds.',
+                ],
             ],
             [
                 'nombre' => 'TAG',
@@ -86,8 +86,8 @@ class BotSeeder extends Seeder
                     'descripcion' => 'Estilo ganador estándar. Equilibrado y adaptable.',
                     'play_style' => 'Abre rangos estándar por posición. 3-bets equilibrados. Agresivo postflop pero selectivo.',
                     'exploit' => 'Difícil (es el jugador a imitar). Tighten vs sus 3-bets. Juega valor-focused.',
-                    'profesional_desde_normal' => true
-                ]
+                    'profesional_desde_normal' => true,
+                ],
             ],
             [
                 'nombre' => 'LAG',
@@ -102,8 +102,8 @@ class BotSeeder extends Seeder
                     'descripcion' => 'Domina con rangos amplios. Alto volumen, agresión constante.',
                     'play_style' => 'Abre amplio desde cualquier posición. 3-bets light. Agresión postflop.',
                     'exploit' => 'Tighten 3-bet range. Check-trap con value. Controla aggression con c-bets.',
-                    'profesional_desde_normal' => true
-                ]
+                    'profesional_desde_normal' => true,
+                ],
             ],
             [
                 'nombre' => 'Calling Station',
@@ -119,8 +119,8 @@ class BotSeeder extends Seeder
                     'play_style' => 'Juega muchas manos pero pasivamente. Paga raises con marginal. Rara vez foldean.',
                     'exploit' => 'Value bet agresivo (foldeam poco). Poco bluff. Aprieta si va en tilt.',
                     'tilts_easily' => true,
-                    'ev_on_tilt' => '-40%'
-                ]
+                    'ev_on_tilt' => '-40%',
+                ],
             ],
             [
                 'nombre' => 'Maníaco',
@@ -136,8 +136,8 @@ class BotSeeder extends Seeder
                     'play_style' => 'Raise-happy con cualquier cosa. Impredecible, altísima varianza.',
                     'exploit' => 'Tightear decisiones. Valuebets fuertes. Deja ganar al azar.',
                     'tilts_easily' => true,
-                    'ev_on_tilt' => '-60%'
-                ]
+                    'ev_on_tilt' => '-60%',
+                ],
             ],
             [
                 'nombre' => 'Ballena',
@@ -152,9 +152,9 @@ class BotSeeder extends Seeder
                     'descripcion' => 'Completamente errático. Juega por diversión/apuestas, NO para ganar.',
                     'play_style' => 'Entra mayoría de manos. Nunca sube. Paga todo. Juega sin lógica matemática.',
                     'exploit' => 'Juega poker normal. Value bet constante. Deja que cometa errores. Variable (suerte puede ayudarlo).',
-                    'tilts_easily' => false
-                ]
-            ]
+                    'tilts_easily' => false,
+                ],
+            ],
         ];
 
         foreach ($bots as $botData) {

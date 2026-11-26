@@ -33,7 +33,9 @@ class DecisionContract
     ];
 
     private const POSTFLOP_FRACTION = ['bet_third' => 0.33, 'bet_half' => 0.5, 'bet_twothirds' => 0.66, 'bet_pot' => 1.0, 'bet_overbet' => 1.5];
+
     private const OPEN_BB = ['open_2bb' => 2.0, 'open_2_5bb' => 2.5, 'open_3bb' => 3.0];
+
     private const RAISE_MULT = ['raise_x2_2' => 2.2, 'raise_x3' => 3.0, 'raise_x4' => 4.0];
 
     /**
@@ -191,9 +193,9 @@ class DecisionContract
     /**
      * Estado + acción real de una mano de PokerTracker.
      *
-     * @param  array  $hand    mano de HandHistoryParser::parse()
-     * @param  int    $index   posición de la acción dentro de $hand['actions']
-     * @return array{state: array, action: string}|null  null si el jugador no tiene cartas conocidas (el estado sería incompleto)
+     * @param  array  $hand  mano de HandHistoryParser::parse()
+     * @param  int  $index  posición de la acción dentro de $hand['actions']
+     * @return array{state: array, action: string}|null null si el jugador no tiene cartas conocidas (el estado sería incompleto)
      */
     public function fromHistory(array $hand, int $index, array $profiles = []): ?array
     {

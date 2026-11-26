@@ -43,6 +43,7 @@ class HandTypeTilt
     private const BANDS = 10;
 
     private const RANKS = 'AKQJT98765432';
+
     private const DB_POSITION = ['MP' => 'HJ'];
 
     /**
@@ -82,8 +83,8 @@ class HandTypeTilt
      * Aprende el desplazamiento (en puntos de percentil, negativo = la clase se juega más de lo que dice el ranking)
      * de cada clase de mano.
      *
-     * @param iterable<BotPreflopHandStat> $stats manos mostradas por posición
-     * @param array $tables tablas generadas SIN inclinación (RivalPreflopTables::generate)
+     * @param  iterable<BotPreflopHandStat>  $stats  manos mostradas por posición
+     * @param  array  $tables  tablas generadas SIN inclinación (RivalPreflopTables::generate)
      * @return array<string, float> clase => desplazamiento; vacío si no hay muestra suficiente
      */
     public function learn(iterable $stats, array $tables): array
@@ -161,16 +162,16 @@ class HandTypeTilt
             $shifts[$class] = round(max(-self::MAX_SHIFT, min(self::MAX_SHIFT, $shift)), 2);
         }
 
-        return array_filter($shifts, fn($s) => abs($s) >= 0.05) ? $shifts : [];
+        return array_filter($shifts, fn ($s) => abs($s) >= 0.05) ? $shifts : [];
     }
 
     /**
      * Aplica los desplazamientos al percentil genérico y vuelve a ordenar, recalculando el percentil como
      * porcentaje acumulado de combinaciones (mismo criterio que PreflopRanking: punto medio de cada mano).
      *
-     * @param array<string, float> $percentiles percentil genérico por mano
-     * @param array<string, int|float> $weights combinaciones por mano
-     * @param array<string, float> $shifts clase => desplazamiento
+     * @param  array<string, float>  $percentiles  percentil genérico por mano
+     * @param  array<string, int|float>  $weights  combinaciones por mano
+     * @param  array<string, float>  $shifts  clase => desplazamiento
      * @return array<string, float>
      */
     public function apply(array $percentiles, array $weights, array $shifts): array
@@ -180,7 +181,7 @@ class HandTypeTilt
             $score[$hand] = $percentile + ($shifts[self::classify($hand)] ?? 0.0);
         }
         $hands = array_keys($percentiles);
-        usort($hands, fn($a, $b) => [$score[$a], $percentiles[$a]] <=> [$score[$b], $percentiles[$b]]);
+        usort($hands, fn ($a, $b) => [$score[$a], $percentiles[$a]] <=> [$score[$b], $percentiles[$b]]);
 
         $total = array_sum($weights);
         $out = [];

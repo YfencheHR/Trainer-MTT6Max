@@ -10,9 +10,7 @@ use Illuminate\Http\Request;
 /** Qué ventana puede jugar un torneo: la mesa pide el turno al abrirse, lo renueva mientras sigue abierta y lo libera al cerrarse. */
 class TournamentWindowController extends Controller
 {
-    public function __construct(private TournamentWindowLock $windows)
-    {
-    }
+    public function __construct(private TournamentWindowLock $windows) {}
 
     /** Pide (o renueva) el turno. `take` = quedarse con el torneo aunque lo tenga otra ventana. */
     public function claim(Tournament $tournament, Request $request): JsonResponse

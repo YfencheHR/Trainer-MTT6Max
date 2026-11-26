@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Bot;
 use App\Config\BotConfig;
+use App\Config\BotStreets;
+use App\Models\Bot;
+use App\Models\TournamentPlayer;
 use App\Services\Bots\RivalPreflopTables;
 use Illuminate\Http\Request;
 
@@ -15,13 +17,13 @@ class BotController extends Controller
 
         // Primero los del Pool (copias de los primarios, en el orden de los primarios, y después los perfiles nuevos por VPIP);
         // después los primarios
-        $pool = $bots->filter(fn($b) => $b->isPool())->sortBy(function ($b) {
+        $pool = $bots->filter(fn ($b) => $b->isPool())->sortBy(function ($b) {
             $m = (array) $b->metadata;
             $copia = ($m['source'] ?? null) === 'pt4_pool';
 
             return sprintf('%d-%05d', $copia ? 0 : 1, $copia ? (int) ($m['primary_id'] ?? 0) : 1000 - (int) $b->vpip);
         })->values();
-        $primarios = $bots->reject(fn($b) => $b->isPool())->values();
+        $primarios = $bots->reject(fn ($b) => $b->isPool())->values();
 
         return view('bots.index', ['bots' => $bots, 'pool' => $pool, 'primarios' => $primarios]);
     }
@@ -117,13 +119,14 @@ class BotController extends Controller
     {
         $tipos = BotConfig::getTipos();
         $perfiles = BotConfig::getPerfiles();
+
         return view('bots.edit', compact('bot', 'tipos', 'perfiles'));
     }
 
     public function update(Request $request, Bot $bot)
     {
         $validated = $request->validate([
-            'nombre' => 'required|string|unique:bots,nombre,' . $bot->id,
+            'nombre' => 'required|string|unique:bots,nombre,'.$bot->id,
             'tipo' => 'required|string',
             'perfil' => 'nullable|string',
             'vpip' => 'nullable|integer|min:0|max:100',
@@ -138,11 +141,11 @@ class BotController extends Controller
 
         // Estadísticas (agrupadas por calle en el formulario): todas van a la fila general del bot,
         // nunca a una fila de posición/acción, y solo se aceptan columnas conocidas
-        $allowed = collect(\App\Config\BotStreets::STREETS)->flatMap(fn($s) => array_merge($s['stats'], $s['adaptativas']))->all();
+        $allowed = collect(BotStreets::STREETS)->flatMap(fn ($s) => array_merge($s['stats'], $s['adaptativas']))->all();
         $values = [];
         foreach ($request->input('stats.1', []) as $statKey => $statValue) {
             if (in_array($statKey, $allowed, true) && $statValue !== null && $statValue !== '' && is_numeric($statValue)) {
-                $values[$statKey] = \App\Config\BotStreets::isRatio($statKey) ? (float) $statValue : (int) round($statValue);
+                $values[$statKey] = BotStreets::isRatio($statKey) ? (float) $statValue : (int) round($statValue);
             }
         }
         if ($values) {
@@ -237,13 +240,14 @@ class BotController extends Controller
         $nombre = $bot->nombre;
 
         // Si algún torneo ya juega con este perfil no se borra (rompería ese torneo): se archiva y desaparece de las listas
-        if (\App\Models\TournamentPlayer::where('bot_id', $bot->id)->exists()) {
+        if (TournamentPlayer::where('bot_id', $bot->id)->exists()) {
             $bot->forceFill(['archived_at' => now()])->save();
 
             return redirect()->route('bots.index')->with('success', "Bot '{$nombre}' retirado: lo usan torneos ya jugados, así que se ha archivado en vez de borrarse.");
         }
 
         $bot->delete();
+
         return redirect()->route('bots.index')->with('success', "Bot '{$nombre}' eliminado exitosamente.");
     }
 
@@ -269,7 +273,7 @@ class BotController extends Controller
         $ranges = $bot->preflopHandRanges()
             ->where('position', $position)
             ->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'hand' => $r->hand,
                 'attack' => [
                     'open' => $r->attack_open,

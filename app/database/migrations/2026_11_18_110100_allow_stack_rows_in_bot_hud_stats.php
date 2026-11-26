@@ -20,7 +20,7 @@ return new class extends Migration
             return;
         }
 
-        $def = preg_replace('/ARRAY\[/', 'ARRAY[' . $inject, $row->def, 1);
+        $def = preg_replace('/ARRAY\[/', 'ARRAY['.$inject, $row->def, 1);
         DB::statement("ALTER TABLE bot_hud_stats DROP CONSTRAINT {$constraint}");
         DB::statement("ALTER TABLE bot_hud_stats ADD CONSTRAINT {$constraint} {$def}");
     }

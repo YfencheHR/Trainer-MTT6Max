@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Bot;
+use App\Services\Ai\AiBrain;
+use App\Services\Ai\AiClient;
 use App\Services\Bots\BotDecisionService;
+use App\Services\Bots\Brain\BrainRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -150,12 +153,12 @@ class AiBrainTest extends TestCase
 
     public function test_a_bot_adapts_to_the_rival_as_much_as_its_skill_allows(): void
     {
-        $this->mock(\App\Services\Bots\Brain\BrainRepository::class, function ($mock) {
+        $this->mock(BrainRepository::class, function ($mock) {
             $mock->shouldReceive('forPlayer')->with(7)->andReturn(['skill' => ['tier' => 'pro']]);
             $mock->shouldReceive('forPlayer')->with(8)->andReturn(['skill' => ['tier' => 'whale']]);
             $mock->shouldReceive('forPlayer')->with(9)->andThrow(new \RuntimeException('sin cerebro'));
         });
-        $brain = app(\App\Services\Ai\AiBrain::class);
+        $brain = app(AiBrain::class);
 
         $this->assertSame(1.0, $brain->adaptationFor(['me' => ['id' => 7]]));
         $this->assertSame(0.1, $brain->adaptationFor(['me' => ['id' => 8]]));
@@ -166,13 +169,13 @@ class AiBrainTest extends TestCase
     {
         file_put_contents(config('ai.model_file'), "\xEF\xBB\xBF".json_encode(['model' => 'con-bom']));
 
-        $this->assertSame('con-bom', app(\App\Services\Ai\AiClient::class)->model());
+        $this->assertSame('con-bom', app(AiClient::class)->model());
     }
 
     public function test_the_same_seed_gives_the_same_action(): void
     {
         Http::fake(['ia.test/ai/decide' => Http::response(['distribution' => ['call' => 0.5, 'fold' => 0.5]])]);
-        $brain = app(\App\Services\Ai\AiBrain::class);
+        $brain = app(AiBrain::class);
         $ctx = $this->ctx($this->bot('ai'));
 
         $this->assertSame($brain->decide($ctx, 99)['action'], $brain->decide($ctx, 99)['action']);
@@ -215,7 +218,7 @@ class AiBrainTest extends TestCase
         $ctx = $this->ctx($bot);
         $ctx['me']['id'] = 987654;   // en la réplica este id no existe en la base de datos
 
-        $this->assertSame(0.5, app(\App\Services\Ai\AiBrain::class)->adaptationFor($ctx), 'sin ser réplica, un jugador desconocido cae al valor por defecto');
-        $this->assertSame(1.0, app(\App\Services\Ai\AiBrain::class)->adaptationFor($ctx + ['replay' => true]));
+        $this->assertSame(0.5, app(AiBrain::class)->adaptationFor($ctx), 'sin ser réplica, un jugador desconocido cae al valor por defecto');
+        $this->assertSame(1.0, app(AiBrain::class)->adaptationFor($ctx + ['replay' => true]));
     }
 }

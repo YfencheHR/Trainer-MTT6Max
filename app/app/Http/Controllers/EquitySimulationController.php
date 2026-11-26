@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Equity\HandMatrixGenerator;
 use App\Services\Equity\EquitySimulationClient;
+use App\Services\Equity\HandMatrixGenerator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -94,7 +94,7 @@ class EquitySimulationController extends Controller
             $type = $request->query('type'); // 'attack' or 'defense'
             $depth = $request->query('depth');
 
-            if (!in_array($type, ['attack', 'defense'])) {
+            if (! in_array($type, ['attack', 'defense'])) {
                 return response()->json(['error' => 'Invalid type'], 400);
             }
 
@@ -199,7 +199,7 @@ class EquitySimulationController extends Controller
     {
         $index = $this->generator->loadIndex();
 
-        if (!$index) {
+        if (! $index) {
             return response()->json([
                 'status' => 'not_generated',
                 'message' => 'Tablas aún no se han generado. Ejecuta: php artisan equity:generate-tables',

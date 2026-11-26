@@ -40,7 +40,7 @@ class PreflopOpponentDangerTest extends TestCase
             'stats' => ['hands' => 100],
             'preflop_stats' => ['vpip' => 10, 'pfr' => 30, 'three_bet' => 20, 'source' => 'observed'],
         ]);
-        $matrix = new DecisionMatrix();
+        $matrix = new DecisionMatrix;
         $matrix->mix(['open_2_5bb' => 50, 'call' => 50]);
 
         $result = app(PreflopOpponentDanger::class)->apply(
@@ -69,7 +69,7 @@ class PreflopOpponentDangerTest extends TestCase
             'stats' => ['hands' => 100],
             'preflop_stats' => ['vpip' => 80, 'pfr' => 10, 'three_bet' => 2, 'source' => 'observed'],
         ]);
-        $matrix = new DecisionMatrix();
+        $matrix = new DecisionMatrix;
         $matrix->mix(['open_2_5bb' => 50, 'call' => 50]);
 
         $result = app(PreflopOpponentDanger::class)->apply(
@@ -94,7 +94,7 @@ class PreflopOpponentDangerTest extends TestCase
             'stats' => ['hands' => 100],
             'preflop_stats' => ['vpip' => 10, 'pfr' => 30, 'three_bet' => 20, 'source' => 'observed'],
         ]);
-        $matrix = new DecisionMatrix();
+        $matrix = new DecisionMatrix;
         $matrix->mix(['open_2_5bb' => 50, 'call' => 50]);
 
         $result = app(PreflopOpponentDanger::class)->apply(

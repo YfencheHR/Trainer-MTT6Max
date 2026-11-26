@@ -10,8 +10,7 @@ class GameTableManager
     public function __construct(
         protected TablePositionService $positionService,
         protected HandPlayService $handPlayService
-    ) {
-    }
+    ) {}
 
     public function getTableData(TournamentHand $hand): array
     {

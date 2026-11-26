@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Models\Bot;
 use App\Models\BotHudStat;
 use App\Models\BotPreflopHandRange;
+use App\Services\Bots\BotFreezer;
 use App\Services\Bots\Brain\BotProfile;
 use App\Services\Bots\Brain\PreflopStrategyMatrix;
-use App\Services\Bots\BotFreezer;
 use App\Services\Bots\RivalPreflopTables;
 use Database\Seeders\BotSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,8 +60,8 @@ class StackBucketsTest extends TestCase
             $this->assertSame(6 * 169, BotPreflopHandRange::where(['bot_id' => $bot->id, 'stack_bucket' => $bucket])->count(), $bucket);
         }
 
-        $open = fn(string $bucket) => $this->mass($tables, $bot, 'BTN', $bucket, fn($f) => $f['attack']['open']);
-        $three = fn(string $bucket) => $this->mass($tables, $bot, 'CO', $bucket, fn($f) => $f['defense']['three_bet']);
+        $open = fn (string $bucket) => $this->mass($tables, $bot, 'BTN', $bucket, fn ($f) => $f['attack']['open']);
+        $three = fn (string $bucket) => $this->mass($tables, $bot, 'CO', $bucket, fn ($f) => $f['defense']['three_bet']);
         $this->assertGreaterThan($open('40+'), $open('0-10'));
         $this->assertGreaterThan($three('40+') * 2, $three('0-10'));
         $this->assertGreaterThan($three('20-40'), $three('10-20'));
@@ -72,7 +72,7 @@ class StackBucketsTest extends TestCase
         $bot = $this->bot();
         app(RivalPreflopTables::class)->forBot($bot);
         $matrix = app(PreflopStrategyMatrix::class);
-        $decide = fn(float $stack) => $matrix->forDecision(['me' => ['bot_id' => $bot->id]], [
+        $decide = fn (float $stack) => $matrix->forDecision(['me' => ['bot_id' => $bot->id]], [
             'street' => 'preflop', 'position' => 'BTN', 'hand_code' => 'A5s', 'preflop_raises' => 0, 'limpers' => 0, 'stack_bb' => $stack,
         ]);
 

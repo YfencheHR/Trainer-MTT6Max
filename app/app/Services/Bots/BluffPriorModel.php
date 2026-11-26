@@ -19,10 +19,11 @@ class BluffPriorModel
 
     /** El farol de un rango de apuesta no baja de este % ni sube de este otro, por muy extremo que sea el PFR. */
     public const MIN_SHARE = 3.0;
+
     public const MAX_SHARE = 60.0;
 
     /**
-     * @param array<int, array{0: float, 1: int}> $points [pfr, 1 si la apuesta fue con aire]
+     * @param  array<int, array{0: float, 1: int}>  $points  [pfr, 1 si la apuesta fue con aire]
      * @return array{intercept: float, slope: float, r2: float, n: int}|null
      */
     public static function fit(array $points, int $groups = 5): ?array
@@ -31,7 +32,7 @@ class BluffPriorModel
         if ($n < self::MIN_POINTS) {
             return null;
         }
-        usort($points, fn($a, $b) => $a[0] <=> $b[0]);
+        usort($points, fn ($a, $b) => $a[0] <=> $b[0]);
 
         $size = intdiv($n, $groups);
         $bins = [];
@@ -46,11 +47,11 @@ class BluffPriorModel
         }
 
         $w = array_sum(array_column($bins, 'w'));
-        $mx = array_sum(array_map(fn($b) => $b['w'] * $b['x'], $bins)) / $w;
-        $my = array_sum(array_map(fn($b) => $b['w'] * $b['y'], $bins)) / $w;
-        $vx = array_sum(array_map(fn($b) => $b['w'] * ($b['x'] - $mx) ** 2, $bins)) / $w;
-        $vy = array_sum(array_map(fn($b) => $b['w'] * ($b['y'] - $my) ** 2, $bins)) / $w;
-        $cv = array_sum(array_map(fn($b) => $b['w'] * ($b['x'] - $mx) * ($b['y'] - $my), $bins)) / $w;
+        $mx = array_sum(array_map(fn ($b) => $b['w'] * $b['x'], $bins)) / $w;
+        $my = array_sum(array_map(fn ($b) => $b['w'] * $b['y'], $bins)) / $w;
+        $vx = array_sum(array_map(fn ($b) => $b['w'] * ($b['x'] - $mx) ** 2, $bins)) / $w;
+        $vy = array_sum(array_map(fn ($b) => $b['w'] * ($b['y'] - $my) ** 2, $bins)) / $w;
+        $cv = array_sum(array_map(fn ($b) => $b['w'] * ($b['x'] - $mx) * ($b['y'] - $my), $bins)) / $w;
         if ($vx <= 0) {
             return null;
         }

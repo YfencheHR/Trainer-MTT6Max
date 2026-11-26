@@ -21,7 +21,7 @@ class BotHudStatsSeeder extends Seeder
     {
         foreach (Bot::all() as $bot) {
             $doc = BotProfile::DOCUMENTED[$bot->tipo] ?? null;
-            if (!$doc) {
+            if (! $doc) {
                 continue;
             }
 

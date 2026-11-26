@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Bot;
 use App\Models\BotPreflopHandRange;
-use App\Services\Bots\Brain\PreflopStrategyMatrix;
 use App\Services\Bots\BotFreezer;
+use App\Services\Bots\Brain\PreflopStrategyMatrix;
 use App\Services\Bots\RivalPreflopTables;
 use Database\Seeders\BotSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;

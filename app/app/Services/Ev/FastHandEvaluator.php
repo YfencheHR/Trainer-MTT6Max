@@ -15,6 +15,7 @@ namespace App\Services\Ev;
 class FastHandEvaluator
 {
     public const RANKS = '23456789TJQKA';
+
     private const SUITS = ['♠' => 0, '♥' => 1, '♦' => 2, '♣' => 3];
 
     /** "A♠" → entero 0-51 */
@@ -32,14 +33,14 @@ class FastHandEvaluator
     /** @param string[] $cards */
     public static function cards(array $cards): array
     {
-        return array_map(fn($c) => is_int($c) ? $c : self::card($c), $cards);
+        return array_map(fn ($c) => is_int($c) ? $c : self::card($c), $cards);
     }
 
     /**
      * Puntuación de la mejor mano de 5 entre las cartas dadas (5, 6 o 7).
      *
-     * @param bool $straights false = ignora escaleras (y escaleras de color): mano "vista" por quien no las reconoce
-     * @param bool $flushes   false = ignora colores (y escaleras de color)
+     * @param  bool  $straights  false = ignora escaleras (y escaleras de color): mano "vista" por quien no las reconoce
+     * @param  bool  $flushes  false = ignora colores (y escaleras de color)
      */
     public static function score(array $cards, bool $straights = true, bool $flushes = true): int
     {
@@ -65,6 +66,7 @@ class FastHandEvaluator
                     return (8 << 20) | ($sf << 16);
                 }
                 $flush = self::topRanks($suitMask[$s], 5);
+
                 return (5 << 20) | self::pack($flush);
             }
         }
@@ -75,19 +77,24 @@ class FastHandEvaluator
         $pairs = [];
         for ($r = 12; $r >= 0; $r--) {
             switch ($cnt[$r]) {
-                case 4: $quad = $r; break;
-                case 3: $trips[] = $r; break;
-                case 2: $pairs[] = $r; break;
+                case 4: $quad = $r;
+                    break;
+                case 3: $trips[] = $r;
+                    break;
+                case 2: $pairs[] = $r;
+                    break;
             }
         }
 
         if ($quad >= 0) {
             $kick = self::topRanks($all & ~(1 << $quad), 1);
+
             return (7 << 20) | self::pack([$quad, $kick[0] ?? 0]);
         }
 
         if ($trips && (count($trips) > 1 || $pairs)) {
             $pair = count($trips) > 1 ? max($trips[1], $pairs[0] ?? -1) : $pairs[0];
+
             return (6 << 20) | self::pack([$trips[0], $pair]);
         }
 
@@ -98,16 +105,19 @@ class FastHandEvaluator
 
         if ($trips) {
             $kick = self::topRanks($all & ~(1 << $trips[0]), 2);
+
             return (3 << 20) | self::pack([$trips[0], ...$kick]);
         }
 
         if (count($pairs) >= 2) {
             $kick = self::topRanks($all & ~(1 << $pairs[0]) & ~(1 << $pairs[1]), 1);
+
             return (2 << 20) | self::pack([$pairs[0], $pairs[1], $kick[0] ?? 0]);
         }
 
         if ($pairs) {
             $kick = self::topRanks($all & ~(1 << $pairs[0]), 3);
+
             return (1 << 20) | self::pack([$pairs[0], ...$kick]);
         }
 

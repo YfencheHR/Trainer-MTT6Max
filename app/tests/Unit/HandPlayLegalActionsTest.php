@@ -79,7 +79,7 @@ class HandPlayLegalActionsTest extends TestCase
             $players[$index]['stack'] = 10000;
         }
 
-        $service = new HandPlayService();
+        $service = new HandPlayService;
         $method = new ReflectionMethod($service, 'heroLegal');
         $legal = $method->invoke($service, $players, [
             'turn' => 1,
@@ -103,7 +103,7 @@ class HandPlayLegalActionsTest extends TestCase
             $players[$index]['stack'] = 10000;
         }
 
-        $service = new HandPlayService();
+        $service = new HandPlayService;
         $method = new ReflectionMethod($service, 'heroLegal');
         $legal = $method->invoke($service, $players, [
             'turn' => 1,
@@ -135,7 +135,7 @@ class HandPlayLegalActionsTest extends TestCase
     {
         $player = ['stack' => 100, 'bet' => 10, 'total' => 10, 'all_in' => false];
         $meta = ['pot' => 30];
-        $service = new HandPlayService();
+        $service = new HandPlayService;
         $method = new ReflectionMethod($service, 'postAnte');
         $arguments = [&$player, &$meta, 15];
 
@@ -150,7 +150,7 @@ class HandPlayLegalActionsTest extends TestCase
 
     private function legalActions(array $players, int $playerIndex, string $street): array
     {
-        $service = new HandPlayService();
+        $service = new HandPlayService;
         $method = new ReflectionMethod($service, 'legalActions');
 
         return $method->invoke($service, $players, [
@@ -163,7 +163,7 @@ class HandPlayLegalActionsTest extends TestCase
 
     private function players(array $bets): array
     {
-        return array_map(fn(int $bet, int $index) => [
+        return array_map(fn (int $bet, int $index) => [
             'id' => $index + 1,
             'bet' => $bet,
             'stack' => 1000,

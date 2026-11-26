@@ -20,7 +20,7 @@ class BotsProtectStatsCommand extends Command
     public function handle(): int
     {
         $columns = array_unique(array_merge(array_keys(StatBounds::BOUNDS), ['reraise_vs_3bet']));
-        $poolIds = Bot::all()->filter(fn(Bot $b) => $b->isPool())->pluck('id');
+        $poolIds = Bot::all()->filter(fn (Bot $b) => $b->isPool())->pluck('id');
 
         $changedRows = 0;
         $byStat = [];
@@ -32,7 +32,7 @@ class BotsProtectStatsCommand extends Command
                 }
             }
             $after = StatBounds::apply($before);
-            $diff = array_filter($after, fn($v, $k) => $v != $before[$k], ARRAY_FILTER_USE_BOTH);
+            $diff = array_filter($after, fn ($v, $k) => $v != $before[$k], ARRAY_FILTER_USE_BOTH);
             if (! $diff) {
                 continue;
             }
@@ -46,7 +46,7 @@ class BotsProtectStatsCommand extends Command
         }
 
         ksort($byStat);
-        $this->info(($this->option('dry') ? '[dry] ' : '') . "Filas modificadas: $changedRows de " . BotHudStat::whereIn('bot_id', $poolIds)->count());
+        $this->info(($this->option('dry') ? '[dry] ' : '')."Filas modificadas: $changedRows de ".BotHudStat::whereIn('bot_id', $poolIds)->count());
         foreach ($byStat as $column => $n) {
             $this->line("  $column: $n");
         }

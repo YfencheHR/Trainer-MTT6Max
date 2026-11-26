@@ -18,7 +18,7 @@ class SimulationController extends Controller
     {
         $data = $request->validate([
             'players' => ['required', 'integer', 'min:12', 'max:600'],
-            'speed' => ['required', 'in:' . implode(',', SimulationLauncher::SPEEDS)],
+            'speed' => ['required', 'in:'.implode(',', SimulationLauncher::SPEEDS)],
         ]);
 
         if ($running = $launcher->running()) {

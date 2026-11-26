@@ -16,7 +16,7 @@ class HandHistoryParser
     private const STREET_MARKERS = ['*** HOLE CARDS ***' => 'preflop', '*** PRE-FLOP ***' => 'preflop', '*** FLOP ***' => 'flop', '*** TURN ***' => 'turn', '*** RIVER ***' => 'river'];
 
     /**
-     * @return array|null  null si el texto no es una mano de torneo válida
+     * @return array|null null si el texto no es una mano de torneo válida
      */
     public function parse(string $text): ?array
     {
@@ -90,6 +90,7 @@ class HandHistoryParser
         foreach (array_slice($lines, $i) as $line) {
             if (isset(self::STREET_MARKERS[$line])) {
                 $street = self::STREET_MARKERS[$line]; // las ciegas ya puestas siguen contando en preflop
+
                 continue;
             }
             if (preg_match('/^\*\*\* (FLOP|TURN|RIVER) \*\*\* (?:\[[^\]]*\] ?)?\[([^\]]+)\]/', $line, $m)) {
@@ -98,10 +99,12 @@ class HandHistoryParser
                 $currentBet = 0;
                 $board = array_merge($board, array_map(fn ($c) => $this->card($c), explode(' ', $m[2])));
                 $hand['board'] = $board;
+
                 continue;
             }
             if (str_starts_with($line, '*** SHOW DOWN') || str_starts_with($line, '*** SUMMARY')) {
                 $street = 'showdown';
+
                 continue;
             }
 
@@ -109,15 +112,18 @@ class HandHistoryParser
             if (preg_match('/^Dealt to (.+) \[([^\]]+)\]$/', $line, $m) && isset($names[$m[1]])) {
                 $hand['hero'] = $m[1];
                 $hand['players'][$names[$m[1]]]['hole_cards'] = array_map(fn ($c) => $this->card($c), explode(' ', $m[2]));
+
                 continue;
             }
             // Cartas enseñadas
             if (preg_match('/^(.+?):? shows \[([^\]]+)\]/', $line, $m) && isset($names[$m[1]])) {
                 $hand['players'][$names[$m[1]]]['hole_cards'] = array_map(fn ($c) => $this->card($c), explode(' ', $m[2]));
+
                 continue;
             }
             if (preg_match('/^(.+) collected (\d+) from pot/', $line, $m) && isset($names[$m[1]])) {
                 $hand['winners'][$m[1]] = ($hand['winners'][$m[1]] ?? 0) + (int) $m[2];
+
                 continue;
             }
             if (preg_match('/^Uncalled bet \((\d+)\) returned to (.+)$/', $line, $m) && isset($names[$m[2]])) {
@@ -125,6 +131,7 @@ class HandHistoryParser
                 $stack[$k] += (int) $m[1];
                 $pot -= (int) $m[1];
                 $committed[$k] -= (int) $m[1];
+
                 continue;
             }
 
@@ -138,6 +145,7 @@ class HandHistoryParser
                     $committed[$k] += $amt;
                     $currentBet = max($currentBet, $committed[$k]);
                 }
+
                 continue;
             }
 
@@ -218,6 +226,7 @@ class HandHistoryParser
                 return 'BB';
             }
             $fromEnd = $n - $k; // 1 = CO, 2 = HJ, resto UTG
+
             return [1 => 'CO', 2 => 'HJ'][$fromEnd] ?? 'UTG';
         };
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 class EquitySimulationClient
 {
     protected string $baseUrl;
+
     protected int $timeout = 300; // 5 minutos
 
     public function __construct()
@@ -18,15 +19,15 @@ class EquitySimulationClient
     /**
      * Simula equity preflop
      *
-     * @param string $heroHand - ej 'AKs'
-     * @param array $villainRange - ej ['AA', 'KK', 'AKs']
-     * @param int $iterations - número de simulaciones
+     * @param  string  $heroHand  - ej 'AKs'
+     * @param  array  $villainRange  - ej ['AA', 'KK', 'AKs']
+     * @param  int  $iterations  - número de simulaciones
      */
     public function simulateEquity(string $heroHand, array $villainRange, int $iterations = 5000): array
     {
         try {
             $response = Http::timeout($this->timeout)
-                ->post($this->baseUrl . '/api/equity/simulate', [
+                ->post($this->baseUrl.'/api/equity/simulate', [
                     'hero_hand' => $heroHand,
                     'villain_range' => $villainRange,
                     'iterations' => $iterations,
@@ -37,7 +38,7 @@ class EquitySimulationClient
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
-                throw new \Exception('Equity simulation failed: ' . $response->body());
+                throw new \Exception('Equity simulation failed: '.$response->body());
             }
 
             return $response->json('result', []);
@@ -52,9 +53,6 @@ class EquitySimulationClient
 
     /**
      * Genera tabla de ataque para un stack depth
-     *
-     * @param int $stackDepthBb
-     * @param int $defenseRangePercent
      */
     public function generateAttackTable(
         int $stackDepthBb,
@@ -76,7 +74,7 @@ class EquitySimulationClient
             }
 
             $response = Http::timeout($this->timeout)
-                ->post($this->baseUrl . '/api/tables/generate/attack', $payload);
+                ->post($this->baseUrl.'/api/tables/generate/attack', $payload);
 
             if ($response->failed()) {
                 Log::error('Attack table generation failed', [
@@ -86,6 +84,7 @@ class EquitySimulationClient
             }
 
             $data = $response->json();
+
             return [
                 'stack_depth_bb' => $stackDepthBb,
                 'type' => 'ATTACK',
@@ -126,7 +125,7 @@ class EquitySimulationClient
             }
 
             $response = Http::timeout($this->timeout)
-                ->post($this->baseUrl . '/api/tables/generate/defense', $payload);
+                ->post($this->baseUrl.'/api/tables/generate/defense', $payload);
 
             if ($response->failed()) {
                 Log::error('Defense table generation failed', [
@@ -136,6 +135,7 @@ class EquitySimulationClient
             }
 
             $data = $response->json();
+
             return [
                 'stack_depth_bb' => $stackDepthBb,
                 'type' => 'DEFENSE',
@@ -159,15 +159,17 @@ class EquitySimulationClient
     public function getCacheStats(): array
     {
         try {
-            $response = Http::timeout(5)->get($this->baseUrl . '/api/cache/stats');
+            $response = Http::timeout(5)->get($this->baseUrl.'/api/cache/stats');
             if ($response->failed()) {
                 return [];
             }
+
             return $response->json('cache_stats', []);
         } catch (\Exception $e) {
             Log::error('Failed to get cache stats', [
                 'error' => $e->getMessage(),
             ]);
+
             return [];
         }
     }
@@ -178,12 +180,14 @@ class EquitySimulationClient
     public function healthCheck(): bool
     {
         try {
-            $response = Http::timeout(5)->get($this->baseUrl . '/health');
+            $response = Http::timeout(5)->get($this->baseUrl.'/health');
+
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('Python service health check failed', [
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }

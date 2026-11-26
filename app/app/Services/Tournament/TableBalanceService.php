@@ -41,10 +41,10 @@ class TableBalanceService
         while ($this->activeTables($tournament)->count() > $needed) {
             $tables = $this->activeTables($tournament);
             $candidate = $tables
-                ->filter(fn(Table $t) => !$this->hasPlayer($t, $heroId))
-                ->sortBy(fn(Table $t) => $this->count($t))
+                ->filter(fn (Table $t) => ! $this->hasPlayer($t, $heroId))
+                ->sortBy(fn (Table $t) => $this->count($t))
                 ->first();
-            if (!$candidate) {
+            if (! $candidate) {
                 break;
             }
 
@@ -52,10 +52,10 @@ class TableBalanceService
             $movedData = [];
             foreach ($this->players($candidate) as $p) {
                 $target = $this->activeTables($tournament)
-                    ->filter(fn(Table $t) => $t->id !== $candidate->id && $this->count($t) < self::TABLE_SIZE)
-                    ->sortBy(fn(Table $t) => $this->count($t))
+                    ->filter(fn (Table $t) => $t->id !== $candidate->id && $this->count($t) < self::TABLE_SIZE)
+                    ->sortBy(fn (Table $t) => $this->count($t))
                     ->first();
-                if (!$target) {
+                if (! $target) {
                     break;
                 }
                 $this->move($p->tournament_player_id, $candidate, $target);
@@ -65,7 +65,7 @@ class TableBalanceService
             $candidate->update(['is_active' => false]);
             $events[] = [
                 'type' => 'table_break',
-                'text' => "Mesa {$candidate->table_number} se rompe: " . implode(', ', $moved),
+                'text' => "Mesa {$candidate->table_number} se rompe: ".implode(', ', $moved),
                 'table_id' => $candidate->id,
                 'player_id' => null,
                 'payload' => ['table' => $candidate->table_number, 'moved' => $movedData],
@@ -74,7 +74,7 @@ class TableBalanceService
 
         // 2) Nivelar: mover bots de la mesa con más jugadores a la que menos tiene
         for ($i = 0; $i < 100; $i++) {
-            $tables = $this->activeTables($tournament)->sortBy(fn(Table $t) => $this->count($t))->values();
+            $tables = $this->activeTables($tournament)->sortBy(fn (Table $t) => $this->count($t))->values();
             if ($tables->count() < 2) {
                 break;
             }
@@ -85,10 +85,10 @@ class TableBalanceService
             }
 
             $player = $this->players($max)
-                ->filter(fn($p) => $p->tournament_player_id !== $heroId)
+                ->filter(fn ($p) => $p->tournament_player_id !== $heroId)
                 ->sortByDesc('seat_number')
                 ->first();
-            if (!$player) {
+            if (! $player) {
                 break;
             }
             $this->move($player->tournament_player_id, $max, $min);
@@ -140,7 +140,7 @@ class TableBalanceService
     private function move(int $playerId, Table $from, Table $to): void
     {
         $occupied = DB::table('table_players')->where('table_id', $to->id)->pluck('seat_number')->all();
-        $seat = collect(range(1, self::TABLE_SIZE))->first(fn($s) => !in_array($s, $occupied, true));
+        $seat = collect(range(1, self::TABLE_SIZE))->first(fn ($s) => ! in_array($s, $occupied, true));
         if ($seat === null) {
             throw new \RuntimeException("La mesa {$to->table_number} está llena");
         }

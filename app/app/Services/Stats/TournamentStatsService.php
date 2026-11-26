@@ -18,10 +18,10 @@ class TournamentStatsService
     public const MIN_HANDS_FOR_HUD = 5;
 
     /**
-     * @param array $players  players_in_hand al terminar (id = tournament_player_id)
-     * @param array $meta     actions de la mano (history, street, bb…)
-     * @param array $awards   [player_id => fichas ganadas]
-     * @param array $board    cartas comunitarias que llegaron a verse
+     * @param  array  $players  players_in_hand al terminar (id = tournament_player_id)
+     * @param  array  $meta  actions de la mano (history, street, bb…)
+     * @param  array  $awards  [player_id => fichas ganadas]
+     * @param  array  $board  cartas comunitarias que llegaron a verse
      */
     public function recordHand(array $players, array $meta, array $awards, array $board): void
     {
@@ -120,18 +120,18 @@ class TournamentStatsService
             $aggressive = $act === 'raise' || ($act === 'allin' && $amount > $streetMax);
 
             // Por calle: apostar cuando nadie ha apostado y foldear ante una apuesta (con sus oportunidades)
-            if (in_array($street, ["flop", "turn", "river"], true)) {
-                if ($streetMax === 0 && ($aggressive || $act === "check")) {
+            if (in_array($street, ['flop', 'turn', 'river'], true)) {
+                if ($streetMax === 0 && ($aggressive || $act === 'check')) {
                     $d[$pid]["{$street}_bet_opp"]++;
                     $d[$pid]["{$street}_bet"] += $aggressive ? 1 : 0;
-                } elseif ($streetMax > 0 && in_array($act, ["fold", "call", "raise", "allin"], true)) {
+                } elseif ($streetMax > 0 && in_array($act, ['fold', 'call', 'raise', 'allin'], true)) {
                     $d[$pid]["{$street}_f2bet_opp"]++;
-                    $d[$pid]["{$street}_f2bet"] += $act === "fold" ? 1 : 0;
+                    $d[$pid]["{$street}_f2bet"] += $act === 'fold' ? 1 : 0;
                 }
             }
 
             // C-bet: el último agresor preflop es el primero en apostar en el flop
-            if ($street === 'flop' && !$cbetDone && $pid === $lastRaiser && $streetMax === 0 && in_array($act, ['check', 'raise', 'allin', 'fold', 'call'], true)) {
+            if ($street === 'flop' && ! $cbetDone && $pid === $lastRaiser && $streetMax === 0 && in_array($act, ['check', 'raise', 'allin', 'fold', 'call'], true)) {
                 $flags['cbet_opp'][$pid] = true;
                 if ($aggressive) {
                     $flags['cbet'][$pid] = true;
@@ -153,13 +153,13 @@ class TournamentStatsService
         foreach ($players as $p) {
             $id = $p['id'];
             foreach (['vpip', 'pfr', 'three_bet_opp', 'three_bet', 'fold_to_three_bet_opp', 'fold_to_three_bet', 'cbet_opp', 'cbet'] as $k) {
-                if (!empty($flags[$k][$id])) {
+                if (! empty($flags[$k][$id])) {
                     $d[$id][$k] = 1;
                 }
             }
             if ($sawFlop && empty($foldedPreflop[$id])) {
                 $d[$id]['saw_flop'] = 1;
-                if ($showdown && !$p['folded']) {
+                if ($showdown && ! $p['folded']) {
                     $d[$id]['showdowns'] = 1;
                     if (($awards[$id] ?? 0) > 0) {
                         $d[$id]['showdown_wins'] = 1;

@@ -114,12 +114,13 @@ class TournamentController extends Controller
                 ->whereNull('posicion')
                 ->whereNull('accion')
                 ->first();
+
             return $hudStats &&
-                   !is_null($hudStats->vpip) &&
-                   !is_null($hudStats->pfr) &&
-                   !is_null($hudStats->three_bet) &&
-                   !is_null($hudStats->cbet) &&
-                   !is_null($hudStats->donk);
+                   ! is_null($hudStats->vpip) &&
+                   ! is_null($hudStats->pfr) &&
+                   ! is_null($hudStats->three_bet) &&
+                   ! is_null($hudStats->cbet) &&
+                   ! is_null($hudStats->donk);
         });
 
         if ($botsWithFullStats->isEmpty()) {
@@ -240,5 +241,4 @@ class TournamentController extends Controller
         return redirect()->route('mtt-simulator.show', $tournament)
             ->with('success', __('tournaments.ended'));
     }
-
 }

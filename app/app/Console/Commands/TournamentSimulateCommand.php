@@ -43,7 +43,7 @@ class TournamentSimulateCommand extends Command
         // mensaje: es un proceso por lotes de consola, así que se le da holgura.
         ini_set('memory_limit', '2G');
 
-        $pool = Bot::all()->filter(fn(Bot $b) => $b->isPool())->keyBy('id');
+        $pool = Bot::all()->filter(fn (Bot $b) => $b->isPool())->keyBy('id');
         $percentages = $this->percentages($pool);
         if (! $percentages) {
             $this->error('No hay perfiles importados con los que jugar: importa primero un historial de PokerTracker.');
@@ -53,7 +53,7 @@ class TournamentSimulateCommand extends Command
 
         $speed = (string) $this->option('speed');
         if (! config("blind-levels.{$speed}")) {
-            $this->error('Velocidad desconocida: ' . $speed);
+            $this->error('Velocidad desconocida: '.$speed);
 
             return self::FAILURE;
         }
@@ -76,7 +76,7 @@ class TournamentSimulateCommand extends Command
             $factory->start($tournament);
 
             $started = microtime(true);
-            $this->line("<info>[{$i}/{$total}]</info> {$tournament->title}: " . count($bots) . ' jugadores');
+            $this->line("<info>[{$i}/{$total}]</info> {$tournament->title}: ".count($bots).' jugadores');
             $last = 0;
             $result = $simulator->run($tournament, function (int $round, int $alive, int $tables) use (&$last, $started) {
                 // Cada pocas rondas (la página de importación lee estas líneas para mostrar el avance al usuario)
@@ -90,7 +90,7 @@ class TournamentSimulateCommand extends Command
             $actions = \DB::table('hand_actions')->whereIn('tournament_hand_id', $tournament->hands()->select('id'))->count();
             $this->line(sprintf(
                 '   %s en %d rondas · %d manos · %d acciones · %s s%s',
-                $result['finished'] ? 'terminado (gana ' . $result['winner'] . ')' : 'NO terminó (tope de rondas)',
+                $result['finished'] ? 'terminado (gana '.$result['winner'].')' : 'NO terminó (tope de rondas)',
                 $result['rounds'], $hands, $actions, round(microtime(true) - $started, 1), ''
             ));
         }
@@ -166,17 +166,17 @@ class TournamentSimulateCommand extends Command
             return $out;
         }
 
-        return $pool->filter(fn(Bot $b) => ($b->metadata['source'] ?? null) === 'pt4_import' || ($b->metadata['source'] ?? null) === 'pt4_pool')
-            ->mapWithKeys(fn(Bot $b) => [$b->id => 1])->all();
+        return $pool->filter(fn (Bot $b) => ($b->metadata['source'] ?? null) === 'pt4_import' || ($b->metadata['source'] ?? null) === 'pt4_pool')
+            ->mapWithKeys(fn (Bot $b) => [$b->id => 1])->all();
     }
 
     private function purge(): int
     {
-        $simulated = Tournament::all()->filter(fn(Tournament $t) => (bool) data_get($t->config, 'simulated'));
+        $simulated = Tournament::all()->filter(fn (Tournament $t) => (bool) data_get($t->config, 'simulated'));
         foreach ($simulated as $t) {
             $t->delete();
         }
-        $this->info($simulated->count() . ' torneos simulados borrados.');
+        $this->info($simulated->count().' torneos simulados borrados.');
 
         return self::SUCCESS;
     }

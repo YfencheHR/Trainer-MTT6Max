@@ -15,9 +15,7 @@ class HandReplayController extends Controller
     /** Máximo de repeticiones de una vez: cada una juega la mano entera con el motor. */
     private const MAX_TIMES = 50;
 
-    public function __construct(private HandReplayService $replays)
-    {
-    }
+    public function __construct(private HandReplayService $replays) {}
 
     /** GET /mtt-simulator/hand/{hand}/replays */
     public function show(TournamentHand $hand)
@@ -55,7 +53,7 @@ class HandReplayController extends Controller
     /** POST /mtt-simulator/hand/{hand}/replays */
     public function store(TournamentHand $hand, Request $request): RedirectResponse
     {
-        $data = $request->validate(['times' => 'required|integer|min:1|max:' . self::MAX_TIMES]);
+        $data = $request->validate(['times' => 'required|integer|min:1|max:'.self::MAX_TIMES]);
         try {
             $this->replays->replay($hand, (int) $data['times']);
         } catch (\RuntimeException $e) {
@@ -74,7 +72,7 @@ class HandReplayController extends Controller
         $total = $replays->count();
         $perPlayer = [];
         foreach ($replays as $replay) {
-            $byPlayer = $replay->actions->groupBy('side')->map(fn($rows) => $rows->groupBy('player_name')->map(fn($r) => $r->map(fn($a) => $a->street . ' ' . $a->action . ' ' . $a->amount)->implode(' · ')));
+            $byPlayer = $replay->actions->groupBy('side')->map(fn ($rows) => $rows->groupBy('player_name')->map(fn ($r) => $r->map(fn ($a) => $a->street.' '.$a->action.' '.$a->amount)->implode(' · ')));
             foreach ($byPlayer['original'] ?? [] as $name => $line) {
                 $perPlayer[$name]['same'] = ($perPlayer[$name]['same'] ?? 0) + (($byPlayer['replay'][$name] ?? null) === $line ? 1 : 0);
             }

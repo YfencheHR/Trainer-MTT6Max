@@ -13,10 +13,10 @@ return new class extends Migration
         // Mientras se reconstruyen los assets compilados
         Schema::table('hand_action_ranges', function (Blueprint $table) {
             // Crear columnas computed que referencian las nuevas columnas
-            if (!Schema::hasColumn('hand_action_ranges', 'hand_id')) {
+            if (! Schema::hasColumn('hand_action_ranges', 'hand_id')) {
                 DB::statement('ALTER TABLE hand_action_ranges ADD COLUMN hand_id INTEGER GENERATED ALWAYS AS (tournament_hand_id) STORED');
             }
-            if (!Schema::hasColumn('hand_action_ranges', 'player_id')) {
+            if (! Schema::hasColumn('hand_action_ranges', 'player_id')) {
                 DB::statement('ALTER TABLE hand_action_ranges ADD COLUMN player_id INTEGER GENERATED ALWAYS AS (tournament_player_id) STORED');
             }
         });

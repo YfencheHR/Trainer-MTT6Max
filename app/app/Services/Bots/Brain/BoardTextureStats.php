@@ -17,6 +17,7 @@ class BoardTextureStats
 
     /** Límites del multiplicador. */
     public const MIN = 0.5;
+
     public const MAX = 1.6;
 
     /** @var array<string, array<string, array>>|null calle → textura → fila */
@@ -49,7 +50,7 @@ class BoardTextureStats
 
     /**
      * @param  array<int, string>  $board  cartas del board en el formato del motor
-     * @return array{texture: string, open: float, fold: float, raise: float}|null  null si no hay datos de esa calle o textura
+     * @return array{texture: string, open: float, fold: float, raise: float}|null null si no hay datos de esa calle o textura
      */
     public static function multipliers(string $street, array $board): ?array
     {

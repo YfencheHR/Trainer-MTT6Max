@@ -15,7 +15,9 @@ class NashHandGroupValueSeeder extends Seeder
         foreach ($nashValues as $handName => $configs) {
             $hand = HandGroup::where('group_name', $handName)->first();
 
-            if (!$hand) continue;
+            if (! $hand) {
+                continue;
+            }
 
             foreach ($configs as $config) {
                 $this->createIfMissing($hand, 'Nash Push', $config, $config['ev']);

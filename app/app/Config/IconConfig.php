@@ -13,7 +13,7 @@ class IconConfig
     private static function loadConfig(): array
     {
         if (self::$config === null) {
-            self::$config = json_decode(file_get_contents(__DIR__ . '/icons.json'), true);
+            self::$config = json_decode(file_get_contents(__DIR__.'/icons.json'), true);
         }
 
         return self::$config;
@@ -37,17 +37,17 @@ class IconConfig
      * Icono para un bot nuevo creado por la importación: el de su perfil y, si otro rival ya lo usa, el primer animal libre
      * (así los rivales se distinguen a simple vista).
      *
-     * @param array<int, string> $used iconos que ya llevan otros rivales
+     * @param  array<int, string>  $used  iconos que ya llevan otros rivales
      */
     public static function pick(?string $perfil, array $used): string
     {
         $first = self::forPerfil($perfil);
-        if (!in_array($first, $used, true)) {
+        if (! in_array($first, $used, true)) {
             return $first;
         }
-        $animals = array_column(array_values(array_filter(self::getGroups(), fn($g) => $g['name'] === 'Animales'))[0]['icons'] ?? [], 'i');
+        $animals = array_column(array_values(array_filter(self::getGroups(), fn ($g) => $g['name'] === 'Animales'))[0]['icons'] ?? [], 'i');
         foreach ($animals as $icon) {
-            if (!in_array($icon, $used, true)) {
+            if (! in_array($icon, $used, true)) {
                 return $icon;
             }
         }

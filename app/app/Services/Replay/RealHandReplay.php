@@ -30,9 +30,7 @@ class RealHandReplay
 
     public const CLASSES = ['fold', 'check', 'call', 'aggr'];
 
-    public function __construct(private HandHistoryParser $parser, private BrainRunner $runner, private BrainAssembler $assembler)
-    {
-    }
+    public function __construct(private HandHistoryParser $parser, private BrainRunner $runner, private BrainAssembler $assembler) {}
 
     /** @return \Generator<int, string> el texto de cada mano de un TSV «id_hand<TAB>historial» (volcado de tourney_hand_histories) */
     public static function handsFromTsv(string $file): \Generator
@@ -66,11 +64,11 @@ class RealHandReplay
     }
 
     /**
-     * @param  iterable<string>  $hands    texto de cada mano (PokerStars / Winamax)
+     * @param  iterable<string>  $hands  texto de cada mano (PokerStars / Winamax)
      * @param  array<string, Bot>  $byName  jugador real → bot de su perfil
      * @param  array{limit?: int, streets?: array<int, string>, max_players?: int, marginal?: bool, candidates?: int, every?: int}  $options
-     *         every: 1 de cada N manos (por hash de la mano), para no quedarse con el principio del archivo
-     *         decider: callable(array $ctx, Bot $bot, int $seed): array con la forma de BrainRunner::decide (trace.distribution); por defecto, el motor de reglas
+     *                                                                                                                                        every: 1 de cada N manos (por hash de la mano), para no quedarse con el principio del archivo
+     *                                                                                                                                        decider: callable(array $ctx, Bot $bot, int $seed): array con la forma de BrainRunner::decide (trace.distribution); por defecto, el motor de reglas
      * @return array{rows: array<int, array>, errors: int, first_error: ?string}
      */
     public function run(iterable $hands, array $byName, array $options = []): array
@@ -227,9 +225,9 @@ class RealHandReplay
             if ($total <= 0) {
                 continue;
             }
-            $pred = array_map(fn($p) => $p / $total, $pred);
+            $pred = array_map(fn ($p) => $p / $total, $pred);
             if (in_array($a['street'], $streets, true)) {
-                $ess = 1 / max(1e-9, array_sum(array_map(fn($w) => $w * $w, $weights)));
+                $ess = 1 / max(1e-9, array_sum(array_map(fn ($w) => $w * $w, $weights)));
                 $rows[] = [
                     'street' => $a['street'], 'spot' => $facing ? 'ante apuesta' : 'primero en hablar', 'pot' => $this->potType($hand, $i),
                     'real' => $real, 'dist' => $pred, 'bot' => $bot->nombre, 'player' => $name, 'id' => $hand['hand_id'].'|'.$name.'|'.$i, 'known' => (bool) $known, 'ess' => round($ess, 1),
@@ -238,7 +236,7 @@ class RealHandReplay
                     'texture' => BoardTexture::classify($a['board'] ?? []),
                     'scenario' => $this->mostFrequent($scenarios),
                     'source' => $this->mostFrequent($sources),
-                    'asked_fold' => ($askedValues = array_filter($asked, fn($v) => $v !== null)) ? round(array_sum($askedValues) / count($askedValues), 1) : null,
+                    'asked_fold' => ($askedValues = array_filter($asked, fn ($v) => $v !== null)) ? round(array_sum($askedValues) / count($askedValues), 1) : null,
                     'bet_vs_pot' => $size,
                     'hand' => $known ? implode(' ', $known).' | '.implode(' ', $a['board'] ?? []) : null,
                 ];
@@ -248,7 +246,7 @@ class RealHandReplay
                 $weights[$k] *= $d ? max($d[$real], 0.02) : 0.02;
             }
             $sum = array_sum($weights);
-            $weights = $sum > 0 ? array_map(fn($w) => $w / $sum, $weights) : array_fill(0, count($cands), 1 / count($cands));
+            $weights = $sum > 0 ? array_map(fn ($w) => $w / $sum, $weights) : array_fill(0, count($cands), 1 / count($cands));
         }
 
         return $rows;
@@ -269,7 +267,7 @@ class RealHandReplay
     /** Manos de dos cartas al azar que no choquen con el board ni con las cartas conocidas de la mano. @return array<int, array<int, string>> */
     private function randomHands(array $hand, string $name, int $count, int $seed): array
     {
-        $dead = array_map(fn($c) => (string) $c, $hand['board'] ?? []);
+        $dead = array_map(fn ($c) => (string) $c, $hand['board'] ?? []);
         foreach ($hand['players'] as $p) {
             if ($p['name'] !== $name && ! empty($p['hole_cards'])) {
                 $dead = array_merge($dead, $p['hole_cards']);
@@ -342,7 +340,7 @@ class RealHandReplay
         if (! $rows) {
             return [];
         }
-        $known = fn(bool $k) => array_values(array_filter($rows, fn($r) => $r['known'] === $k));
+        $known = fn (bool $k) => array_values(array_filter($rows, fn ($r) => $r['known'] === $k));
         $lines = [self::line('TODAS', $rows)];
         foreach ([['  con cartas conocidas', $known(true)], ['  con cartas muestreadas', $known(false)]] as [$name, $part]) {
             if ($part) {
@@ -352,8 +350,8 @@ class RealHandReplay
 
         return array_merge(
             $lines,
-            self::groups($rows, fn($r) => $r['street'], 'calle '),
-            self::groups($rows, fn($r) => $r['street'].' · '.$r['spot'].' · '.$r['pot'], ''),
+            self::groups($rows, fn ($r) => $r['street'], 'calle '),
+            self::groups($rows, fn ($r) => $r['street'].' · '.$r['spot'].' · '.$r['pot'], ''),
         );
     }
 
@@ -364,7 +362,7 @@ class RealHandReplay
             $by[$key($r)][] = $r;
         }
         $order = ['preflop' => 0, 'flop' => 1, 'turn' => 2, 'river' => 3];
-        uksort($by, fn($a, $b) => ($order[explode(' ', $a)[0]] ?? 9) <=> ($order[explode(' ', $b)[0]] ?? 9) ?: strcmp($a, $b));
+        uksort($by, fn ($a, $b) => ($order[explode(' ', $a)[0]] ?? 9) <=> ($order[explode(' ', $b)[0]] ?? 9) ?: strcmp($a, $b));
         $out = [];
         foreach ($by as $name => $group) {
             if (count($group) >= 15) {

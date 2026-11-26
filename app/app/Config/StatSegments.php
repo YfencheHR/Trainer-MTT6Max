@@ -9,9 +9,10 @@ class StatSegments
     private static function loadConfig()
     {
         if (self::$config === null) {
-            $configPath = __DIR__ . '/stat-colors.json';
+            $configPath = __DIR__.'/stat-colors.json';
             self::$config = json_decode(file_get_contents($configPath), true);
         }
+
         return self::$config;
     }
 

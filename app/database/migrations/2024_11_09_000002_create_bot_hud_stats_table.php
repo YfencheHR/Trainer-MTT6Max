@@ -25,7 +25,7 @@ return new class extends Migration
                 'vs_4bet',
                 'defense_bb',
                 'cold_call',
-                'squeeze'
+                'squeeze',
             ])->nullable();
             $table->enum('rango_ciegas', [
                 '0-6',
@@ -34,7 +34,7 @@ return new class extends Migration
                 '40-80',
                 '80-100',
                 '100-200',
-                '200+'
+                '200+',
             ])->nullable();
 
             // PREFLOP STATS - Rigurosas

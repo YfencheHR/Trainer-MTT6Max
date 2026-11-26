@@ -30,7 +30,7 @@ class BrainAssembler
     /** Aplica una capa propia (bot o jugador) sobre un cerebro base. */
     public function applyLayer(array $brain, array $layer): array
     {
-        if (!$layer) {
+        if (! $layer) {
             return $brain;
         }
 

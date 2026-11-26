@@ -20,18 +20,18 @@ return new class extends Migration
                 ['cards' => ['A♠', 'A♥'], 'separator' => true],
                 ['cards' => ['K♠', 'K♥'], 'separator' => true],
                 ['cards' => ['Q♠', 'Q♥'], 'separator' => true],
-                ['cards' => ['J♠', 'J♥']]
+                ['cards' => ['J♠', 'J♥']],
             ],
             'Pareja Media' => [
                 ['cards' => ['10♠', '10♥'], 'separator' => true],
                 ['cards' => ['9♠', '9♥'], 'separator' => true],
-                ['cards' => ['7♠', '7♥']]
+                ['cards' => ['7♠', '7♥']],
             ],
             'Pareja Baja' => [
                 ['cards' => ['6♠', '6♥'], 'separator' => true],
                 ['cards' => ['5♠', '4♥'], 'separator' => true],
                 ['cards' => ['3♠', '3♥'], 'separator' => true],
-                ['cards' => ['2♠', '2♥']]
+                ['cards' => ['2♠', '2♥']],
             ],
             'Proyecto de Color' => [['cards' => ['A♠', '9♠', '8♠', '6♠', '?♠']]],
             'Proyecto de Escalera Abierta' => [['cards' => ['?♥', '10♠', '9♠', '8♠', '7♠', '?♥']]],

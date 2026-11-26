@@ -27,7 +27,7 @@ class ConditionEvaluator
 
         if (array_key_exists('all', $cond)) {
             foreach ($cond['all'] as $c) {
-                if (!$this->passes($c, $features)) {
+                if (! $this->passes($c, $features)) {
                     return false;
                 }
             }
@@ -44,7 +44,7 @@ class ConditionEvaluator
             return false;
         }
         if (array_key_exists('not', $cond)) {
-            return !$this->passes($cond['not'], $features);
+            return ! $this->passes($cond['not'], $features);
         }
 
         return $this->leaf($cond, $features);
@@ -60,13 +60,13 @@ class ConditionEvaluator
             case '=':
                 return $this->equal($left, $right);
             case '!=':
-                return !$this->equal($left, $right);
+                return ! $this->equal($left, $right);
             case 'in':
                 return is_array($right) && $this->inList($left, $right);
             case 'not_in':
-                return is_array($right) && !$this->inList($left, $right);
+                return is_array($right) && ! $this->inList($left, $right);
             case 'between':
-                if (!is_array($right) || count($right) < 2 || $left === null) {
+                if (! is_array($right) || count($right) < 2 || $left === null) {
                     return false;
                 }
                 [$a, $b] = [$this->value($right[0], $features), $this->value($right[1], $features)];
@@ -74,7 +74,7 @@ class ConditionEvaluator
                 return is_numeric($left) && $left >= $a && $left <= $b;
         }
 
-        if ($left === null || $right === null || !is_numeric($left) || !is_numeric($right)) {
+        if ($left === null || $right === null || ! is_numeric($left) || ! is_numeric($right)) {
             return false;
         }
 

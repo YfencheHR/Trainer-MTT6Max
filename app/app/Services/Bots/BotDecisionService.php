@@ -20,9 +20,7 @@ use App\Services\Bots\Brain\BrainRunner;
  */
 class BotDecisionService
 {
-    public function __construct(private BrainRepository $brains, private BrainRunner $runner, private AiBrain $ai)
-    {
-    }
+    public function __construct(private BrainRepository $brains, private BrainRunner $runner, private AiBrain $ai) {}
 
     public function decide(array $ctx): array
     {
@@ -48,7 +46,7 @@ class BotDecisionService
         } catch (\Throwable $e) {
             report($e); // un cerebro roto nunca debe parar la partida
             $fallback = $this->fallback($ctx);
-            $fallback['reason'] = ($aiNote ? $aiNote . ' · ' : '') . 'FALLBACK (' . $e->getMessage() . '): ' . $fallback['reason'];
+            $fallback['reason'] = ($aiNote ? $aiNote.' · ' : '').'FALLBACK ('.$e->getMessage().'): '.$fallback['reason'];
 
             return $fallback;
         }

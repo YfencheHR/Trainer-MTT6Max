@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('made_hands', function (Blueprint $table) {
-            if (!Schema::hasColumn('made_hands', 'combos')) {
+            if (! Schema::hasColumn('made_hands', 'combos')) {
                 $table->integer('combos')->default(0);
             }
         });

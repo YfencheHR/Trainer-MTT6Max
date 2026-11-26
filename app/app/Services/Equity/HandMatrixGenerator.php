@@ -2,21 +2,22 @@
 
 namespace App\Services\Equity;
 
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class HandMatrixGenerator
 {
     protected EquitySimulationClient $client;
+
     protected string $storagePath = 'hand-matrices';
 
     // Stack depths a generar: 0-6%, 6-25, 25-50, 50-100, 100+
     protected array $stackDepths = [
-        '0-6'   => 3,
-        '6-25'  => 15,
+        '0-6' => 3,
+        '6-25' => 15,
         '25-50' => 37,
-        '50-100'=> 75,
-        '100+'  => 150,
+        '50-100' => 75,
+        '100+' => 150,
     ];
 
     public function __construct(EquitySimulationClient $client)
@@ -56,7 +57,7 @@ class HandMatrixGenerator
 
                 Log::info("Tables generated successfully for depth $label");
             } catch (\Exception $e) {
-                $error = "Failed to generate tables for $label: " . $e->getMessage();
+                $error = "Failed to generate tables for $label: ".$e->getMessage();
                 Log::error($error);
                 $results['errors'][] = $error;
                 $results['success'] = false;
@@ -112,11 +113,12 @@ class HandMatrixGenerator
     {
         $filename = "{$this->storagePath}/{$type}_{$depth}.json";
 
-        if (!Storage::exists($filename)) {
+        if (! Storage::exists($filename)) {
             return null;
         }
 
         $content = Storage::get($filename);
+
         return json_decode($content, true);
     }
 
@@ -127,11 +129,12 @@ class HandMatrixGenerator
     {
         $filename = "{$this->storagePath}/index.json";
 
-        if (!Storage::exists($filename)) {
+        if (! Storage::exists($filename)) {
             return null;
         }
 
         $content = Storage::get($filename);
+
         return json_decode($content, true);
     }
 
@@ -141,6 +144,7 @@ class HandMatrixGenerator
     public function getAttackRange(string $depth): array
     {
         $table = $this->loadTable('attack', $depth);
+
         return $table['range'] ?? [];
     }
 
@@ -150,6 +154,7 @@ class HandMatrixGenerator
     public function getDefenseRange(string $depth): array
     {
         $table = $this->loadTable('defense', $depth);
+
         return $table['range'] ?? [];
     }
 
@@ -159,6 +164,7 @@ class HandMatrixGenerator
     public function isInAttackRange(string $hand, string $depth): bool
     {
         $range = $this->getAttackRange($depth);
+
         return in_array($hand, $range);
     }
 
@@ -168,6 +174,7 @@ class HandMatrixGenerator
     public function isInDefenseRange(string $hand, string $depth): bool
     {
         $range = $this->getDefenseRange($depth);
+
         return in_array($hand, $range);
     }
 
@@ -177,6 +184,7 @@ class HandMatrixGenerator
     public function getHandInfo(string $hand, string $type, string $depth): ?array
     {
         $table = $this->loadTable($type, $depth);
+
         return $table['tables'][$hand] ?? null;
     }
 }

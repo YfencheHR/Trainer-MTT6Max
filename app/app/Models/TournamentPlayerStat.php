@@ -40,8 +40,8 @@ class TournamentPlayerStat extends Model
      */
     public function summary(): array
     {
-        $g = fn(string $k): int => (int) ($this->{$k} ?? 0);
-        $pct = fn(int $n, int $d): ?int => $d > 0 ? (int) round($n / $d * 100) : null;
+        $g = fn (string $k): int => (int) ($this->{$k} ?? 0);
+        $pct = fn (int $n, int $d): ?int => $d > 0 ? (int) round($n / $d * 100) : null;
 
         $aggr = $g('aggressive_actions');
         $pass = $g('passive_actions');
@@ -71,9 +71,10 @@ class TournamentPlayerStat extends Model
             'wsd' => $pct($g('showdown_wins'), $g('showdowns')),
         ];
     }
+
     /** Resumen vacío para jugadores sin manos registradas. */
     public static function emptySummary(): array
     {
-        return (new self())->summary();
+        return (new self)->summary();
     }
 }

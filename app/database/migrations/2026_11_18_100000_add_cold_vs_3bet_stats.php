@@ -16,7 +16,9 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     private const HUD = ['cold3_fold', 'cold3_call', 'cold3_raise'];
+
     private const HANDS = ['cold3_opportunities', 'cold3_calls', 'cold3_raises'];
+
     private const RANGES = ['cold3_raise', 'cold3_call', 'cold4_raise', 'cold4_call'];
 
     public function up(): void
@@ -46,8 +48,8 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('bot_hud_stats', fn(Blueprint $t) => $t->dropColumn(self::HUD));
-        Schema::table('bot_preflop_hand_stats', fn(Blueprint $t) => $t->dropColumn(self::HANDS));
-        Schema::table('bot_preflop_hand_ranges', fn(Blueprint $t) => $t->dropColumn(self::RANGES));
+        Schema::table('bot_hud_stats', fn (Blueprint $t) => $t->dropColumn(self::HUD));
+        Schema::table('bot_preflop_hand_stats', fn (Blueprint $t) => $t->dropColumn(self::HANDS));
+        Schema::table('bot_preflop_hand_ranges', fn (Blueprint $t) => $t->dropColumn(self::RANGES));
     }
 };

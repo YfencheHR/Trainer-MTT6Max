@@ -14,6 +14,7 @@ namespace App\Services\Ai;
 class BotMemory
 {
     public const NONE = 'none';
+
     public const TOURNAMENT = 'tournament';
 
     /** Muestra a partir de la cual lo observado pesa la mitad (n / (n + K)). */
@@ -25,7 +26,7 @@ class BotMemory
     }
 
     /**
-     * @param  array  $profile   ['preflop' => [...], 'postflop' => ['flop' => [...], ...]] del rival, sin lo observado
+     * @param  array  $profile  ['preflop' => [...], 'postflop' => ['flop' => [...], ...]] del rival, sin lo observado
      * @param  array  $observed  resumen de TournamentPlayerStat::summary()
      */
     public function apply(array $profile, array $observed, string $mode): array

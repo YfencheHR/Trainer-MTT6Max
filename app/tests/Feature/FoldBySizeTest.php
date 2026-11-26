@@ -25,7 +25,7 @@ class FoldBySizeTest extends TestCase
     public function test_bigger_bets_fold_more_and_raise_less(): void
     {
         $this->populate();
-        $by = new FoldBySize();
+        $by = new FoldBySize;
 
         $small = $by->multipliers('flop', 20);
         $big = $by->multipliers('flop', 110);
@@ -39,7 +39,7 @@ class FoldBySizeTest extends TestCase
     public function test_it_interpolates_between_buckets_and_is_neutral_without_data(): void
     {
         $this->populate();
-        $by = new FoldBySize();
+        $by = new FoldBySize;
 
         $mid = $by->multipliers('flop', 80)['fold'];
         $this->assertGreaterThan($by->multipliers('flop', 50)['fold'], $mid);
@@ -49,7 +49,7 @@ class FoldBySizeTest extends TestCase
 
     public function test_the_prior_folds_more_to_a_big_bet_with_the_same_hand(): void
     {
-        $prior = new StatsPrior();
+        $prior = new StatsPrior;
         $base = ['own_f2bet' => 50, 'own_raise_vs_bet' => 8, 'range_rank' => 70, 'street' => 'flop'];
 
         $small = $prior->facingBet($base + ['size_fold_mult' => 0.7]);

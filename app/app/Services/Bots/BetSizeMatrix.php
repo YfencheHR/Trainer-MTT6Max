@@ -48,7 +48,7 @@ class BetSizeMatrix
         }
 
         $mine = $this->counts(DB::table('bot_bet_size_counts')->where('bot_id', $botId)->get());
-        $prior = DB::table('bot_bet_size_prior')->where('bot_id', $botId)->pluck('air_share', 'street')->map(fn($v) => (float) $v)->all();
+        $prior = DB::table('bot_bet_size_prior')->where('bot_id', $botId)->pluck('air_share', 'street')->map(fn ($v) => (float) $v)->all();
         $pop = $this->population();
         if (($ownDataOnly && ! $mine && ! $prior) || (! $mine && ! $pop)) {
             return $this->cache[$key] = null;
@@ -126,10 +126,10 @@ class BetSizeMatrix
     private function street(array $mine, array $pop, ?float $airPrior = null): array
     {
         $buckets = array_keys(BetTier::BUCKETS);
-        $tierTotal = fn(array $byTier, string $tier) => array_sum($byTier[$tier] ?? []);
+        $tierTotal = fn (array $byTier, string $tier) => array_sum($byTier[$tier] ?? []);
 
-        $myTotal = array_sum(array_map(fn($tier) => $tierTotal($mine, $tier), BetTier::TIERS));
-        $popTotal = array_sum(array_map(fn($tier) => $tierTotal($pop, $tier), BetTier::TIERS));
+        $myTotal = array_sum(array_map(fn ($tier) => $tierTotal($mine, $tier), BetTier::TIERS));
+        $popTotal = array_sum(array_map(fn ($tier) => $tierTotal($pop, $tier), BetTier::TIERS));
 
         // Composición del rango de apuesta
         $share = [];
@@ -151,9 +151,9 @@ class BetSizeMatrix
         }
 
         return [
-            'share' => array_map(fn($v) => round(100 * $v / $sum, 2), $share),
+            'share' => array_map(fn ($v) => round(100 * $v / $sum, 2), $share),
             'bluff_share' => round(100 * $share['air'] / $sum, 2),
-            'sizes' => array_map(fn($row) => array_map(fn($v) => round($v, 2), $row), $sizes),
+            'sizes' => array_map(fn ($row) => array_map(fn ($v) => round($v, 2), $row), $sizes),
             'n' => $myTotal,
         ];
     }

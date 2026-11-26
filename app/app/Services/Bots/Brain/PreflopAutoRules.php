@@ -19,8 +19,8 @@ namespace App\Services\Bots\Brain;
 class PreflopAutoRules
 {
     /**
-     * @param array $profile  salida de BotProfile
-     * @param array $opts     open_mix (acción => peso) · adapt (bool, reglas de adaptación al rival)
+     * @param  array  $profile  salida de BotProfile
+     * @param  array  $opts  open_mix (acción => peso) · adapt (bool, reglas de adaptación al rival)
      */
     public static function generate(array $profile, array $opts): array
     {
@@ -28,13 +28,13 @@ class PreflopAutoRules
         $rules = [];
 
         foreach (BotProfile::POSITIONS as $pos) {
-            array_push($rules, ...self::positionRules($pos, $profile['positions'][$pos], $openMix, !empty($opts['adapt']), null, 0));
+            array_push($rules, ...self::positionRules($pos, $profile['positions'][$pos], $openMix, ! empty($opts['adapt']), null, 0));
         }
 
         // Variantes por profundidad de stack: sustituyen a las generales dentro de su tramo
         foreach ($profile['buckets'] as $bucket => $positions) {
             foreach ($positions as $pos => $d) {
-                array_push($rules, ...self::positionRules($pos, $d, $openMix, !empty($opts['adapt']), $bucket, 50));
+                array_push($rules, ...self::positionRules($pos, $d, $openMix, ! empty($opts['adapt']), $bucket, 50));
             }
         }
 
@@ -58,7 +58,7 @@ class PreflopAutoRules
     private static function positionRules(string $pos, array $d, array $openMix, bool $adapt, ?string $bucket, int $priority): array
     {
         $tag = $bucket ? "{$bucket}_{$pos}" : $pos;
-        $conds = fn(array $extra) => ['all' => array_values(array_filter([
+        $conds = fn (array $extra) => ['all' => array_values(array_filter([
             self::c('position', '=', $pos),
             $bucket ? self::c('effective_stack_bb', 'between', [BotProfile::BUCKETS[$bucket][0], BotProfile::BUCKETS[$bucket][1]]) : null,
             ...$extra,
@@ -100,7 +100,7 @@ class PreflopAutoRules
             'paint' => $reset,
             'rules' => array_values(array_filter([
                 [
-                    'id' => "pre_pagar_{$tag}", 'priority' => 5, 'name' => 'Paga hasta ' . ($v['three_bet'] + $v['call']) . ' %',
+                    'id' => "pre_pagar_{$tag}", 'priority' => 5, 'name' => 'Paga hasta '.($v['three_bet'] + $v['call']).' %',
                     'when' => self::c('preflop_rank', '<=', $v['three_bet'] + $v['call']),
                     'paint' => [['action' => 'call']],
                     'rules' => $adapt ? [[
@@ -228,7 +228,7 @@ class PreflopAutoRules
                     foreach ($hands as $code => $f) {
                         $raise = min(1.0, $f['raise'] ?? 0);
                         $call = min(1.0, ($f['call'] ?? 0) + ($f['limp'] ?? 0));
-                        $key = round($raise, 2) . '|' . round($call, 2);
+                        $key = round($raise, 2).'|'.round($call, 2);
                         $groups[$key]['hands'][] = $code;
                         $groups[$key]['w'] = [$raise, $call];
                     }
@@ -242,13 +242,13 @@ class PreflopAutoRules
                             $call /= $total;
                         }
                         $children[] = [
-                            'id' => "rango_{$pos}_{$action}_{$bucket}_" . md5($key),
+                            'id' => "rango_{$pos}_{$action}_{$bucket}_".md5($key),
                             'when' => self::c('hand_code', 'in', $g['hands']),
                             'paint' => [['mix' => array_filter([
                                 $raiseAction[$action] ?? 'raise_x3' => $raise * 100,
                                 'call' => $call * 100,
                                 'fold' => max(0, 1 - $raise - $call) * 100,
-                            ], fn($w) => $w > 0), 'by' => 'rows']],
+                            ], fn ($w) => $w > 0), 'by' => 'rows']],
                         ];
                     }
 

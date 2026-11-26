@@ -30,7 +30,9 @@ class BotProfile
 
     /** Cuánto se abre / se juega / se resube según la posición, respecto al valor general del bot. */
     private const OPEN_F = ['UTG' => 0.65, 'HJ' => 0.85, 'CO' => 1.15, 'BTN' => 1.6, 'SB' => 1.3, 'BB' => 1.0];
+
     private const VPIP_F = ['UTG' => 0.7, 'HJ' => 0.85, 'CO' => 1.05, 'BTN' => 1.35, 'SB' => 1.1, 'BB' => 1.5];
+
     public const THREE_F = ['UTG' => 0.7, 'HJ' => 0.8, 'CO' => 1.0, 'BTN' => 1.25, 'SB' => 1.3, 'BB' => 1.3];
 
     /** Cifras documentadas de cada perfil (docs/03-Bots.md) para lo que no esté en la BD. */
@@ -66,6 +68,7 @@ class BotProfile
 
     /** Tramos de stack (en ciegas grandes) de las tablas preflop por stack y de sus estadísticas (filas accion = 'stack'). */
     public const STACK_BUCKETS = ['0-10' => [0, 10], '10-20' => [10, 20], '20-40' => [20, 40], '40+' => [40, 100000]];
+
     public const STACK_ACTION = 'stack';
 
     public static function stackBucketFor(float $bigBlinds): string
@@ -98,7 +101,7 @@ class BotProfile
     {
         $rows = $bot->relationLoaded('hudStats') ? $bot->hudStats : $bot->hudStats()->get();
         // Las estadísticas por tramo de stack (accion = 'stack') las usa el generador de tablas por stack, no este perfil
-        $rows = $rows->reject(fn($r) => $r->accion === self::STACK_ACTION)->values();
+        $rows = $rows->reject(fn ($r) => $r->accion === self::STACK_ACTION)->values();
         $ranges = BotRange::where('bot_id', $bot->id)->get();
 
         $doc = self::DOCUMENTED[$bot->templateTipo()] ?? self::DOCUMENTED['tag'];
@@ -108,7 +111,7 @@ class BotProfile
         ] + array_map('floatval', $doc);
 
         // Fila general (sin posición ni acción ni ciegas) del bot: manda sobre los escalares
-        $general = $rows->first(fn($r) => $r->posicion === null && $r->accion === null && $r->rango_ciegas === null);
+        $general = $rows->first(fn ($r) => $r->posicion === null && $r->accion === null && $r->rango_ciegas === null);
         if ($general) {
             foreach ([
                 'vpip', 'pfr', 'three_bet', 'fold_to_3bet', 'four_bet', 'fold_to_4bet', 'af_preflop',
@@ -121,7 +124,7 @@ class BotProfile
             }
         }
 
-        $stat = fn(?string $bucket) => self::lookup($rows, $bucket);
+        $stat = fn (?string $bucket) => self::lookup($rows, $bucket);
         $positions = [];
         foreach (self::POSITIONS as $pos) {
             $positions[$pos] = self::derive($stat(null), $global, $pos);
@@ -152,7 +155,7 @@ class BotProfile
     public static function postflop(string $tipo, ?BotHudStat $row, array $global, ?Collection $rows = null): array
     {
         $d = self::DOCUMENTED_POSTFLOP[$tipo] ?? self::DOCUMENTED_POSTFLOP['tag'];
-        $v = fn(string $col) => $row && $row->{$col} !== null ? (float) $row->{$col} : null;
+        $v = fn (string $col) => $row && $row->{$col} !== null ? (float) $row->{$col} : null;
 
         $map = [
             'flop' => ['f2bet' => 'f2cbet', 'af' => 'af_flop', 'cbet' => 'cbet', 'donk' => 'donk', 'cr' => 'cr_flop', 'f2raise' => 'f2raise_flop'],
@@ -172,8 +175,8 @@ class BotProfile
             // Desglose en posición (ip) / fuera de posición (oop) según el papel (importado de PokerTracker):
             //   agg → bet: cuánto apuesta cuando tenía la iniciativa · def → fold / call / raise ante esa apuesta
             foreach (['ip', 'oop'] as $pos) {
-                $agg = $rows?->first(fn(BotHudStat $r) => $r->posicion === null && $r->accion === "{$street}_agg_{$pos}" && $r->cbet !== null);
-                $def = $rows?->first(fn(BotHudStat $r) => $r->posicion === null && $r->accion === "{$street}_def_{$pos}" && $r->f2cbet !== null);
+                $agg = $rows?->first(fn (BotHudStat $r) => $r->posicion === null && $r->accion === "{$street}_agg_{$pos}" && $r->cbet !== null);
+                $def = $rows?->first(fn (BotHudStat $r) => $r->posicion === null && $r->accion === "{$street}_def_{$pos}" && $r->f2cbet !== null);
                 if ($agg) {
                     $s[$pos]['agg'] = ['bet' => (float) $agg->cbet, 'n' => (int) $agg->sample_size];
                 }
@@ -197,7 +200,7 @@ class BotProfile
     public static function fromScalars(string $tipo, float $vpip, float $pfr): array
     {
         $global = ['vpip' => $vpip, 'pfr' => $pfr] + array_map('floatval', self::DOCUMENTED[$tipo] ?? self::DOCUMENTED['tag']);
-        $none = fn(string $pos, ?string $action, string $field) => null;
+        $none = fn (string $pos, ?string $action, string $field) => null;
         $positions = [];
         foreach (self::POSITIONS as $pos) {
             $positions[$pos] = self::derive($none, $global, $pos);
@@ -220,7 +223,7 @@ class BotProfile
                 [$dbPos, null, null],
             ];
             foreach ($candidates as [$p, $a, $b]) {
-                $row = $rows->first(fn(BotHudStat $r) => $r->posicion === $p && $r->accion === $a && $r->rango_ciegas === $b && $r->{$field} !== null);
+                $row = $rows->first(fn (BotHudStat $r) => $r->posicion === $p && $r->accion === $a && $r->rango_ciegas === $b && $r->{$field} !== null);
                 if ($row) {
                     return (float) $row->{$field};
                 }
@@ -279,7 +282,7 @@ class BotProfile
         $f4 = $stat($pos, 'vs_4bet', 'fold_to_4bet') ?? $g['fold_to_4bet'];
         $cont4 = $three * (1 - $f4 / 100);
 
-        $r = fn(float $v) => round(max(0.0, min(100.0, $v)), 2);
+        $r = fn (float $v) => round(max(0.0, min(100.0, $v)), 2);
 
         return [
             'open' => $r($open),
@@ -310,7 +313,7 @@ class BotProfile
     {
         $out = [];
         foreach ($ranges as $r) {
-            if (!$r->posicion || !$r->accion) {
+            if (! $r->posicion || ! $r->accion) {
                 continue;
             }
             $pos = array_search($r->posicion, self::DB_POSITION, true) ?: $r->posicion;
@@ -336,7 +339,7 @@ class BotProfile
     {
         $hand = trim($hand);
         if (strlen($hand) === 2 && $hand[0] !== $hand[1]) {
-            return [$hand . 's', $hand . 'o'];
+            return [$hand.'s', $hand.'o'];
         }
 
         return [$hand];

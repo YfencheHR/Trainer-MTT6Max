@@ -14,7 +14,7 @@ class HandTypeTiltTest extends TestCase
         $hands = [];
         foreach ($ranks as $r => $high) {
             foreach ($ranks as $c => $low) {
-                $hands[] = $r === $c ? $high . $low : ($r < $c ? $high . $low . 's' : $low . $high . 'o');
+                $hands[] = $r === $c ? $high.$low : ($r < $c ? $high.$low.'s' : $low.$high.'o');
             }
         }
         $weights = [];
@@ -40,9 +40,9 @@ class HandTypeTiltTest extends TestCase
 
     private function tables(array $percentiles, float $frequency): array
     {
-        $rows = fn(string $field) => array_map(fn($h, $p) => ['hand' => $h, 'percentile' => $p, $field => $frequency], array_keys($percentiles), $percentiles);
-        $attack = array_map(fn($h, $p) => ['hand' => $h, 'percentile' => $p, 'open' => $frequency, 'limp' => 0.0], array_keys($percentiles), $percentiles);
-        $defense = array_map(fn($h, $p) => ['hand' => $h, 'percentile' => $p, 'three_bet' => 0.0, 'call' => 0.0], array_keys($percentiles), $percentiles);
+        $rows = fn (string $field) => array_map(fn ($h, $p) => ['hand' => $h, 'percentile' => $p, $field => $frequency], array_keys($percentiles), $percentiles);
+        $attack = array_map(fn ($h, $p) => ['hand' => $h, 'percentile' => $p, 'open' => $frequency, 'limp' => 0.0], array_keys($percentiles), $percentiles);
+        $defense = array_map(fn ($h, $p) => ['hand' => $h, 'percentile' => $p, 'three_bet' => 0.0, 'call' => 0.0], array_keys($percentiles), $percentiles);
 
         return ['UTG' => ['attack' => $attack, 'defense' => $defense]];
     }
@@ -71,7 +71,7 @@ class HandTypeTiltTest extends TestCase
     public function test_apply_without_shifts_keeps_the_order_and_a_valid_percentile_scale(): void
     {
         [$percentiles, $weights] = $this->universe();
-        $out = (new HandTypeTilt())->apply($percentiles, $weights, []);
+        $out = (new HandTypeTilt)->apply($percentiles, $weights, []);
 
         $this->assertEqualsWithDelta($percentiles['AA'], $out['AA'], 1e-9);
         $this->assertEqualsWithDelta($percentiles['72o'], $out['72o'], 1e-9);
@@ -82,7 +82,7 @@ class HandTypeTiltTest extends TestCase
     public function test_apply_moves_a_class_up_the_ranking(): void
     {
         [$percentiles, $weights] = $this->universe();
-        $tilt = new HandTypeTilt();
+        $tilt = new HandTypeTilt;
         $base = $tilt->apply($percentiles, $weights, []);
         $moved = $tilt->apply($percentiles, $weights, ['suited_other' => -10.0]);
 
@@ -90,7 +90,7 @@ class HandTypeTiltTest extends TestCase
         $this->assertGreaterThan($base['K7o'], $moved['K7o'] + 0.0001); // las demás no mejoran
         $this->assertEqualsWithDelta($moved['AA'], min($moved), 5);   // AA sigue entre las primeras
         // El percentil sigue siendo un % acumulado de combinaciones: la media ponderada ronda el 50
-        $mean = array_sum(array_map(fn($h) => $moved[$h] * $weights[$h], array_keys($moved))) / array_sum($weights);
+        $mean = array_sum(array_map(fn ($h) => $moved[$h] * $weights[$h], array_keys($moved))) / array_sum($weights);
         $this->assertEqualsWithDelta(50.0, $mean, 1.0);
     }
 
@@ -99,7 +99,7 @@ class HandTypeTiltTest extends TestCase
         [$percentiles] = $this->universe();
         $stats = [$this->stat('K7s', 5), $this->stat('J5s', 5)];
 
-        $this->assertSame([], (new HandTypeTilt())->learn($stats, $this->tables($percentiles, 50.0)));
+        $this->assertSame([], (new HandTypeTilt)->learn($stats, $this->tables($percentiles, 50.0)));
     }
 
     public function test_learn_detects_a_class_shown_more_often_than_the_range_predicts(): void
@@ -114,7 +114,7 @@ class HandTypeTiltTest extends TestCase
                 $stats[] = $this->stat($hand, 6);
             }
         }
-        $shifts = (new HandTypeTilt())->learn($stats, $tables);
+        $shifts = (new HandTypeTilt)->learn($stats, $tables);
 
         $this->assertNotEmpty($shifts);
         $this->assertLessThan(0, $shifts['suited_other']);   // se juegan más de lo esperado → suben
@@ -133,7 +133,7 @@ class HandTypeTiltTest extends TestCase
         foreach ($weights as $hand => $combos) {
             $stats[] = $this->stat($hand, $combos);
         }
-        $shifts = (new HandTypeTilt())->learn($stats, $tables);
+        $shifts = (new HandTypeTilt)->learn($stats, $tables);
 
         // Sin nada que aprender devuelve [] (sin inclinación); si devuelve algo, es despreciable
         $this->assertTrue($shifts === [] || max(array_map('abs', $shifts)) < 0.5, json_encode($shifts));

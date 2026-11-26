@@ -10,7 +10,7 @@ return new class extends Migration
     {
         // Idempotente: si la tabla ya usa hand_id/player_id (renombrado hecho antes, p. ej. por la migración
         // 2026_11_16_200000_fix_hand_action_ranges_column_names) no hay nada que renombrar.
-        if (!Schema::hasColumn('hand_action_ranges', 'tournament_hand_id')) {
+        if (! Schema::hasColumn('hand_action_ranges', 'tournament_hand_id')) {
             return;
         }
 

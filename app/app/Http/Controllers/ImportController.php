@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Bot;
 use App\Models\BotHudStat;
 use App\Models\BotRange;
+use App\Services\Import\PoolBotRetirer;
+use App\Services\Tournament\SimulationLauncher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\Process\Process;
@@ -16,12 +18,13 @@ use Symfony\Component\Process\Process;
 class ImportController extends Controller
 {
     private const CHUNK_SIZE_KB = 1536;
+
     private const MAX_CHUNKS = 4096;
 
     private function dir(string $sub = ''): string
     {
-        $d = storage_path('app/import' . ($sub ? "/$sub" : ''));
-        if (!is_dir($d)) {
+        $d = storage_path('app/import'.($sub ? "/$sub" : ''));
+        if (! is_dir($d)) {
             mkdir($d, 0775, true);
         }
 
@@ -34,7 +37,7 @@ class ImportController extends Controller
             'ours' => ['bots' => Bot::count(), 'hud_stats' => BotHudStat::count(), 'ranges' => BotRange::count()],
             'pool' => Bot::where('tipo', 'pool')->count(),
             // Torneos que usan hoy perfiles Pool: al recalcular esos perfiles se archivan (no se borran)
-            'tournamentsAffected' => (new \App\Services\Import\PoolBotRetirer())->tournamentsAffected(),
+            'tournamentsAffected' => (new PoolBotRetirer)->tournamentsAffected(),
         ]);
     }
 
@@ -43,12 +46,12 @@ class ImportController extends Controller
     {
         $data = $request->validate([
             'id' => ['required', 'regex:/^[a-f0-9-]{36}$/'],
-            'idx' => ['required', 'integer', 'min:0', 'max:' . (self::MAX_CHUNKS - 1)],
-            'total' => ['required', 'integer', 'min:1', 'max:' . self::MAX_CHUNKS],
+            'idx' => ['required', 'integer', 'min:0', 'max:'.(self::MAX_CHUNKS - 1)],
+            'total' => ['required', 'integer', 'min:1', 'max:'.self::MAX_CHUNKS],
             'name' => 'required|string|max:200',
             'min_hands' => 'nullable|integer|min:10|max:5000',
             'reset' => 'nullable|boolean',
-            'chunk' => ['required', 'file', 'max:' . self::CHUNK_SIZE_KB],
+            'chunk' => ['required', 'file', 'max:'.self::CHUNK_SIZE_KB],
         ]);
 
         $idx = (int) $data['idx'];
@@ -58,19 +61,20 @@ class ImportController extends Controller
         }
 
         $ext = strtolower(pathinfo($data['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ['zip', 'backup', 'sql'], true)) {
+        if (! in_array($ext, ['zip', 'backup', 'sql'], true)) {
             return response()->json(['success' => false, 'message' => 'Solo se admite .zip, .backup o .sql'], 422);
         }
 
         $uploads = $this->dir('uploads');
-        $part = $uploads . "/{$data['id']}.part";
-        $meta = $uploads . "/{$data['id']}.json";
-        $lockHandle = fopen($uploads . "/{$data['id']}.lock", 'c');
+        $part = $uploads."/{$data['id']}.part";
+        $meta = $uploads."/{$data['id']}.json";
+        $lockHandle = fopen($uploads."/{$data['id']}.lock", 'c');
         if ($lockHandle === false) {
             return response()->json(['success' => false, 'message' => 'No se pudo bloquear el archivo de importación.'], 503);
         }
-        if (!flock($lockHandle, LOCK_EX)) {
+        if (! flock($lockHandle, LOCK_EX)) {
             fclose($lockHandle);
+
             return response()->json(['success' => false, 'message' => 'No se pudo bloquear el archivo de importación.'], 503);
         }
 
@@ -91,13 +95,13 @@ class ImportController extends Controller
                 ];
             } else {
                 $state = is_file($meta) ? json_decode((string) file_get_contents($meta), true) : null;
-                if (!is_array($state)
+                if (! is_array($state)
                     || ($state['name'] ?? null) !== $data['name']
                     || (int) ($state['total'] ?? 0) !== $total
                     || (int) ($state['min_hands'] ?? 20) !== $minHands
                     || (bool) ($state['reset'] ?? false) !== $reset
                     || (int) ($state['next_idx'] ?? -1) !== $idx
-                    || !is_file($part)) {
+                    || ! is_file($part)) {
                     return response()->json(['success' => false, 'message' => 'Trozo inesperado o fuera de orden. Reinicia la importación.'], 409);
                 }
             }
@@ -105,8 +109,12 @@ class ImportController extends Controller
             $source = fopen($request->file('chunk')->getRealPath(), 'rb');
             $destination = fopen($part, 'ab');
             if ($source === false || $destination === false) {
-                if (is_resource($source)) fclose($source);
-                if (is_resource($destination)) fclose($destination);
+                if (is_resource($source)) {
+                    fclose($source);
+                }
+                if (is_resource($destination)) {
+                    fclose($destination);
+                }
                 throw new \RuntimeException('No se pudo guardar el trozo recibido.');
             }
 
@@ -130,9 +138,11 @@ class ImportController extends Controller
                 return response()->json(['success' => true, 'done' => false]);
             }
 
-            $file = $uploads . "/{$data['id']}.$ext";
-            if (is_file($file)) unlink($file);
-            if (!rename($part, $file)) {
+            $file = $uploads."/{$data['id']}.$ext";
+            if (is_file($file)) {
+                unlink($file);
+            }
+            if (! rename($part, $file)) {
                 throw new \RuntimeException('No se pudo preparar el archivo para importarlo.');
             }
             @unlink($meta);
@@ -141,8 +151,8 @@ class ImportController extends Controller
             fclose($lockHandle);
         }
 
-        $log = $this->dir('runs') . "/{$data['id']}.log";
-        file_put_contents($log, "Archivo recibido (" . round(filesize($file) / 1048576) . " MB)\n");
+        $log = $this->dir('runs')."/{$data['id']}.log";
+        file_put_contents($log, 'Archivo recibido ('.round(filesize($file) / 1048576)." MB)\n");
 
         $cmd = sprintf(
             '(nohup sh -c %s >/dev/null 2>&1 &)',
@@ -161,7 +171,7 @@ class ImportController extends Controller
     public function status(string $run): JsonResponse
     {
         abort_unless(preg_match('/^[a-f0-9-]{36}$/', $run), 404);
-        $log = $this->dir('runs') . "/$run.log";
+        $log = $this->dir('runs')."/$run.log";
         $text = is_file($log) ? (string) file_get_contents($log) : '';
         $state = str_contains($text, '__DONE__') ? 'done' : (str_contains($text, '__FAIL__') ? 'failed' : 'running');
 
@@ -170,7 +180,7 @@ class ImportController extends Controller
             'log' => trim(str_replace(['__DONE__', '__FAIL__'], '', preg_replace('/\e\[[\d;]*m/', '', $text))),
             'ours' => ['bots' => Bot::count(), 'hud_stats' => BotHudStat::count(), 'pool' => Bot::where('tipo', 'pool')->count()],
             // Solo en las simulaciones de torneo (la página las muestra con una barra de avance)
-            'progress' => \App\Services\Tournament\SimulationLauncher::progress($text),
+            'progress' => SimulationLauncher::progress($text),
         ]);
     }
 }

@@ -61,7 +61,7 @@ class BotHudStat extends Model
         'shove',
         'wsd',
         'sample_size',
-        'confidence'
+        'confidence',
     ];
 
     protected $casts = [
@@ -81,7 +81,7 @@ class BotHudStat extends Model
         'cold3_call' => 'float',
         'cold3_raise' => 'float',
         'confidence' => 'float',
-        'sample_size' => 'integer'
+        'sample_size' => 'integer',
     ];
 
     /**

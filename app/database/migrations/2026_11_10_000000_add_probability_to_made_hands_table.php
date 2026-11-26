@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('made_hands', function (Blueprint $table) {
-            if (!Schema::hasColumn('made_hands', 'probability')) {
+            if (! Schema::hasColumn('made_hands', 'probability')) {
                 $table->decimal('probability', 8, 6)->nullable();
             }
         });

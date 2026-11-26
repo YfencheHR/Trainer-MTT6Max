@@ -18,7 +18,7 @@ class RivalPreflopTablesTest extends TestCase
     {
         $this->seed(BotSeeder::class);
         $bot = Bot::where('tipo', 'tag')->firstOrFail();
-        $tables = (new RivalPreflopTables(new PreflopRanking()))->forBot($bot);
+        $tables = (new RivalPreflopTables(new PreflopRanking))->forBot($bot);
 
         $this->assertSame(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'], array_keys($tables));
         $this->assertDatabaseCount('bot_preflop_hand_ranges', 6 * 169);
@@ -50,7 +50,7 @@ class RivalPreflopTablesTest extends TestCase
         $this->assertGreaterThan($middlePositionDefense['72o']['three_bet'], $middlePositionDefense['AA']['three_bet']);
         $this->assertGreaterThan($middlePositionDefense['AA']['fold'], $middlePositionDefense['72o']['fold']);
 
-        $weightedOpen = $attack->sum(fn($cell) => $cell['open'] * (strlen($cell['hand']) === 2 ? 6 : (str_ends_with($cell['hand'], 's') ? 4 : 12))) / 1326;
+        $weightedOpen = $attack->sum(fn ($cell) => $cell['open'] * (strlen($cell['hand']) === 2 ? 6 : (str_ends_with($cell['hand'], 's') ? 4 : 12))) / 1326;
         $this->assertEqualsWithDelta($tables['UTG']['stats']['open'], $weightedOpen, 0.01);
     }
 
@@ -58,7 +58,7 @@ class RivalPreflopTablesTest extends TestCase
     {
         $this->seed(BotSeeder::class);
         $bot = Bot::where('tipo', 'tag')->firstOrFail();
-        $service = new RivalPreflopTables(new PreflopRanking());
+        $service = new RivalPreflopTables(new PreflopRanking);
         $before = collect($service->forBot($bot)['UTG']['attack'])->keyBy('hand');
 
         BotPreflopHandStat::create([

@@ -4,6 +4,7 @@ namespace App\Services\Bots;
 
 use App\Models\Bot;
 use App\Models\HandActionRange;
+use App\Models\Tournament;
 use App\Models\TournamentHand;
 use App\Models\TournamentPlayer;
 
@@ -18,7 +19,6 @@ use App\Models\TournamentPlayer;
  */
 class RangeFilter
 {
-
     /**
      * Inicializa los rangos para un jugador al inicio de la mano
      */
@@ -28,7 +28,9 @@ class RangeFilter
             return;
         }
         $bot = $player->bot;
-        if (!$bot) return; // Solo para bots
+        if (! $bot) {
+            return;
+        } // Solo para bots
 
         // Crear entrada inicial con los rangos preflop del bot según su posición en la mano
         $position = $position ?: 'BTN';
@@ -59,7 +61,7 @@ class RangeFilter
     {
         static $cache = [];
 
-        return $cache[$hand->tournament_id] ??= (bool) data_get(\App\Models\Tournament::find($hand->tournament_id)?->config, 'simulated');
+        return $cache[$hand->tournament_id] ??= (bool) data_get(Tournament::find($hand->tournament_id)?->config, 'simulated');
     }
 
     /**
@@ -76,11 +78,15 @@ class RangeFilter
             return;
         }
         $bot = $player->bot;
-        if (!$bot) return;
+        if (! $bot) {
+            return;
+        }
 
         // El fold no cambia el rango mostrado: se conserva el de la última acción previa.
         // Un bot que foldea sin haber entrado en la mano no genera ningún rango visible.
-        if ($action === 'fold') return;
+        if ($action === 'fold') {
+            return;
+        }
 
         // Cargar el rango anterior
         $previous = HandActionRange::where([
@@ -119,7 +125,7 @@ class RangeFilter
         $preflop = $bot->preflopHandRanges()
             ->where('position', $position)
             ->get()
-            ->mapWithKeys(fn($r) => [
+            ->mapWithKeys(fn ($r) => [
                 $r->hand => [
                     'open' => round($r->attack_open),
                     'raise' => round($r->open_reraise),
@@ -212,7 +218,8 @@ class RangeFilter
 
         // Si hay situación de ICM crítico, permitir fold incluso de manos buenas
         $icmCritical = ($context['icm_critical'] ?? false) === true;
-        return !$icmCritical;
+
+        return ! $icmCritical;
     }
 
     /**
@@ -247,7 +254,9 @@ class RangeFilter
      */
     public function getEnteredRanges(TournamentHand $hand, array $playerIds): array
     {
-        if (empty($playerIds)) return [];
+        if (empty($playerIds)) {
+            return [];
+        }
 
         $rows = HandActionRange::where('hand_id', $hand->id)
             ->whereIn('player_id', $playerIds)

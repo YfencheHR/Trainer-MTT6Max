@@ -27,9 +27,7 @@ class BotFreezer
         'estado_juego', 'brain', 'brain_version',
     ];
 
-    public function __construct(private RivalPreflopTables $poolTables)
-    {
-    }
+    public function __construct(private RivalPreflopTables $poolTables) {}
 
     /** Devuelve la copia congelada de $bot (la crea si no existe una idéntica). */
     public function frozenFor(Bot $bot): Bot
@@ -45,18 +43,18 @@ class BotFreezer
             ->where('metadata->frozen_hash', $hash)
             ->first();
 
-        return $existing ?? DB::transaction(fn() => $this->copy($bot, $hash));
+        return $existing ?? DB::transaction(fn () => $this->copy($bot, $hash));
     }
 
     /** Huella del contenido que usa el juego: dos bots con el mismo contenido tienen la misma huella. */
     public function fingerprint(Bot $bot): string
     {
-        $strip = fn(array $row) => Arr::except($row, ['id', 'bot_id', 'created_at', 'updated_at']);
+        $strip = fn (array $row) => Arr::except($row, ['id', 'bot_id', 'created_at', 'updated_at']);
         $meta = (array) $bot->metadata;
         unset($meta['history'], $meta['frozen_hash'], $meta['frozen_from']); // el histórico de importaciones no afecta a las decisiones
 
-        $sorted = fn($rows) => $rows->map(fn($row) => $strip($row->attributesToArray()))
-            ->sortBy(fn($row) => json_encode($row))->values()->all();
+        $sorted = fn ($rows) => $rows->map(fn ($row) => $strip($row->attributesToArray()))
+            ->sortBy(fn ($row) => json_encode($row))->values()->all();
 
         return sha1(json_encode([
             'bot' => $bot->only(self::BOT_FIELDS) + ['icono' => $bot->getRawOriginal('icono'), 'metadata' => $meta],
@@ -64,10 +62,10 @@ class BotFreezer
             'ranges' => $sorted($bot->ranges()->get()),
             'preflop' => $sorted($bot->allPreflopHandRanges()->get()),
             'bets' => $sorted(BotBetSizeCount::where('bot_id', $bot->id)->get()),
-            'bet_prior' => DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->orderBy('street')->get(['street', 'air_share'])->map(fn($r) => (array) $r)->all(),
-            'pot_stats' => $this->potStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
-            'iso' => $this->isoStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
-            'limp_response' => $this->limpResponseStats($bot)->map(fn($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
+            'bet_prior' => DB::table('bot_bet_size_prior')->where('bot_id', $bot->id)->orderBy('street')->get(['street', 'air_share'])->map(fn ($r) => (array) $r)->all(),
+            'pot_stats' => $this->potStats($bot)->map(fn ($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
+            'iso' => $this->isoStats($bot)->map(fn ($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
+            'limp_response' => $this->limpResponseStats($bot)->map(fn ($r) => Arr::except($r, ['id', 'bot_id', 'created_at', 'updated_at']))->all(),
         ]));
     }
 
@@ -89,7 +87,7 @@ class BotFreezer
         // Tablas preflop por mano (≈1.000 filas): inserción en bloque
         $now = now();
         $rows = $bot->allPreflopHandRanges()->get()->map(
-            fn(BotPreflopHandRange $r) => array_merge(
+            fn (BotPreflopHandRange $r) => array_merge(
                 Arr::except($r->getAttributes(), ['id']),
                 ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]
             )
@@ -100,7 +98,7 @@ class BotFreezer
 
         // Matriz de apuestas (conteos)
         $bets = BotBetSizeCount::where('bot_id', $bot->id)->get()->map(
-            fn($r) => ['bot_id' => $copy->id, 'street' => $r->street, 'tier' => $r->tier, 'bucket' => $r->bucket, 'n' => $r->n, 'created_at' => $now, 'updated_at' => $now]
+            fn ($r) => ['bot_id' => $copy->id, 'street' => $r->street, 'tier' => $r->tier, 'bucket' => $r->bucket, 'n' => $r->n, 'created_at' => $now, 'updated_at' => $now]
         )->all();
         if ($bets) {
             BotBetSizeCount::insert($bets);
@@ -110,13 +108,13 @@ class BotFreezer
         }
 
         // Lo que hace en botes limpeados / subidos por posición y stack (PokerTracker): lo lee el Perceiver con el id del bot que juega
-        if ($limpResponse = $this->limpResponseStats($bot)->map(fn($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all()) {
+        if ($limpResponse = $this->limpResponseStats($bot)->map(fn ($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all()) {
             DB::table('bot_limp_response_stats')->insert($limpResponse);
         }
-        if ($iso = $this->isoStats($bot)->map(fn($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all()) {
+        if ($iso = $this->isoStats($bot)->map(fn ($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all()) {
             DB::table('bot_iso_stats')->insert($iso);
         }
-        foreach (array_chunk($this->potStats($bot)->map(fn($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all(), 200) as $chunk) {
+        foreach (array_chunk($this->potStats($bot)->map(fn ($r) => array_merge(Arr::except($r, ['id']), ['bot_id' => $copy->id, 'created_at' => $now, 'updated_at' => $now]))->all(), 200) as $chunk) {
             DB::table('bot_postflop_pot_stats')->insert($chunk);
         }
 
@@ -126,19 +124,19 @@ class BotFreezer
     /** Lo que hace el perfil tras limpear y recibir una subida, por posición (bot_limp_response_stats). */
     private function limpResponseStats(Bot $bot): Collection
     {
-        return DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->orderBy('position')->get()->map(fn($r) => (array) $r);
+        return DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->orderBy('position')->get()->map(fn ($r) => (array) $r);
     }
 
     /** Lo que hace el perfil con limpers delante, por posición (bot_iso_stats). */
     private function isoStats(Bot $bot): Collection
     {
-        return DB::table('bot_iso_stats')->where('bot_id', $bot->id)->orderBy('position')->get()->map(fn($r) => (array) $r);
+        return DB::table('bot_iso_stats')->where('bot_id', $bot->id)->orderBy('position')->get()->map(fn ($r) => (array) $r);
     }
 
     /** Filas de bot_postflop_pot_stats del bot, ordenadas para que la huella no dependa del orden de lectura. */
     private function potStats(Bot $bot): Collection
     {
         return DB::table('bot_postflop_pot_stats')->where('bot_id', $bot->id)
-            ->orderBy('street')->orderBy('pot')->orderBy('position')->orderBy('stack_bucket')->get()->map(fn($r) => (array) $r);
+            ->orderBy('street')->orderBy('pot')->orderBy('position')->orderBy('stack_bucket')->get()->map(fn ($r) => (array) $r);
     }
 }

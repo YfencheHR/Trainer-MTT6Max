@@ -12,8 +12,7 @@ class GameHandUpdated implements ShouldBroadcastNow
         public array $state,
         public bool $finished = false,
         public ?string $message = null,
-    ) {
-    }
+    ) {}
 
     public function broadcastOn(): Channel
     {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TournamentHand extends Model
 {
@@ -60,12 +61,12 @@ class TournamentHand extends Model
         return $this->belongsTo(Tournament::class);
     }
 
-    public function handPlayers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function handPlayers(): HasMany
     {
         return $this->hasMany(HandPlayer::class)->orderBy('seat');
     }
 
-    public function handActions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function handActions(): HasMany
     {
         return $this->hasMany(HandAction::class)->orderBy('sequence');
     }
@@ -91,13 +92,13 @@ class TournamentHand extends Model
 
     public function getTotalPot(): float
     {
-        return ($this->pot_river ?? $this->pot_turn ?? $this->pot_flop ?? $this->pot_preflop ?? 0);
+        return $this->pot_river ?? $this->pot_turn ?? $this->pot_flop ?? $this->pot_preflop ?? 0;
     }
 
     public function getHeroStackChange(): float
     {
-        $before = data_get($this->stacks_before, 'seat_' . $this->hero_seat, 0);
-        $after = data_get($this->stacks_after, 'seat_' . $this->hero_seat, 0);
+        $before = data_get($this->stacks_before, 'seat_'.$this->hero_seat, 0);
+        $after = data_get($this->stacks_after, 'seat_'.$this->hero_seat, 0);
 
         return $after - $before;
     }

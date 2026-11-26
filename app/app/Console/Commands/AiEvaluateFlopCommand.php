@@ -191,7 +191,7 @@ class AiEvaluateFlopCommand extends Command
     /**
      * Lo que hizo el jugador preflop: su posición y su línea (cada acción con las subidas que había antes), como clave de texto.
      *
-     * @return array{position: string, key: string}|null  null si foldeó preflop o no tiene cartas
+     * @return array{position: string, key: string}|null null si foldeó preflop o no tiene cartas
      */
     private function preflopLine(array $hand, string $player): ?array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Config\IconConfig;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -51,7 +52,7 @@ class Bot extends Model
                 self::$hasArchivedColumn = Schema::hasColumn('bots', 'archived_at');
             }
             if (self::$hasArchivedColumn) {
-                $query->whereNull($query->getModel()->getTable() . '.archived_at');
+                $query->whereNull($query->getModel()->getTable().'.archived_at');
             }
         });
     }
@@ -131,7 +132,7 @@ class Bot extends Model
      */
     public function getIconoAttribute($value): string
     {
-        return $value ?: \App\Config\IconConfig::forTipo($this->tipo, $this->perfil);
+        return $value ?: IconConfig::forTipo($this->tipo, $this->perfil);
     }
 
     /** Fila general de estadísticas (todas las calles), la que llenan el seeder, el editor y el importador. */
@@ -160,7 +161,7 @@ class Bot extends Model
         }
 
         $order = ['UTG', 'MP', 'CO', 'BTN', 'SB', 'BB'];
-        uksort($out, fn($a, $b) => (array_search($a, $order) === false ? 9 : array_search($a, $order)) <=> (array_search($b, $order) === false ? 9 : array_search($b, $order)));
+        uksort($out, fn ($a, $b) => (array_search($a, $order) === false ? 9 : array_search($a, $order)) <=> (array_search($b, $order) === false ? 9 : array_search($b, $order)));
 
         return $out;
     }
@@ -173,9 +174,9 @@ class Bot extends Model
     public function postflopRoles(): array
     {
         $out = [];
-        $rows = $this->hudStats()->whereNull('posicion')->where('accion', 'like', '%\_agg\_%')->orWhere(fn($q) => $q->where('bot_id', $this->id)->whereNull('posicion')->where('accion', 'like', '%\_def\_%'))->get();
+        $rows = $this->hudStats()->whereNull('posicion')->where('accion', 'like', '%\_agg\_%')->orWhere(fn ($q) => $q->where('bot_id', $this->id)->whereNull('posicion')->where('accion', 'like', '%\_def\_%'))->get();
         foreach ($rows as $r) {
-            if ($r->bot_id !== $this->id || !preg_match('/^(flop|turn|river)_(agg|def)_(ip|oop)$/', (string) $r->accion, $m)) {
+            if ($r->bot_id !== $this->id || ! preg_match('/^(flop|turn|river)_(agg|def)_(ip|oop)$/', (string) $r->accion, $m)) {
                 continue;
             }
             [, $street, $role, $ip] = $m;

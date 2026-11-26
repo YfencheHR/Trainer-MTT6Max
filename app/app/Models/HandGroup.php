@@ -30,7 +30,7 @@ class HandGroup extends Model
         $value = $query->byStackDepth($stackDepth)->first();
 
         // Si no encuentra exactamente, buscar el rango más cercano
-        if (!$value) {
+        if (! $value) {
             $query = $this->values()->byScenario($scenario);
             if ($position) {
                 $query->byPosition($position);

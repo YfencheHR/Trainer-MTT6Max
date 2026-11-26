@@ -21,16 +21,14 @@ class EquityCalculator
     /** Máximo de combinaciones de board para enumerar exactamente. */
     private const EXACT_LIMIT = 1100;
 
-    public function __construct(private int $defaultSamples = 1500)
-    {
-    }
+    public function __construct(private int $defaultSamples = 1500) {}
 
     /**
      * Equity de varias manos conocidas a la vez (suman 1).
      *
-     * @param array<int|string, string[]> $hands  clave => 2 cartas  ("A♠","K♦")
-     * @param string[]                    $board  0-5 cartas visibles
-     * @return array<int|string, float>   clave => equity (0-1)
+     * @param  array<int|string, string[]>  $hands  clave => 2 cartas  ("A♠","K♦")
+     * @param  string[]  $board  0-5 cartas visibles
+     * @return array<int|string, float> clave => equity (0-1)
      */
     public function equities(array $hands, array $board = [], ?int $samples = null): array
     {
@@ -62,17 +60,17 @@ class EquityCalculator
             $n++;
         }
 
-        return array_map(fn($v) => $n ? $v / $n : 0.0, $result);
+        return array_map(fn ($v) => $n ? $v / $n : 0.0, $result);
     }
 
     /**
      * Ganancia esperada de cada jugador sobre un conjunto de botes (principal + laterales).
      * Sirve para el EV "ajustado" de un all-in: lo que se espera ganar según las cartas, no lo que salió.
      *
-     * @param array<int|string, string[]> $hands   id => 2 cartas (solo jugadores que siguen en la mano)
-     * @param string[]                    $board   cartas visibles cuando ya no hay más apuestas
-     * @param array<int, array{amount:int|float, eligible:array}> $layers  botes: importe y jugadores con derecho
-     * @return array<int|string, float>  id => fichas esperadas (suma de todos los botes)
+     * @param  array<int|string, string[]>  $hands  id => 2 cartas (solo jugadores que siguen en la mano)
+     * @param  string[]  $board  cartas visibles cuando ya no hay más apuestas
+     * @param  array<int, array{amount:int|float, eligible:array}>  $layers  botes: importe y jugadores con derecho
+     * @return array<int|string, float> id => fichas esperadas (suma de todos los botes)
      */
     public function expectedWinnings(array $hands, array $board, array $layers, ?int $samples = null): array
     {
@@ -93,7 +91,7 @@ class EquityCalculator
                 $best = -1;
                 $winners = [];
                 foreach ($layer['eligible'] as $k) {
-                    if (!isset($scores[$k])) {
+                    if (! isset($scores[$k])) {
                         continue;
                     }
                     if ($scores[$k] > $best) {
@@ -113,7 +111,7 @@ class EquityCalculator
             $n++;
         }
 
-        return array_map(fn($v) => $n ? $v / $n : 0.0, $won);
+        return array_map(fn ($v) => $n ? $v / $n : 0.0, $won);
     }
 
     /**
@@ -128,14 +126,14 @@ class EquityCalculator
      * Equity contra rangos. Cada rival es una lista de combos posibles [[c1,c2],…] o null (cualquier mano).
      * Un bot puede construir el rango de un rival a partir de sus estadísticas (VPIP, PFR…).
      *
-     * @param array<int, array<int, string[]>|null> $ranges
+     * @param  array<int, array<int, string[]>|null>  $ranges
      */
     public function equityVsRanges(array $hero, array $ranges, array $board = [], ?int $samples = null): float
     {
         $samples ??= $this->defaultSamples;
         $heroInts = FastHandEvaluator::cards($hero);
         $boardInts = FastHandEvaluator::cards($board);
-        $rangeInts = array_map(fn($r) => $r === null ? null : array_map(fn($c) => FastHandEvaluator::cards($c), $r), $ranges);
+        $rangeInts = array_map(fn ($r) => $r === null ? null : array_map(fn ($c) => FastHandEvaluator::cards($c), $r), $ranges);
 
         $rng = new Randomizer(new Mt19937($this->seed([$heroInts, $boardInts, count($ranges)])));
         $need = 5 - count($boardInts);
@@ -160,7 +158,7 @@ class EquityCalculator
                     } else {
                         $cand = $combos[$rng->getInt(0, count($combos) - 1)];
                     }
-                    if ($cand[0] !== $cand[1] && !$used[$cand[0]] && !$used[$cand[1]]) {
+                    if ($cand[0] !== $cand[1] && ! $used[$cand[0]] && ! $used[$cand[1]]) {
                         $hand = $cand;
                     }
                 }
@@ -171,14 +169,14 @@ class EquityCalculator
                 $used[$hand[0]] = $used[$hand[1]] = true;
                 $oppHands[] = $hand;
             }
-            if (!$ok) {
+            if (! $ok) {
                 continue;
             }
 
             $extra = [];
             while (count($extra) < $need) {
                 $c = $rng->getInt(0, 51);
-                if (!$used[$c]) {
+                if (! $used[$c]) {
                     $used[$c] = true;
                     $extra[] = $c;
                 }
@@ -201,15 +199,16 @@ class EquityCalculator
      * Genera los tableros completos posibles dadas las cartas conocidas.
      * Enumeración exacta si hay pocas combinaciones; si no, muestreo reproducible.
      *
-     * @param array<int|string, int[]> $hole
-     * @param int[]                    $board
-     * @return \Generator<int[]>   las 5 cartas del board (visibles + por venir)
+     * @param  array<int|string, int[]>  $hole
+     * @param  int[]  $board
+     * @return \Generator<int[]> las 5 cartas del board (visibles + por venir)
      */
     private function runouts(array $hole, array $board, int $samples): \Generator
     {
         $need = 5 - count($board);
         if ($need <= 0) {
             yield $board;
+
             return;
         }
 
@@ -224,7 +223,7 @@ class EquityCalculator
         }
         $deck = [];
         for ($c = 0; $c < 52; $c++) {
-            if (!$used[$c]) {
+            if (! $used[$c]) {
                 $deck[] = $c;
             }
         }
@@ -234,6 +233,7 @@ class EquityCalculator
             foreach ($deck as $a) {
                 yield [...$board, $a];
             }
+
             return;
         }
         if ($need === 2 && $m * ($m - 1) / 2 <= self::EXACT_LIMIT) {
@@ -242,6 +242,7 @@ class EquityCalculator
                     yield [...$board, $deck[$i], $deck[$j]];
                 }
             }
+
             return;
         }
 

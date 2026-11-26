@@ -2,12 +2,16 @@
 
 namespace App\Services\Import;
 
+use App\Config\BotStreets;
+use App\Config\IconConfig;
 use App\Models\Bot;
 use App\Models\BotHudStat;
 use App\Services\Bots\BetTier;
 use App\Services\Bots\BluffPriorModel;
+use App\Services\Bots\Brain\BoardTexture;
 use App\Services\Bots\Brain\BotProfile;
 use App\Services\Bots\Brain\PreflopRanking;
+use App\Services\Bots\RivalPreflopTables;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
@@ -64,20 +68,20 @@ class Pt4Importer
         $sql = $path;
         $cleanup = null;
         if (strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'zip') {
-            $dir = storage_path('app/import/tmp-' . uniqid());
+            $dir = storage_path('app/import/tmp-'.uniqid());
             mkdir($dir, 0775, true);
             $this->say('Descomprimiendo el zip…');
 
-            $zip = new \ZipArchive();
+            $zip = new \ZipArchive;
             if ($zip->open($path) !== true) {
                 throw new \RuntimeException('No se puede abrir el archivo ZIP.');
             }
             $zip->extractTo($dir);
             $zip->close();
 
-            $files = array_values(array_filter(glob($dir . '/*'), 'is_file'));
-            usort($files, fn($a, $b) => filesize($b) <=> filesize($a));
-            if (!$files) {
+            $files = array_values(array_filter(glob($dir.'/*'), 'is_file'));
+            usort($files, fn ($a, $b) => filesize($b) <=> filesize($a));
+            if (! $files) {
                 throw new \RuntimeException('El zip está vacío.');
             }
             $sql = $files[0];
@@ -90,7 +94,7 @@ class Pt4Importer
         }
 
         $this->drop();
-        DB::statement("CREATE DATABASE " . self::TMP_DB . " ENCODING 'SQL_ASCII' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'");
+        DB::statement('CREATE DATABASE '.self::TMP_DB." ENCODING 'SQL_ASCII' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C'");
         $this->say('Restaurando en la base temporal (puede tardar unos minutos)…');
 
         $c = config('database.connections.pgsql');
@@ -178,9 +182,9 @@ class Pt4Importer
         $haveSummary = array_column($this->tmp()->select(
             "select column_name from information_schema.columns where table_name = 'tourney_hand_summary'"
         ), 'column_name');
-        $missing = array_merge($missing, array_map(fn($c) => "tourney_hand_summary.{$c}", array_diff(self::REQUIRED_SUMMARY_COLUMNS, $haveSummary)));
+        $missing = array_merge($missing, array_map(fn ($c) => "tourney_hand_summary.{$c}", array_diff(self::REQUIRED_SUMMARY_COLUMNS, $haveSummary)));
         if ($missing) {
-            throw new \RuntimeException('El volcado de PT4 no trae columnas que necesita el importador: ' . implode(', ', $missing));
+            throw new \RuntimeException('El volcado de PT4 no trae columnas que necesita el importador: '.implode(', ', $missing));
         }
     }
 
@@ -198,7 +202,7 @@ class Pt4Importer
 
     public function tmp(): Connection
     {
-        if (!$this->tmp) {
+        if (! $this->tmp) {
             $cfg = array_merge(config('database.connections.pgsql'), ['database' => self::TMP_DB]);
             $this->tmp = DB::connectUsing('pt4_tmp', $cfg, true);
         }
@@ -210,7 +214,7 @@ class Pt4Importer
     {
         $this->tmp = null;
         DB::purge('pt4_tmp');
-        DB::statement('DROP DATABASE IF EXISTS ' . self::TMP_DB . ' WITH (FORCE)');
+        DB::statement('DROP DATABASE IF EXISTS '.self::TMP_DB.' WITH (FORCE)');
     }
 
     private function run(array $cmd): void
@@ -225,9 +229,9 @@ class Pt4Importer
     /** Expresiones SQL de cada estadística (porcentajes 0-100, agresión como ratio). */
     private function exprs(): array
     {
-        $pct = fn($n, $d) => "round(100.0 * sum($n) / nullif(sum($d), 0), 2)";
+        $pct = fn ($n, $d) => "round(100.0 * sum($n) / nullif(sum($d), 0), 2)";
         // Igual, pero null si hay menos de $min oportunidades: un % por oportunidad con 4 casos (p. ej. UTG ante una apertura) no es dato.
-        $pctMin = fn($n, $d, $min) => "round(100.0 * sum($n) / nullif(case when sum($d) >= $min then sum($d) end, 0), 2)";
+        $pctMin = fn ($n, $d, $min) => "round(100.0 * sum($n) / nullif(case when sum($d) >= $min then sum($d) end, 0), 2)";
 
         return [
             'hands' => 'count(*)',
@@ -252,9 +256,9 @@ class Pt4Importer
             'reraise_vs_3bet' => $pct("(flg_p_open and not flg_p_limp and enum_p_3bet_action = 'R')::int", '(flg_p_open and not flg_p_limp and flg_p_3bet_def_opp)::int'),
             'squeeze' => $pct('flg_p_squeeze::int', 'flg_p_squeeze_opp::int'),
             // Respuesta a un 3-bet SIN haber actuado antes (ni abrir, ni limpear, ni pagar la apertura, ni squeeze): ver self::COLD3.
-            'cold3_fold' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'F')::int", self::COLD3 . '::int', 20),
-            'cold3_call' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'C')::int", self::COLD3 . '::int', 20),
-            'cold3_raise' => $pctMin("(" . self::COLD3 . " and enum_p_3bet_action = 'R')::int", self::COLD3 . '::int', 20),
+            'cold3_fold' => $pctMin('('.self::COLD3." and enum_p_3bet_action = 'F')::int", self::COLD3.'::int', 20),
+            'cold3_call' => $pctMin('('.self::COLD3." and enum_p_3bet_action = 'C')::int", self::COLD3.'::int', 20),
+            'cold3_raise' => $pctMin('('.self::COLD3." and enum_p_3bet_action = 'R')::int", self::COLD3.'::int', 20),
             // Call contra apertura POR OPORTUNIDAD (como three_bet), no sobre todas las manos. flg_p_ccall coincide exactamente con
             // pagar una apertura fuera de ciegas sin haber limpeado (comprobado en datos reales) y nunca es true en las ciegas.
             'cold_call' => $pctMin('(flg_p_ccall and flg_p_3bet_opp and not flg_p_limp)::int', '(flg_p_3bet_opp and not flg_p_limp and s.position not in (8, 9))::int', 30),
@@ -300,8 +304,8 @@ class Pt4Importer
     /** @return array<int, array> jugadores rivales con al menos $minHands manos, por id_player */
     public function players(int $minHands): array
     {
-        $rows = $this->tmp()->select("
-            select s.id_player, p.player_name, " . $this->select() . ",
+        $rows = $this->tmp()->select('
+            select s.id_player, p.player_name, '.$this->select().",
                 round(100.0 * avg(s.amt_won / nullif(b.amt_bb, 0)), 2) as bb100,
                 count(s.id_player) as hand_count
             from fresh_stats s join player p using (id_player)
@@ -311,11 +315,14 @@ class Pt4Importer
             group by s.id_player, p.player_name having count(*) >= ? and avg(s.flg_vpip::int) > 0 -- VPIP 0: sentado sin jugar, no es un estilo
             order by count(*) desc", [$minHands]);
 
-        $this->say('Jugadores seleccionados: ' . count($rows));
+        $this->say('Jugadores seleccionados: '.count($rows));
         $winners = $losers = 0;
         foreach ($rows as $r) {
-            if (($r->bb100 ?? 0) > 0) $winners++;
-            else $losers++;
+            if (($r->bb100 ?? 0) > 0) {
+                $winners++;
+            } else {
+                $losers++;
+            }
         }
         $this->say("Ganadores: $winners, Perdedores: $losers");
 
@@ -330,13 +337,13 @@ class Pt4Importer
     /** Estadísticas agregadas de un conjunto de jugadores (suma de sus manos): fila general + una por posición. */
     public function aggregate(array $ids): array
     {
-        $in = '{' . implode(',', array_map('intval', $ids)) . '}';
-        $general = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s where id_player = any(?)', [$in]);
+        $in = '{'.implode(',', array_map('intval', $ids)).'}';
+        $general = (array) $this->tmp()->selectOne('select '.$this->select().' from fresh_stats s where id_player = any(?)', [$in]);
         $byPos = [];
         $label = $this->posLabel();
-        foreach ($this->tmp()->select("select $label as pos, " . $this->select() . ' from fresh_stats s where id_player = any(?) group by 1', [$in]) as $r) {
+        foreach ($this->tmp()->select("select $label as pos, ".$this->select().' from fresh_stats s where id_player = any(?) group by 1', [$in]) as $r) {
             $pos = $r->pos;
-            if (!$pos) {
+            if (! $pos) {
                 continue;
             }
             $a = (array) $r;
@@ -360,20 +367,20 @@ class Pt4Importer
         $general['cbet_ip'] = $postflop['flop']['ip']['bet'] ?? null;
         $general['cbet_oop'] = $postflop['flop']['oop']['bet'] ?? null;
         // Defensa de ciegas ante un robo: 100 − fold al robo (8 = ciega grande, 9 = ciega pequeña en PokerTracker)
-        $d = $this->tmp()->selectOne("select
+        $d = $this->tmp()->selectOne('select
             round(100 - 100.0 * sum(flg_bb_steal_fold::int) filter (where position = 8) / nullif(sum(flg_blind_def_opp::int) filter (where position = 8), 0), 2) as bb,
             round(100 - 100.0 * sum(flg_sb_steal_fold::int) filter (where position = 9) / nullif(sum(flg_blind_def_opp::int) filter (where position = 9), 0), 2) as sb
-            from fresh_stats where id_player = any(?)", [$in]);
+            from fresh_stats where id_player = any(?)', [$in]);
         $general['bb_defense'] = $d->bb;
         $general['sb_defense'] = $d->sb;
 
         // Resultado en bb/100: amt_won (ya es el resultado NETO de la mano en PokerTracker) entre la ciega grande de esa mano, ×100. Es el resultado en fichas
         // (sin ICM) y con pocas manos es muy ruidoso: se guarda también la desviación para mostrar su error típico.
-        $r = $this->tmp()->selectOne("select count(*) as n,
+        $r = $this->tmp()->selectOne('select count(*) as n,
                 round(100.0 * avg(s.amt_won / nullif(b.amt_bb, 0)), 2) as bb100,
                 round(coalesce(stddev_samp(s.amt_won / nullif(b.amt_bb, 0)), 0), 3) as sd
             from fresh_stats s join tourney_blinds b on b.id_blinds = s.id_blinds
-            where s.id_player = any(?) and b.amt_bb > 0", [$in]);
+            where s.id_player = any(?) and b.amt_bb > 0', [$in]);
         $bb = ['value' => $r->bb100 === null ? null : (float) $r->bb100, 'n' => (int) $r->n, 'sd' => (float) $r->sd];
 
         return [
@@ -408,7 +415,7 @@ class Pt4Importer
      * Las cartas de las apuestas que se retiran no se ven, pero eso apenas sesga: con las manos del héroe, que se conocen todas,
      * la proporción de aire sale con ~1 punto de error usando solo lo que llega a showdown (el rival decide sin ver la mano).
      *
-     * @param string $filter condición SQL sobre fresh_stats s (con ? para $bindings)
+     * @param  string  $filter  condición SQL sobre fresh_stats s (con ? para $bindings)
      * @return array<string, array<string, array<string, int>>> calle => tipo => tramo => n
      */
     private function betCounts(string $filter, array $bindings): array
@@ -512,7 +519,7 @@ class Pt4Importer
                     $ranks[] = ($id - 1) % 13;          // 0 = dos … 12 = as
                     $suits[] = intdiv($id - 1, 13);
                 }
-                $key = $street . '|' . \App\Services\Bots\Brain\BoardTexture::fromValues($ranks, $suits);
+                $key = $street.'|'.BoardTexture::fromValues($ranks, $suits);
                 foreach (self::TEXTURE_COUNTERS as $k) {
                     $counts[$key][$k] = ($counts[$key][$k] ?? 0) + (int) $r->{$k};
                 }
@@ -568,8 +575,8 @@ class Pt4Importer
                 $where = ['street' => $street, 'bucket' => $row->bucket];
                 $add = ['faced' => (int) $row->faced, 'folded' => (int) $row->folded, 'raised' => (int) $row->raised];
                 $updated = DB::table('fold_to_bet_size_population')->where($where)->update([
-                    'faced' => DB::raw('faced + ' . $add['faced']), 'folded' => DB::raw('folded + ' . $add['folded']),
-                    'raised' => DB::raw('raised + ' . $add['raised']), 'updated_at' => $now,
+                    'faced' => DB::raw('faced + '.$add['faced']), 'folded' => DB::raw('folded + '.$add['folded']),
+                    'raised' => DB::raw('raised + '.$add['raised']), 'updated_at' => $now,
                 ]);
                 if (! $updated) {
                     DB::table('fold_to_bet_size_population')->insert($where + $add + ['created_at' => $now, 'updated_at' => $now]);
@@ -642,7 +649,7 @@ class Pt4Importer
         $now = now();
         foreach ($rows as $row) {
             $where = $keys + ['street' => $row['street'], 'tier' => $row['tier'], 'bucket' => $row['bucket']];
-            $updated = DB::table($table)->where($where)->update(['n' => DB::raw('n + ' . (int) $row['n']), 'updated_at' => $now]);
+            $updated = DB::table($table)->where($where)->update(['n' => DB::raw('n + '.(int) $row['n']), 'updated_at' => $now]);
             if (! $updated) {
                 DB::table($table)->insert($where + ['n' => $row['n'], 'created_at' => $now, 'updated_at' => $now]);
             }
@@ -660,10 +667,10 @@ class Pt4Importer
         if ($this->popRatios !== null) {
             return $this->popRatios;
         }
-        $all = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s');
+        $all = (array) $this->tmp()->selectOne('select '.$this->select().' from fresh_stats s');
         $out = [];
         foreach (BotProfile::STACK_BUCKETS as $bucket => [$min, $max]) {
-            $row = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s where s.stack_bb >= ? and s.stack_bb < ?', [$min, $max]);
+            $row = (array) $this->tmp()->selectOne('select '.$this->select().' from fresh_stats s where s.stack_bb >= ? and s.stack_bb < ?', [$min, $max]);
             foreach (self::STACK_STATS as $k) {
                 $ratio = (isset($all[$k], $row[$k]) && (float) $all[$k] > 0) ? (float) $row[$k] / (float) $all[$k] : 1.0;
                 $out[$bucket][$k] = max(0.1, min(6.0, $ratio));
@@ -684,7 +691,7 @@ class Pt4Importer
         $pop = $this->popRatios();
         $out = [];
         foreach (BotProfile::STACK_BUCKETS as $bucket => [$min, $max]) {
-            $row = (array) $this->tmp()->selectOne('select ' . $this->select() . ' from fresh_stats s where id_player = any(?) and s.stack_bb >= ? and s.stack_bb < ?', [$in, $min, $max]);
+            $row = (array) $this->tmp()->selectOne('select '.$this->select().' from fresh_stats s where id_player = any(?) and s.stack_bb >= ? and s.stack_bb < ?', [$in, $min, $max]);
             $n = (int) ($row['hands'] ?? 0);
             $vals = ['hands' => $n];
             foreach (self::STACK_STATS as $k) {
@@ -692,11 +699,12 @@ class Pt4Importer
                 $overall = $general[$k] ?? null;
                 if ($overall === null) {
                     $vals[$k] = $own;
+
                     continue;
                 }
                 $prior = (float) $overall * $pop[$bucket][$k];
                 $value = $own === null ? $prior : ($n * (float) $own + self::STACK_SHRINK_HANDS * $prior) / ($n + self::STACK_SHRINK_HANDS);
-                $vals[$k] = round(\App\Config\BotStreets::isRatio($k) ? $value : max(0.0, min(100.0, $value)), 2);
+                $vals[$k] = round(BotStreets::isRatio($k) ? $value : max(0.0, min(100.0, $value)), 2);
             }
             $out[$bucket] = $vals;
         }
@@ -739,21 +747,21 @@ class Pt4Importer
               coalesce(sum(($limp and cnt_p_raise > 0)::int), 0) as vs_limp_raises,
               coalesce(sum(($limp and flg_p_limp)::int), 0) as vs_limp_calls,
               -- Contra un 3-bet sin haber actuado antes (fold = oportunidades - calls - subidas)
-              coalesce(sum(" . self::COLD3 . "::int), 0) as cold3_opportunities,
-              coalesce(sum((" . self::COLD3 . " and enum_p_3bet_action = 'C')::int), 0) as cold3_calls,
-              coalesce(sum((" . self::COLD3 . " and enum_p_3bet_action = 'R')::int), 0) as cold3_raises
+              coalesce(sum(".self::COLD3.'::int), 0) as cold3_opportunities,
+              coalesce(sum(('.self::COLD3." and enum_p_3bet_action = 'C')::int), 0) as cold3_calls,
+              coalesce(sum((".self::COLD3." and enum_p_3bet_action = 'R')::int), 0) as cold3_raises
             from fresh_stats
             where id_player = any(?)
               and holecard_1 between 1 and 52 and holecard_2 between 1 and 52
             group by $label, holecard_1, holecard_2", [$in]);
 
-        $ranking = new PreflopRanking();
+        $ranking = new PreflopRanking;
         $out = [];
         $columns = self::HAND_COUNT_COLUMNS;
 
         foreach ($rows as $row) {
             $pos = $row->pos;
-            if (!$pos) {
+            if (! $pos) {
                 continue;
             }
 
@@ -779,7 +787,7 @@ class Pt4Importer
         $suits = ['♣', '♦', '♥', '♠'];
         $index = $card - 1;
 
-        return $ranks[$index % 13] . $suits[intdiv($index, 13)];
+        return $ranks[$index % 13].$suits[intdiv($index, 13)];
     }
 
     /**
@@ -828,7 +836,7 @@ class Pt4Importer
 
         $out = [];
         foreach ($rows as $r) {
-            if (!$r->pos || !$r->vs_pos) {
+            if (! $r->pos || ! $r->vs_pos) {
                 continue;
             }
             // MP/UTG de varias posiciones de PT4 se funden sumando
@@ -854,7 +862,7 @@ class Pt4Importer
         $out = [];
         foreach (['flop' => 'f', 'turn' => 't', 'river' => 'r'] as $street => $s) {
             $donk = $s === 'f'
-                ? ", round(100.0 * sum(flg_f_donk::int) / nullif(sum(flg_f_donk_opp::int), 0), 2) as donk, coalesce(sum(flg_f_donk_opp::int), 0) as donk_n"
+                ? ', round(100.0 * sum(flg_f_donk::int) / nullif(sum(flg_f_donk_opp::int), 0), 2) as donk, coalesce(sum(flg_f_donk_opp::int), 0) as donk_n'
                 : '';
             $rows = $this->tmp()->select("
                 select p.pot, flg_{$s}_has_position as ip,
@@ -936,7 +944,7 @@ class Pt4Importer
      */
     public function import(int $minHands = 20, bool $dry = false, int $botHands = 200, bool $reset = false): array
     {
-        if ($reset && !$dry) {
+        if ($reset && ! $dry) {
             // Recalcular desde cero con esta copia: se olvida lo registrado y los datos se reemplazan en vez de sumarse
             DB::table('pt4_imported_hands')->truncate();
             DB::table('pt4_imported_tourneys')->truncate();
@@ -954,8 +962,8 @@ class Pt4Importer
         // Sin datos registrados (primera importación con registro o recálculo) se recrean los bots Pool desde cero;
         // si ya hay datos, se conservan y se actualizan. Se hace ANTES de crear las copias.
         // Los que ya están en algún torneo no se borran: se archivan (ver PoolBotRetirer).
-        if (!$dry && !$this->merge) {
-            $retired = (new PoolBotRetirer())->retire();
+        if (! $dry && ! $this->merge) {
+            $retired = (new PoolBotRetirer)->retire();
             if ($retired['archived'] > 0) {
                 $this->say("Perfiles anteriores archivados (los usan torneos ya jugados, siguen funcionando): {$retired['archived']}");
             }
@@ -965,7 +973,7 @@ class Pt4Importer
         }
 
         $players = $this->players($minHands);
-        $this->say(count($players) . " jugadores con al menos $minHands manos");
+        $this->say(count($players)." jugadores con al menos $minHands manos");
         $centroids = $this->centroids();
 
         // Los jugadores con pocas manos tienen estadísticas muy ruidosas (un 0 % o un 70 % de VPIP en 20 manos casi siempre es
@@ -990,7 +998,7 @@ class Pt4Importer
         foreach ($absorbed as $pid => $ids) {
             $groups[$pid] = array_merge($groups[$pid] ?? [], $ids);
         }
-        $this->say(count($outliers) . ' jugadores no encajan en un perfil primario → ' . count($clusters) . ' perfiles nuevos (y ' . array_sum(array_map('count', $absorbed)) . ' absorbidos por un primario)');
+        $this->say(count($outliers).' jugadores no encajan en un perfil primario → '.count($clusters).' perfiles nuevos (y '.array_sum(array_map('count', $absorbed)).' absorbidos por un primario)');
 
         $report = ['profiles' => [], 'created' => [], 'players' => count($players), 'dedupe' => $dedupe];
 
@@ -1002,99 +1010,99 @@ class Pt4Importer
             [$winners, $losers] = $this->splitByResult($ids, $players);
 
             // Crear perfil para ganadores si existen
-            if (!empty($winners)) {
+            if (! empty($winners)) {
                 $agg = $this->aggregate($winners);
                 $g = $agg['general'];
-                $report['profiles'][] = ['bot' => $primary->nombre . ' · Pool (Ganador)', 'players' => count($winners), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
-                if (!$dry) {
+                $report['profiles'][] = ['bot' => $primary->nombre.' · Pool (Ganador)', 'players' => count($winners), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
+                if (! $dry) {
                     $copy = $this->poolCopy($primary);
-                    $copy->update(['nombre' => $copy->nombre . ' · W']);
+                    $copy->update(['nombre' => $copy->nombre.' · W']);
                     $this->write($copy, $agg);
                     $this->storeMembers($copy, $winners, $players);
-                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
+                    app(RivalPreflopTables::class)->forBot($copy);
                     $this->logHistory($copy, count($winners), $nPlayers, $g, $agg['bb100']);
                 }
             }
 
             // Crear perfil para perdedores si existen
-            if (!empty($losers)) {
+            if (! empty($losers)) {
                 $agg = $this->aggregate($losers);
                 $g = $agg['general'];
-                $report['profiles'][] = ['bot' => $primary->nombre . ' · Pool (Perdedor)', 'players' => count($losers), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
-                if (!$dry) {
+                $report['profiles'][] = ['bot' => $primary->nombre.' · Pool (Perdedor)', 'players' => count($losers), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
+                if (! $dry) {
                     $copy = $this->poolCopy($primary);
-                    $copy->update(['nombre' => $copy->nombre . ' · L']);
+                    $copy->update(['nombre' => $copy->nombre.' · L']);
                     $this->write($copy, $agg);
                     $this->storeMembers($copy, $losers, $players);
-                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($copy);
+                    app(RivalPreflopTables::class)->forBot($copy);
                     $this->logHistory($copy, count($losers), $nPlayers, $g, $agg['bb100']);
                 }
             }
         }
 
-        $i =$this->merge ? (int) Bot::where('tipo', 'pool')->where('metadata->source', 'pt4_import')->count() : 0;
+        $i = $this->merge ? (int) Bot::where('tipo', 'pool')->where('metadata->source', 'pt4_import')->count() : 0;
         foreach ($clusters as $c) {
             $ids = $c['ids'];
             [$winners, $losers] = $this->splitByResult($ids, $players);
 
             // Crear perfil para ganadores si existen
-            if (!empty($winners)) {
+            if (! empty($winners)) {
                 $agg = $this->aggregate($winners);
                 $g = $agg['general'];
                 $i++;
-                $nombre = "Pool $i · " . (int) round($g['vpip']) . '/' . (int) round($g['pfr']) . ' (W)';
+                $nombre = "Pool $i · ".(int) round($g['vpip']).'/'.(int) round($g['pfr']).' (W)';
                 $row = ['bot' => $nombre, 'players' => count($winners), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
                 $report['created'][] = $row;
-                if (!$dry) {
+                if (! $dry) {
                     $perfil = $this->perfil((float) $g['vpip'], (float) $g['pfr']);
                     $bot = Bot::create([
                         'nombre' => $nombre,
                         'tipo' => 'pool',
                         'perfil' => $perfil,
-                        'icono' => \App\Config\IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
+                        'icono' => IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
                         'vpip' => (int) round($g['vpip']), 'pfr' => (int) round($g['pfr']),
                         'profesional' => false,
-                        'descripcion' => 'Ganador: ' . count($winners) . ' jugadores (' . number_format($g['hands'], 0, ',', '.') . ' manos), VPIP ' . (int) round($g['vpip']) . '/',
+                        'descripcion' => 'Ganador: '.count($winners).' jugadores ('.number_format($g['hands'], 0, ',', '.').' manos), VPIP '.(int) round($g['vpip']).'/',
                         'metadata' => ['source' => 'pt4_import', 'players' => count($winners)],
                     ]);
                     $this->write($bot, $agg);
                     $this->storeMembers($bot, $winners, $players);
-                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
+                    app(RivalPreflopTables::class)->forBot($bot);
                     $this->logHistory($bot, count($winners), $nPlayers, $g, $agg['bb100']);
                 }
             }
 
             // Crear perfil para perdedores si existen
-            if (!empty($losers)) {
+            if (! empty($losers)) {
                 $agg = $this->aggregate($losers);
                 $g = $agg['general'];
                 $i++;
-                $nombre = "Pool $i · " . (int) round($g['vpip']) . '/' . (int) round($g['pfr']) . ' (L)';
+                $nombre = "Pool $i · ".(int) round($g['vpip']).'/'.(int) round($g['pfr']).' (L)';
                 $row = ['bot' => $nombre, 'players' => count($losers), 'hands' => $g['hands'], 'vpip' => $g['vpip'], 'pfr' => $g['pfr'], 'three_bet' => $g['three_bet']];
                 $report['created'][] = $row;
-                if (!$dry) {
+                if (! $dry) {
                     $perfil = $this->perfil((float) $g['vpip'], (float) $g['pfr']);
                     $bot = Bot::create([
                         'nombre' => $nombre,
                         'tipo' => 'pool',
                         'perfil' => $perfil,
-                        'icono' => \App\Config\IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
+                        'icono' => IconConfig::pick($perfil, Bot::whereNotNull('icono')->where('icono', '!=', '')->pluck('icono')->all()),
                         'vpip' => (int) round($g['vpip']), 'pfr' => (int) round($g['pfr']),
                         'profesional' => false,
-                        'descripcion' => 'Perdedor: ' . count($losers) . ' jugadores (' . number_format($g['hands'], 0, ',', '.') . ' manos), VPIP ' . (int) round($g['vpip']) . '/',
+                        'descripcion' => 'Perdedor: '.count($losers).' jugadores ('.number_format($g['hands'], 0, ',', '.').' manos), VPIP '.(int) round($g['vpip']).'/',
                         'metadata' => ['source' => 'pt4_import', 'players' => count($losers)],
                     ]);
                     $this->write($bot, $agg);
                     $this->storeMembers($bot, $losers, $players);
-                    app(\App\Services\Bots\RivalPreflopTables::class)->forBot($bot);
+                    app(RivalPreflopTables::class)->forBot($bot);
                     $this->logHistory($bot, count($losers), $nPlayers, $g, $agg['bb100']);
                 }
             }
         }
-        if (!$dry) {
+        if (! $dry) {
             $this->register();
             // Los rangos preflop de cada bot Pool se generan arriba, dentro de la propia importación (forBot): no hay que ejecutar nada más.
-            $pools = Bot::all()->filter(fn(Bot $b) => $b->isPool())->count();
+            $pools = Bot::all()->filter(fn (Bot $b) => $b->isPool())->count();
             $this->say("Rangos preflop generados para $pools bots Pool. La importación ha terminado: no hace falta ningún paso más.");
         }
 
@@ -1114,14 +1122,14 @@ class Pt4Importer
             return $existing;
         }
         $copy = Bot::create([
-            'nombre' => $primary->nombre . ' · Pool',
+            'nombre' => $primary->nombre.' · Pool',
             'tipo' => 'pool',
             'perfil' => $primary->perfil,
             'icono' => $primary->icono,
             'vpip' => $primary->vpip, 'pfr' => $primary->pfr,
             'tilt_risk' => $primary->tilt_risk,
             'profesional' => $primary->profesional,
-            'descripcion' => 'Copia de ' . $primary->nombre . ' que se actualiza con los jugadores de PokerTracker que se le parecen. ' . $primary->nombre . ' conserva sus cifras de referencia.',
+            'descripcion' => 'Copia de '.$primary->nombre.' que se actualiza con los jugadores de PokerTracker que se le parecen. '.$primary->nombre.' conserva sus cifras de referencia.',
             'metadata' => ['source' => 'pt4_pool', 'primary_id' => $primary->id, 'template' => $primary->tipo, 'history' => []],
         ]);
         foreach ($primary->hudStats()->get() as $stat) {
@@ -1139,7 +1147,7 @@ class Pt4Importer
         $meta = (array) $bot->metadata;
 
         // bb/100 acumulado: media ponderada por manos (y varianza combinada) si se suma a lo anterior; si no, el de esta importación
-        if (!empty($bb['n']) && $bb['value'] !== null) {
+        if (! empty($bb['n']) && $bb['value'] !== null) {
             $oldN = $this->merge ? (int) ($meta['bb100_n'] ?? 0) : 0;
             $oldV = $oldN ? (float) $meta['bb100'] : 0.0;
             $oldSd = $oldN ? (float) ($meta['bb100_sd'] ?? 0) : 0.0;
@@ -1183,8 +1191,8 @@ class Pt4Importer
     private function shrink(array &$players): void
     {
         $tot = max(1, array_sum(array_column($players, 'hands')));
-        $mv = array_sum(array_map(fn($p) => $p['vpip'] * $p['hands'], $players)) / $tot;
-        $mp = array_sum(array_map(fn($p) => $p['pfr'] * $p['hands'], $players)) / $tot;
+        $mv = array_sum(array_map(fn ($p) => $p['vpip'] * $p['hands'], $players)) / $tot;
+        $mp = array_sum(array_map(fn ($p) => $p['pfr'] * $p['hands'], $players)) / $tot;
         foreach ($players as &$p) {
             $n = (int) $p['hands'];
             $p['s_vpip'] = round(($p['vpip'] * $n + $mv * self::SHRINK_K) / ($n + self::SHRINK_K), 2);
@@ -1213,25 +1221,28 @@ class Pt4Importer
         $losers = [];
         foreach ($playerIds as $id) {
             $p = $allPlayers[$id] ?? null;
-            if (!$p) continue;
+            if (! $p) {
+                continue;
+            }
             if (($p['bb100'] ?? 0) > 0) {
                 $winners[] = $id;
             } else {
                 $losers[] = $id;
             }
         }
+
         return [$winners, $losers];
     }
 
     /**
      * Agrupa los jugadores que no encajan en ningún perfil primario.
      *
-     * @param array<int, array{id:int, vpip:float, pfr:float, hands:int}> $outliers
+     * @param  array<int, array{id:int, vpip:float, pfr:float, hands:int}>  $outliers
      * @return array{0: array<int, array>, 1: array<int, array<int>>} grupos nuevos y jugadores absorbidos por un primario (id de bot → ids)
      */
     private function clusterOutliers(array $outliers, int $botHands, array $centroids): array
     {
-        usort($outliers, fn($a, $b) => $b['hands'] <=> $a['hands']);
+        usort($outliers, fn ($a, $b) => $b['hands'] <=> $a['hands']);
 
         // 1. Agrupación por radio, de más a menos manos: el centro de cada grupo es la media ponderada de sus miembros
         $cl = [];
@@ -1254,7 +1265,7 @@ class Pt4Importer
 
         // 2. Los grupos pequeños (pocos jugadores o pocas manos) se funden con el más cercano o, si está lejos, con un primario
         $absorbed = [];
-        $small = fn(array $c) => count($c['ids']) < self::MIN_PLAYERS || $c['hands'] < $botHands;
+        $small = fn (array $c) => count($c['ids']) < self::MIN_PLAYERS || $c['hands'] < $botHands;
         while (true) {
             $idx = null;
             foreach ($cl as $k => $c) {
@@ -1309,7 +1320,7 @@ class Pt4Importer
         $t->statement('drop table if exists known_hands');
         $t->statement('create table known_hands (id_site int, hand_no varchar(40), primary key (id_site, hand_no))');
         foreach (DB::table('pt4_imported_hands')->select('id_site', 'hand_no')->orderBy('id')->lazy(5000)->chunk(5000) as $chunk) {
-            $values = $chunk->map(fn($r) => "(" . (int) $r->id_site . ",'" . str_replace("'", "''", $r->hand_no) . "')")->implode(',');
+            $values = $chunk->map(fn ($r) => '('.(int) $r->id_site.",'".str_replace("'", "''", $r->hand_no)."')")->implode(',');
             $t->statement("insert into known_hands values $values on conflict do nothing");
         }
 
@@ -1346,7 +1357,7 @@ class Pt4Importer
     {
         $t = $this->tmp();
         foreach ($t->table('fresh_hands')->select('id_site', 'hand_no', 'tourney_no')->orderBy('id_hand')->lazy(5000)->chunk(5000) as $chunk) {
-            DB::table('pt4_imported_hands')->insertOrIgnore($chunk->map(fn($r) => (array) $r)->all());
+            DB::table('pt4_imported_hands')->insertOrIgnore($chunk->map(fn ($r) => (array) $r)->all());
         }
         foreach ($t->select('select id_site, tourney_no, count(*) n from fresh_hands where tourney_no is not null group by 1, 2') as $r) {
             DB::statement(
@@ -1360,14 +1371,14 @@ class Pt4Importer
     private function blend(?BotHudStat $old, array $new, int $nNew): array
     {
         $nOld = (int) ($old->sample_size ?? 0);
-        if (!$old || $nOld <= 0) {
+        if (! $old || $nOld <= 0) {
             return $new; // los valores previos eran provisionales (sin muestra): se sustituyen
         }
         $out = [];
         $precisePercentages = self::PRECISE;
         foreach ($new as $k => $v) {
             $o = $old->{$k};
-            $out[$k] = $o === null ? $v : (\App\Config\BotStreets::isRatio($k) || in_array($k, $precisePercentages, true)
+            $out[$k] = $o === null ? $v : (BotStreets::isRatio($k) || in_array($k, $precisePercentages, true)
                 ? round(($o * $nOld + $v * $nNew) / ($nOld + $nNew), 2)
                 : (int) round(($o * $nOld + $v * $nNew) / ($nOld + $nNew)));
         }
@@ -1381,7 +1392,7 @@ class Pt4Importer
         $gap = $vpip ? $pfr / $vpip : 0;
         $agg = $gap > 0.65;
 
-        return ($tight ? 'tight' : 'loose') . '-' . ($agg ? 'agresivo' : 'pasivo');
+        return ($tight ? 'tight' : 'loose').'-'.($agg ? 'agresivo' : 'pasivo');
     }
 
     /** Los porcentajes HUD existentes son enteros; las nuevas frecuencias preflop conservan dos decimales. */
@@ -1393,7 +1404,7 @@ class Pt4Importer
             if ($v === null || $k === 'hands') {
                 continue;
             }
-            $out[$k] = \App\Config\BotStreets::isRatio($k) || in_array($k, $precisePercentages, true)
+            $out[$k] = BotStreets::isRatio($k) || in_array($k, $precisePercentages, true)
                 ? (float) $v
                 : (int) round($v);
         }
@@ -1435,8 +1446,8 @@ class Pt4Importer
                 if (($action === 'opening' && $pos === 'BB') || ($action === 'cold_call' && in_array($pos, ['SB', 'BB'], true))) {
                     continue; // la BB no abre y en las ciegas no hay "call en frío"
                 }
-                $new = $this->typed(array_filter(array_intersect_key($r, array_flip($fields)), fn($v) => $v !== null));
-                if (!$new) {
+                $new = $this->typed(array_filter(array_intersect_key($r, array_flip($fields)), fn ($v) => $v !== null));
+                if (! $new) {
                     continue;
                 }
                 $pk = ['bot_id' => $bot->id, 'nivel' => 1, 'posicion' => $pos, 'accion' => $action, 'rango_ciegas' => null];
@@ -1458,8 +1469,8 @@ class Pt4Importer
         // Estadísticas por tramo de stack: filas accion = 'stack' y rango_ciegas = tramo (las usa RivalPreflopTables)
         foreach ($agg['stack_buckets'] ?? [] as $bucket => $r) {
             $nBucket = (int) $r['hands'];
-            $new = $this->typed(array_filter(array_diff_key($r, ['hands' => 1]), fn($v) => $v !== null));
-            if (!$new) {
+            $new = $this->typed(array_filter(array_diff_key($r, ['hands' => 1]), fn ($v) => $v !== null));
+            if (! $new) {
                 continue;
             }
             $sk = ['bot_id' => $bot->id, 'nivel' => 1, 'posicion' => null, 'accion' => BotProfile::STACK_ACTION, 'rango_ciegas' => $bucket];
@@ -1548,7 +1559,7 @@ class Pt4Importer
             foreach ($hands as $hand => $counts) {
                 $values[] = array_merge(
                     [$bot->id, $position, $hand],
-                    array_map(fn($column) => (int) ($counts[$column] ?? 0), $countColumns),
+                    array_map(fn ($column) => (int) ($counts[$column] ?? 0), $countColumns),
                     [$now, $now]
                 );
             }
@@ -1558,18 +1569,18 @@ class Pt4Importer
             $bindings = [];
             $valueSql = [];
             foreach ($chunk as $row) {
-                $valueSql[] = '(' . implode(',', array_fill(0, count($columns), '?')) . ')';
+                $valueSql[] = '('.implode(',', array_fill(0, count($columns), '?')).')';
                 array_push($bindings, ...$row);
             }
 
             $updates = array_map(
-                fn($column) => "{$column} = bot_preflop_hand_stats.{$column} + excluded.{$column}",
+                fn ($column) => "{$column} = bot_preflop_hand_stats.{$column} + excluded.{$column}",
                 $countColumns
             );
             $updates[] = 'updated_at = excluded.updated_at';
             DB::statement(
-                'insert into bot_preflop_hand_stats (' . implode(',', $columns) . ') values ' . implode(',', $valueSql)
-                . ' on conflict (bot_id, posicion, mano) do update set ' . implode(', ', $updates),
+                'insert into bot_preflop_hand_stats ('.implode(',', $columns).') values '.implode(',', $valueSql)
+                .' on conflict (bot_id, posicion, mano) do update set '.implode(', ', $updates),
                 $bindings
             );
         }
@@ -1602,11 +1613,11 @@ class Pt4Importer
      */
     private function potStats(string $in): array
     {
-        $bucketSql = 'case ' . implode(' ', array_map(
-            fn($b, $r) => "when s.stack_bb >= {$r[0]} and s.stack_bb < {$r[1]} then '{$b}'",
+        $bucketSql = 'case '.implode(' ', array_map(
+            fn ($b, $r) => "when s.stack_bb >= {$r[0]} and s.stack_bb < {$r[1]} then '{$b}'",
             array_keys(BotProfile::STACK_BUCKETS), BotProfile::STACK_BUCKETS
-        )) . " else '40+' end";
-        $pots = "'" . implode("','", self::POT_STATS_POTS) . "'";
+        ))." else '40+' end";
+        $pots = "'".implode("','", self::POT_STATS_POTS)."'";
         $cells = [];
         foreach (['flop' => 'f', 'turn' => 't', 'river' => 'r'] as $street => $x) {
             $rows = $this->tmp()->select("
@@ -1649,15 +1660,15 @@ class Pt4Importer
      */
     private function limpResponseStats(string $in): array
     {
-        $rows = $this->tmp()->select("
-            select " . $this->posLabel() . " as pos,
+        $rows = $this->tmp()->select('
+            select '.$this->posLabel()." as pos,
               count(*) as opportunities,
               coalesce(sum((enum_folded = 'P' and cnt_p_raise = 0)::int), 0) as folds,
               coalesce(sum((enum_folded <> 'P' and cnt_p_raise = 0)::int), 0) as calls,
               coalesce(sum((cnt_p_raise > 0)::int), 0) as raises
             from fresh_stats where id_player = any(?) and flg_p_limp and flg_p_face_raise group by 1", [$in]);
 
-        return array_map(fn($r) => ['position' => $r->pos, 'opportunities' => (int) $r->opportunities, 'folds' => (int) $r->folds,
+        return array_map(fn ($r) => ['position' => $r->pos, 'opportunities' => (int) $r->opportunities, 'folds' => (int) $r->folds,
             'calls' => (int) $r->calls, 'raises' => (int) $r->raises], $rows);
     }
 

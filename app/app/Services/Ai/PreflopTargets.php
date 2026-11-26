@@ -25,8 +25,7 @@ class PreflopTargets
         private PreflopStrategyMatrix $matrix,
         private Perceiver $perceiver,
         private FlopRanges $ranges,
-    ) {
-    }
+    ) {}
 
     /** @return array{spot: array<string, float>, hand: array<string, float>}|null */
     public function forDecision(array $ctx): ?array

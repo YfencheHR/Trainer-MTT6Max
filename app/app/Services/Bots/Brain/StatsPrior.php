@@ -26,9 +26,9 @@ namespace App\Services\Bots\Brain;
 class StatsPrior
 {
     /**
-     * @param array<string,float|int|bool|string|null> $f  características (own_*, range_rank, bluff_candidate…)
-     * @param array<string,float> $mods  multiplicadores acumulados por las reglas (fold_mult, raise_mult, bet_mult)
-     * @return array{fold: float, call: float, raise: float}  porcentajes (suman 100)
+     * @param  array<string,float|int|bool|string|null>  $f  características (own_*, range_rank, bluff_candidate…)
+     * @param  array<string,float>  $mods  multiplicadores acumulados por las reglas (fold_mult, raise_mult, bet_mult)
+     * @return array{fold: float, call: float, raise: float} porcentajes (suman 100)
      */
     public function facingBet(array $f, array $mods = []): array
     {
@@ -39,7 +39,7 @@ class StatsPrior
         $qEff = $q * (1 - self::DRAW_CONTINUE * $d);
         $fold = (float) ($f['own_f2bet'] ?? 30) * $this->weak($qEff) * ($mods['fold_mult'] ?? 1.0) * (float) ($f['size_fold_mult'] ?? 1.0);
         // Las reglas de situación no conservan la media del fold: la ganancia por calle (config/bot-calibration.php) la devuelve al nivel de sus estadísticas
-        $fold *= (float) config('bot-calibration.fold_gain.' . ($f['street'] ?? ''), 1.0);
+        $fold *= (float) config('bot-calibration.fold_gain.'.($f['street'] ?? ''), 1.0);
         $fold = $this->clamp($fold, 0, 100);
 
         // Subir lo empujan las manos fuertes (valor) Y los proyectos (semifarol); la agresión de sus estadísticas multiplica el semifarol
@@ -53,7 +53,7 @@ class StatsPrior
     }
 
     /**
-     * @return array{bet: float, check: float}  porcentajes (suman 100)
+     * @return array{bet: float, check: float} porcentajes (suman 100)
      */
     public function lead(array $f, array $mods = []): array
     {
@@ -63,13 +63,13 @@ class StatsPrior
         $value = $vb / (1 + $vb);
 
         // Los faroles salen de manos sin valor de showdown (aire / proyectos): si no es candidata, casi no hay farol
-        $bluffW = !empty($f['bluff_candidate']) ? $this->weak($q) : 0.0;
+        $bluffW = ! empty($f['bluff_candidate']) ? $this->weak($q) : 0.0;
         // Semifarol: con un proyecto apuesta más que con aire puro, y cuanto más agresivo es (AF) más lo hace
         if (($f['made_category'] ?? 0) <= 1) {
             $bluffW += self::SEMIBLUFF_BET * $this->drawPower($f) * $this->aggMult($f);
         }
         $p = $freq * ($value * $this->strong($q) + (1 - $value) * $bluffW) * ($mods['bet_mult'] ?? 1.0);
-        if (($f['street'] ?? '') === 'river' && !empty($f['in_position']) && ($f['value_combo_pct'] ?? 100) <= 20) {
+        if (($f['street'] ?? '') === 'river' && ! empty($f['in_position']) && ($f['value_combo_pct'] ?? 100) <= 20) {
             $p *= $this->clamp(((float) ($f['opponent_call_frequency'] ?? 50.0)) / 50.0, 0.8, 1.3);
         }
         $p = $this->clamp($p, 0, 100);
@@ -88,10 +88,12 @@ class StatsPrior
 
     /** Peso de cada tipo de proyecto (suman por separado: un combo de color + escalera pesa más que cualquiera de los dos). */
     private const W_FLUSH = 0.65;
+
     private const W_STRAIGHT = 0.58; // 8 outs ≈ 31 % de equity frente a 35 % de las 9 del color
 
     /** Backdoors (solo flop): llegan a ~4 % de equity cada uno. Suman aparte y poco. */
     private const W_BD_FLUSH = 0.15;
+
     private const W_BD_STRAIGHT = 0.12;
 
     /**
@@ -105,7 +107,7 @@ class StatsPrior
         if (($f['street'] ?? '') === 'river') {
             return 0.0;
         }
-        if (!array_key_exists('flush_draw_outs', $f) && !array_key_exists('straight_draw_outs', $f)) {
+        if (! array_key_exists('flush_draw_outs', $f) && ! array_key_exists('straight_draw_outs', $f)) {
             return $this->clamp(((float) ($f['draw_outs'] ?? 0)) / 12, 0, 1); // características antiguas sin desglose
         }
         $flush = $this->clamp(((float) ($f['flush_draw_outs'] ?? 0)) / 9, 0, 1) * self::W_FLUSH;
@@ -115,8 +117,8 @@ class StatsPrior
 
         // Backdoors: solo cuentan si no hay ya proyecto real de ese tipo (no se acumulan sobre un color o una escalera a una carta)
         if (($f['street'] ?? '') === 'flop') {
-            $power += (!empty($f['backdoor_flush']) && (int) ($f['flush_draw_outs'] ?? 0) === 0 ? self::W_BD_FLUSH : 0.0)
-                + (!empty($f['backdoor_straight']) && (int) ($f['straight_draw_outs'] ?? 0) === 0 ? self::W_BD_STRAIGHT : 0.0);
+            $power += (! empty($f['backdoor_flush']) && (int) ($f['flush_draw_outs'] ?? 0) === 0 ? self::W_BD_FLUSH : 0.0)
+                + (! empty($f['backdoor_straight']) && (int) ($f['straight_draw_outs'] ?? 0) === 0 ? self::W_BD_STRAIGHT : 0.0);
         }
 
         return $power;

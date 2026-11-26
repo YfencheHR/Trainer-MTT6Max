@@ -28,7 +28,7 @@ return new class extends Migration
             $table->enum('estado_mental', [
                 'NORMAL',      // Estado base
                 'FOCUS',       // Concentración (después de bad beat pero resiliente)
-                'TILT'         // Tilt (juega peor)
+                'TILT',         // Tilt (juega peor)
             ])->default('NORMAL');
 
             // Acciones
@@ -41,7 +41,7 @@ return new class extends Migration
                 'ALL_IN',
                 '3BET',
                 '4BET',
-                'LIMP'
+                'LIMP',
             ])->nullable();
 
             $table->integer('apuesta_actual')->nullable();

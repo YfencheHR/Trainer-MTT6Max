@@ -51,7 +51,7 @@ class MadeHandController extends Controller
     public function update(Request $request, MadeHand $madeHand)
     {
         $validated = $request->validate([
-            'name' => 'required|string|unique:made_hands,name,' . $madeHand->id,
+            'name' => 'required|string|unique:made_hands,name,'.$madeHand->id,
             'description' => 'nullable|string',
             'value' => 'required|numeric|min:0|max:999.99',
             'order' => 'required|integer|min:0',
@@ -63,10 +63,10 @@ class MadeHandController extends Controller
         ]);
 
         // Process visuals as JSON
-        if (!empty($validated['visuals'])) {
+        if (! empty($validated['visuals'])) {
             try {
                 $validated['visuals'] = json_decode($validated['visuals'], true);
-                if (!is_array($validated['visuals'])) {
+                if (! is_array($validated['visuals'])) {
                     $validated['visuals'] = null;
                 }
             } catch (\Exception $e) {

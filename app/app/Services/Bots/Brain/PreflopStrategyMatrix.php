@@ -14,9 +14,7 @@ class PreflopStrategyMatrix
 {
     private const POSITIONS = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 
-    public function __construct(private RivalPreflopTables $poolTables)
-    {
-    }
+    public function __construct(private RivalPreflopTables $poolTables) {}
 
     public function forDecision(array $ctx, array $features): ?array
     {

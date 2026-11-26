@@ -21,8 +21,8 @@ class BetTier
     public const STREETS = ['flop' => 3, 'turn' => 4, 'river' => 5];
 
     /**
-     * @param string[] $hole  dos cartas ("A♠")
-     * @param string[] $board 3, 4 o 5 cartas
+     * @param  string[]  $hole  dos cartas ("A♠")
+     * @param  string[]  $board  3, 4 o 5 cartas
      */
     public static function tier(array $hole, array $board): string
     {

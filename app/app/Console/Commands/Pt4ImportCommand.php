@@ -28,19 +28,19 @@ class Pt4ImportCommand extends Command
             return self::FAILURE;
         }
 
-        $imp = new Pt4Importer(fn($m) => $this->line($m));
+        $imp = new Pt4Importer(fn ($m) => $this->line($m));
         try {
-            if (!$this->option('skip-restore')) {
-                if (!$this->argument('file') || !is_file($this->argument('file'))) {
+            if (! $this->option('skip-restore')) {
+                if (! $this->argument('file') || ! is_file($this->argument('file'))) {
                     $this->error('Indica el archivo (zip o volcado) a importar.');
 
                     return self::FAILURE;
                 }
-                $this->info($imp->restore($this->argument('file')) . ' tablas restauradas');
+                $this->info($imp->restore($this->argument('file')).' tablas restauradas');
             }
             // Todo lo que escribe la importación en la base de datos va en UNA transacción: si falla a mitad (archivo dañado,
             // falta una columna...) se deshace entero y los perfiles anteriores quedan como estaban, en vez de perderse.
-            $r = DB::transaction(fn() => $imp->import((int) $this->option('min-hands'), (bool) $this->option('dry'), (int) $this->option('bot-hands'), (bool) $this->option('reset')));
+            $r = DB::transaction(fn () => $imp->import((int) $this->option('min-hands'), (bool) $this->option('dry'), (int) $this->option('bot-hands'), (bool) $this->option('reset')));
             // Con la importación ya guardada (y la copia aún sin borrar) se comprueba cuánto se parecen los perfiles nuevos a los jugadores reales:
             // el resultado queda en el registro de la importación, sin que haga falta ningún paso por consola.
             if (! $this->option('dry') && ! $this->option('no-replay') && ($r['profiles'] || $r['created'])) {
@@ -52,7 +52,7 @@ class Pt4ImportCommand extends Command
             return self::FAILURE;
         } finally {
             try {
-                if (!$this->option('keep') && !$this->option('skip-restore')) {
+                if (! $this->option('keep') && ! $this->option('skip-restore')) {
                     $imp->drop();
                 }
             } finally {
@@ -64,11 +64,11 @@ class Pt4ImportCommand extends Command
         }
 
         if ($r['profiles']) {
-            $this->table(['Perfil', 'Jugadores', 'Manos', 'VPIP', 'PFR', '3bet'], array_map(fn($p) => [$p['bot'], $p['players'], $p['hands'], $p['vpip'], $p['pfr'], $p['three_bet']], $r['profiles']));
+            $this->table(['Perfil', 'Jugadores', 'Manos', 'VPIP', 'PFR', '3bet'], array_map(fn ($p) => [$p['bot'], $p['players'], $p['hands'], $p['vpip'], $p['pfr'], $p['three_bet']], $r['profiles']));
         }
         if ($r['created']) {
             $this->info('Bots nuevos (no encajan en ningún perfil):');
-            $this->table(['Bot', 'Jugadores', 'Manos', 'VPIP', 'PFR', '3bet'], array_map(fn($p) => [$p['bot'], $p['players'], $p['hands'], $p['vpip'], $p['pfr'], $p['three_bet']], $r['created']));
+            $this->table(['Bot', 'Jugadores', 'Manos', 'VPIP', 'PFR', '3bet'], array_map(fn ($p) => [$p['bot'], $p['players'], $p['hands'], $p['vpip'], $p['pfr'], $p['three_bet']], $r['created']));
         }
 
         return self::SUCCESS;
@@ -102,13 +102,13 @@ class Pt4ImportCommand extends Command
                 return;
             }
             $lines = RealHandReplay::summarize($result['rows']);
-            $this->line('Decisiones comparadas: ' . count($result['rows']) . ' · acierta la acción más probable en el ' . $lines[0]['accuracy'] . ' % (± ' . $lines[0]['ci'] . ')');
+            $this->line('Decisiones comparadas: '.count($result['rows']).' · acierta la acción más probable en el '.$lines[0]['accuracy'].' % (± '.$lines[0]['ci'].')');
             $this->table(['Calle', 'Decisiones', 'Acierto', '± (95 %)'], array_map(
-                fn($l) => [$l['name'], $l['n'], $l['accuracy'] . ' %', $l['ci']],
-                array_values(array_filter($lines, fn($l) => str_starts_with($l['name'], 'calle ')))
+                fn ($l) => [$l['name'], $l['n'], $l['accuracy'].' %', $l['ci']],
+                array_values(array_filter($lines, fn ($l) => str_starts_with($l['name'], 'calle ')))
             ));
         } catch (\Throwable $e) {
-            $this->warn('No se pudo comprobar la réplica: ' . $e->getMessage());
+            $this->warn('No se pudo comprobar la réplica: '.$e->getMessage());
         }
     }
 }

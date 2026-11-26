@@ -19,14 +19,15 @@ class FoldBySize
 
     /** Los multiplicadores se acotan para que un tramo raro no deje de abandonar o abandone siempre. */
     public const MIN_MULT = 0.4;
+
     public const MAX_MULT = 1.8;
 
     /** @var array<string, array<string, array{fold: float, raise: float}>>|null calle => tramo => multiplicadores */
     private ?array $table = null;
 
     /**
-     * @param float $betPct apuesta rival como % del bote anterior a ella
-     * @return array{fold: float, raise: float}  1.0 y 1.0 si no hay datos
+     * @param  float  $betPct  apuesta rival como % del bote anterior a ella
+     * @return array{fold: float, raise: float} 1.0 y 1.0 si no hay datos
      */
     public function multipliers(string $street, float $betPct): array
     {

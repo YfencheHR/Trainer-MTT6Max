@@ -35,13 +35,14 @@ use Random\Randomizer;
 class Perceiver
 {
     private const MADE = ['high_card', 'pair', 'two_pair', 'trips', 'straight', 'flush', 'full_house', 'quads', 'straight_flush'];
+
     private const STREETS = ['preflop' => 0, 'flop' => 1, 'turn' => 2, 'river' => 3];
+
     private const POSITION_GROUP = ['UTG' => 'early', 'HJ' => 'middle', 'CO' => 'late', 'BTN' => 'late', 'SB' => 'blinds', 'BB' => 'blinds'];
+
     private const POSITION_FACTOR = ['early' => 0.8, 'middle' => 0.95, 'late' => 1.25, 'blinds' => 1.0];
 
-    public function __construct(private PreflopRanking $ranking, private EquityCalculator $equity, private FoldBySize $foldBySize)
-    {
-    }
+    public function __construct(private PreflopRanking $ranking, private EquityCalculator $equity, private FoldBySize $foldBySize) {}
 
     /**
      * @return array{features: array, real: array, notes: array}
@@ -58,14 +59,14 @@ class Perceiver
         $real = [];
 
         // ------------------------------------------------ situación
-        $others = array_values(array_filter($ctx['players'], fn($p) => $p['id'] !== $me['id'] && !$p['folded']));
+        $others = array_values(array_filter($ctx['players'], fn ($p) => $p['id'] !== $me['id'] && ! $p['folded']));
         $hist = $this->historyStats($ctx['history'] ?? [], $street, $me['id'], $bb);
         $toCall = (int) $ctx['to_call'];
         $pot = (int) $ctx['pot'];
         // Depth for preflop strategy uses each live player's total stack in this hand
         // (remaining stack + chips already committed), then caps at the shortest rival.
         $opponentHandStacks = array_map(
-            fn($p) => max(0, (int) ($p['stack'] ?? 0) + (int) ($p['total_in_hand'] ?? 0)),
+            fn ($p) => max(0, (int) ($p['stack'] ?? 0) + (int) ($p['total_in_hand'] ?? 0)),
             $others,
         );
         $effectiveHandStack = $opponentHandStacks
@@ -75,10 +76,10 @@ class Perceiver
         // SPR only counts chips still behind against opponents who can continue betting.
         $opponentsWhoCanAct = array_values(array_filter(
             $others,
-            fn($p) => empty($p['all_in']) && (int) ($p['stack'] ?? 0) > 0
+            fn ($p) => empty($p['all_in']) && (int) ($p['stack'] ?? 0) > 0
         ));
         $shortestOpponentBehind = $opponentsWhoCanAct
-            ? min(array_map(fn($p) => (int) $p['stack'], $opponentsWhoCanAct))
+            ? min(array_map(fn ($p) => (int) $p['stack'], $opponentsWhoCanAct))
             : 0;
         $effectiveStackBehind = $opponentsWhoCanAct
             ? min((int) $me['stack'], $shortestOpponentBehind)
@@ -161,12 +162,12 @@ class Perceiver
             $aware = (float) (($skill['perception'] ?? [])['board_awareness'] ?? 1.0);
             $blind = false;
             if ($aware < 1.0 && count($board) < 5 + 1) {
-                $blind = !$this->roll($rng, $aware);
-                $notes['rolls'][] = ['pattern' => 'board_threats', 'p' => round($aware, 2), 'seen' => !$blind];
+                $blind = ! $this->roll($rng, $aware);
+                $notes['rolls'][] = ['pattern' => 'board_threats', 'p' => round($aware, 2), 'seen' => ! $blind];
             }
-            $perceivedRank = ($seenClearly && !$blind)
+            $perceivedRank = ($seenClearly && ! $blind)
                 ? $real['rank']
-                : $this->rankPercentile($hole, $board, $seeStraights, $seeFlushes, !$blind, !$blind);
+                : $this->rankPercentile($hole, $board, $seeStraights, $seeFlushes, ! $blind, ! $blind);
             $perceivedRank = $this->clamp(
                 $perceivedRank + $this->gauss($rng) * ($noise['rank_sigma'] ?? 0) + ($noise['rank_bias'] ?? 0),
                 0, 100
@@ -182,9 +183,9 @@ class Perceiver
             if (empty($stats)) {
                 throw new \LogicException("Bot {$ctx['me']['id']} missing statistics in context");
             }
-            $base = !empty($f['i_raised_preflop']) ? ($stats['pfr'] ?? 15) : ($stats['vpip'] ?? 25);
+            $base = ! empty($f['i_raised_preflop']) ? ($stats['pfr'] ?? 15) : ($stats['vpip'] ?? 25);
             $rangePct = max(5.0, min(100.0, (float) $base * ['flop' => 1.0, 'turn' => 0.8, 'river' => 0.65][$street]));
-            $rangeRank = $this->rangePercentile($hole, $board, $seeStraights, $seeFlushes, !$blind, !$blind, $rangePct);
+            $rangeRank = $this->rangePercentile($hole, $board, $seeStraights, $seeFlushes, ! $blind, ! $blind, $rangePct);
             $f['range_rank'] = round($this->clamp(
                 $rangeRank + $this->gauss($rng) * ($noise['rank_sigma'] ?? 0) + ($noise['rank_bias'] ?? 0), 0, 100
             ), 1);
@@ -265,7 +266,7 @@ class Perceiver
             $fromRank = (1 - $perceivedRank / 100) ** $oppCount * 100;
             if ($blind) {
                 $equityPerceived = $fromRank; // ignora amenazas: puede ser MÁS alta que la real
-            } elseif (!$seenClearly) {
+            } elseif (! $seenClearly) {
                 $equityPerceived = min($realEquity, $fromRank);
             }
             $f['equity'] = round($this->clamp(
@@ -324,7 +325,7 @@ class Perceiver
         $f['own_raise_vs_bet'] = $st['raise_vs_bet'] ?? null;
         $f['own_cr'] = $st['cr'] ?? null;
         $f['own_bet_freq'] = $street === 'flop'
-            ? (!empty($f['i_raised_preflop']) ? ($st['cbet'] ?? null) : ($st['donk'] ?? null))
+            ? (! empty($f['i_raised_preflop']) ? ($st['cbet'] ?? null) : ($st['donk'] ?? null))
             : ($st['bet'] ?? null);
         $f['own_vb_ratio'] = (($brain['stats'] ?? [])['river']['vb_ratio'] ?? ($brain['stats'] ?? [])['vb_ratio'] ?? 2.0);
 
@@ -363,34 +364,34 @@ class Perceiver
             }
         } elseif ($toCall > 0) {
             // Se enfrenta a la apuesta del que tiene la iniciativa: respuesta del defensor en su posición
-            if (!$f['has_initiative'] && isset($role['def'])) {
+            if (! $f['has_initiative'] && isset($role['def'])) {
                 $d = $role['def'];
                 $f['own_f2bet'] = $d['fold'];
                 $f['own_raise_vs_bet'] = round($d['raise'] / max(0.01, $d['call'] + $d['raise']) * 100, 1);
-                $f['stats_source'] = 'defensor_' . $ipKey;
+                $f['stats_source'] = 'defensor_'.$ipKey;
             }
         } elseif ($f['has_initiative'] && isset($role['agg']['bet'])) {
             // Tiene la iniciativa y le toca: apuesta como agresor (c-bet en el flop, barril en turn / river)
             $f['own_bet_freq'] = $role['agg']['bet'];
-            $f['stats_source'] = 'agresor_' . $ipKey;
+            $f['stats_source'] = 'agresor_'.$ipKey;
         }
 
         // Bote limpeado (nadie subió preflop): nadie trae la iniciativa, así que ni el c-bet ni el donk describen lo que hace. Su frecuencia de apostar y su
         // respuesta ante una apuesta salen de lo que ESE perfil hace en botes limpeados (PokerTracker, por posición y stack); sin dato se queda lo anterior.
-        if (($f['preflop_raises'] ?? 1) === 0 && !empty($ctx['me']['bot_id']) && !$mine['this']) {
+        if (($f['preflop_raises'] ?? 1) === 0 && ! empty($ctx['me']['bot_id']) && ! $mine['this']) {
             $potRows = PostflopPotStats::forBot((int) $ctx['me']['bot_id']);
             if ($toCall <= 0) {
                 $open = PostflopPotStats::open($potRows, $street, 'limp', (bool) $f['in_position'], (float) ($f['stack_bb'] ?? 40));
                 if ($open) {
                     $f['own_bet_freq'] = $open['bet'];
-                    $f['stats_source'] = 'bote_limpeado_' . $ipKey;
+                    $f['stats_source'] = 'bote_limpeado_'.$ipKey;
                 }
             } else {
                 $facing = PostflopPotStats::facing($potRows, $street, 'limp', (bool) $f['in_position'], (float) ($f['stack_bb'] ?? 40));
                 if ($facing) {
                     $f['own_f2bet'] = $facing['fold'];
                     $f['own_raise_vs_bet'] = round($facing['raise'] / max(0.01, $facing['call'] + $facing['raise']) * 100, 1);
-                    $f['stats_source'] = 'bote_limpeado_' . $ipKey;
+                    $f['stats_source'] = 'bote_limpeado_'.$ipKey;
                 }
             }
         }
@@ -398,15 +399,15 @@ class Perceiver
         // Textura del board: el mismo jugador apuesta, foldea y sube distinto según el board (PokerTracker: A-alta seco favorece al agresor; bajo y conectado,
         // al defensor). Se aplican multiplicadores relativos a la media de la calle sobre SU estadística, por papel: sin iniciativa y en botes limpeados
         // vale «abrir», con iniciativa el c-bet y sin ella el donk; ante una apuesta, la respuesta del defensor.
-        if (!$mine['this'] && count($ctx['board'] ?? []) >= 3 && isset(BetTier::STREETS[$street])) {
+        if (! $mine['this'] && count($ctx['board'] ?? []) >= 3 && isset(BetTier::STREETS[$street])) {
             $tex = BoardTextureStats::multipliers($street, $ctx['board']);
             if ($tex) {
                 $unraised = ($f['preflop_raises'] ?? 1) === 0;
-                $initiative = !empty($f['has_initiative']);
+                $initiative = ! empty($f['has_initiative']);
                 if ($toCall <= 0 && $f['own_bet_freq'] !== null) {
                     $f['own_bet_freq'] = round(min(100.0, (float) $f['own_bet_freq'] * $tex[$unraised ? 'open' : ($initiative ? 'cbet' : 'donk')]), 1);
                 } elseif ($toCall > 0) {
-                    $defender = !$unraised && !$initiative;
+                    $defender = ! $unraised && ! $initiative;
                     if ($f['own_f2bet'] !== null) {
                         $f['own_f2bet'] = round(min(100.0, (float) $f['own_f2bet'] * $tex[$defender ? 'cdef_fold' : 'fold']), 1);
                     }
@@ -420,9 +421,9 @@ class Perceiver
 
         // ------------------------------------------------ intenciones
         $flags = $me['flags'] ?? [];
-        $f['flag_check_raise'] = !empty($flags['check_raise']);
-        $f['flag_float'] = !empty($flags['float']);
-        $f['flag_slowplay'] = !empty($flags['slowplay']);
+        $f['flag_check_raise'] = ! empty($flags['check_raise']);
+        $f['flag_float'] = ! empty($flags['float']);
+        $f['flag_slowplay'] = ! empty($flags['slowplay']);
 
         return ['features' => $f, 'real' => $real, 'notes' => $notes];
     }
@@ -433,7 +434,7 @@ class Perceiver
         $prev = ['turn' => 'flop', 'river' => 'turn'][$street] ?? null;
         $out = ['this' => false, 'prev' => false];
         foreach ($history as $h) {
-            if (($h['player_id'] ?? null) !== $meId || !in_array($h['action'] ?? '', ['raise', 'bet', 'allin'], true)) {
+            if (($h['player_id'] ?? null) !== $meId || ! in_array($h['action'] ?? '', ['raise', 'bet', 'allin'], true)) {
                 continue;
             }
             if ($h['street'] === $street) {
@@ -453,9 +454,9 @@ class Perceiver
     private function inPosition(string $myPosition, array $others, array $allPlayers): bool
     {
         // Cara a cara de verdad (mesa de 2: SB es el botón y actúa último postflop); con otras etiquetas rige el orden normal
-        $labels = array_merge([$myPosition], array_map(fn($o) => $o['position'] ?? '', $others));
+        $labels = array_merge([$myPosition], array_map(fn ($o) => $o['position'] ?? '', $others));
         $headsUp = count($allPlayers) === 2 && in_array('SB', $labels, true) && in_array('BB', $labels, true);
-        $rank = fn(string $pos) => $headsUp ? ($pos === 'SB' ? 5 : 1) : (self::POSTFLOP_ORDER[$pos] ?? 3);
+        $rank = fn (string $pos) => $headsUp ? ($pos === 'SB' ? 5 : 1) : (self::POSTFLOP_ORDER[$pos] ?? 3);
         $mine = $rank($myPosition);
         foreach ($others as $o) {
             if ($rank($o['position'] ?? '') > $mine) {
@@ -550,9 +551,9 @@ class Perceiver
         $me = $ctx['me'];
         $liveOpponents = array_values(array_filter(
             $ctx['players'],
-            fn($player) => $player['id'] !== $me['id'] && !$player['folded']
+            fn ($player) => $player['id'] !== $me['id'] && ! $player['folded']
         ));
-        if (!$liveOpponents) {
+        if (! $liveOpponents) {
             return [
                 'equity' => 100.0,
                 'range_pct' => 0.0,
@@ -593,7 +594,7 @@ class Perceiver
             ][$position] ?? 1.0;
             $preflopActions = array_values(array_filter(
                 $historyRows,
-                fn($action) => ($action['player_id'] ?? null) === $id && ($action['street'] ?? '') === 'preflop'
+                fn ($action) => ($action['player_id'] ?? null) === $id && ($action['street'] ?? '') === 'preflop'
             ));
             $lastPreflopAction = $preflopActions ? end($preflopActions) : null;
             $preflopRaiseCount = (int) ($history['preflop_raises'] ?? 0);
@@ -611,7 +612,7 @@ class Perceiver
             }
             $limpRaised = $isAggressor && $raisesBeforeOpponent === 0 && count(array_filter(
                 $preflopActions,
-                fn($action) => ($action['action'] ?? '') === 'call'
+                fn ($action) => ($action['action'] ?? '') === 'call'
             )) > 0;
             if ($isAggressor && $limpRaised) {
                 $baseRange = $profile['limp_push'] ?? $profile['limp_raise'] ?? ($pfr ?? 15.0);
@@ -637,12 +638,14 @@ class Perceiver
                     if (in_array($action['action'] ?? '', ['bet', 'raise', 'allin'], true)) {
                         $initiative = $action['player_id'] ?? null;
                     }
+
                     continue;
                 }
                 if (($action['player_id'] ?? null) !== $id) {
                     if (in_array($action['action'] ?? '', ['bet', 'raise', 'allin'], true)) {
                         $initiative = $action['player_id'] ?? null;
                     }
+
                     continue;
                 }
 
@@ -669,11 +672,11 @@ class Perceiver
 
             $rangePct = $this->clamp($rangePct, 4.0, 100.0);
             $combos = $this->ranking->rangeCombos($rangePct, [...$hole, ...$board]);
-            while (!$combos && $rangePct < 100.0) {
+            while (! $combos && $rangePct < 100.0) {
                 $rangePct = min(100.0, $rangePct + 5.0);
                 $combos = $this->ranking->rangeCombos($rangePct, [...$hole, ...$board]);
             }
-            if (!$combos) {
+            if (! $combos) {
                 continue;
             }
 
@@ -698,7 +701,7 @@ class Perceiver
             $confidence += $response['confidence'];
         }
 
-        if (!$opponentRanges) {
+        if (! $opponentRanges) {
             throw new \LogicException('No se pudo construir un rango válido para los rivales activos.');
         }
 
@@ -774,7 +777,7 @@ class Perceiver
 
     private function isAfterPosition(string $position, string $heroPosition, array $players): bool
     {
-        $labels = array_map(fn($player) => $player['position'] ?? '', array_filter($players, fn($player) => !$player['folded']));
+        $labels = array_map(fn ($player) => $player['position'] ?? '', array_filter($players, fn ($player) => ! $player['folded']));
         $headsUp = count($labels) === 2 && in_array('SB', $labels, true) && in_array('BB', $labels, true);
         $order = $headsUp
             ? ['BB' => 1, 'SB' => 5]
@@ -816,7 +819,7 @@ class Perceiver
      */
     private function bluffLikelihood(array $f, array $line, float $bluffCapacity): float
     {
-        if ($f['street'] === 'preflop' || !$f['facing_bet'] || $bluffCapacity <= 0) {
+        if ($f['street'] === 'preflop' || ! $f['facing_bet'] || $bluffCapacity <= 0) {
             return 0.0;
         }
         $p = 22.0;
@@ -854,8 +857,8 @@ class Perceiver
             return $out;
         }
 
-        $ranks = array_map(fn($c) => $c % 13, $board);
-        $suits = array_count_values(array_map(fn($c) => intdiv($c, 13), $board));
+        $ranks = array_map(fn ($c) => $c % 13, $board);
+        $suits = array_count_values(array_map(fn ($c) => intdiv($c, 13), $board));
         $counts = array_count_values($ranks);
         $suitedMax = max($suits);
         $window = 0;
@@ -867,7 +870,7 @@ class Perceiver
                 }
             }
             if (in_array(12, $ranks, true) && $low === 0) {
-                $in = max($in, count(array_filter(array_unique($ranks), fn($r) => $r <= 3)) + 1); // rueda
+                $in = max($in, count(array_filter(array_unique($ranks), fn ($r) => $r <= 3)) + 1); // rueda
             }
             $window = max($window, $in);
         }
@@ -913,7 +916,7 @@ class Perceiver
 
         if ($cat === 8) {
             $c = $this->straightComplexity($hole, $board, true);
-            if (!$try('straight_flush', $c)) {
+            if (! $try('straight_flush', $c)) {
                 // No lo ve como escalera de color: ¿ve al menos el color o la escalera por separado?
                 $seeFlushes = $try('flush', 0);
                 $seeStraights = $try('straight', $c);
@@ -970,12 +973,12 @@ class Perceiver
         $seq = $wheel ? [12, 0, 1, 2, 3] : range($high, $high - 4);
         $complexity = $wheel ? 1 : 0;
 
-        $holeInSeq = array_values(array_filter(array_map(fn($c) => $c % 13, $hole), fn($r) => in_array($r, $seq, true)));
-        if (count($holeInSeq) === 2 && abs($holeInSeq[0] - $holeInSeq[1]) > 1 && !($wheel && in_array(12, $holeInSeq, true))) {
+        $holeInSeq = array_values(array_filter(array_map(fn ($c) => $c % 13, $hole), fn ($r) => in_array($r, $seq, true)));
+        if (count($holeInSeq) === 2 && abs($holeInSeq[0] - $holeInSeq[1]) > 1 && ! ($wheel && in_array(12, $holeInSeq, true))) {
             $complexity++; // las dos cartas propias no son vecinas: están "intercaladas" con las de la mesa
         }
-        $boardRanks = array_map(fn($c) => $c % 13, $board);
-        if (in_array(12, $boardRanks, true) && !in_array(12, $seq, true)) {
+        $boardRanks = array_map(fn ($c) => $c % 13, $board);
+        if (in_array(12, $boardRanks, true) && ! in_array(12, $seq, true)) {
             $complexity++; // As en la mesa que no forma parte de la escalera
         }
 
@@ -1004,7 +1007,7 @@ class Perceiver
         }
         $deck = [];
         for ($c = 0; $c < 52; $c++) {
-            if (!$used[$c]) {
+            if (! $used[$c]) {
                 $deck[] = $c;
             }
         }
@@ -1030,7 +1033,7 @@ class Perceiver
     {
         $mine = F::score([...$hole, ...$board], $straights, $flushes);
         $combos = $this->ranking->rangeCombos($rangePct, [...$hole, ...$board]);
-        if (!$combos) {
+        if (! $combos) {
             return 50.0;
         }
         $better = 0.0;
@@ -1104,17 +1107,17 @@ class Perceiver
         }
         $all = [...$hole, ...$board];
         $flush = false;
-        foreach (array_count_values(array_map(fn($c) => intdiv($c, 13), $all)) as $suit => $n) {
-            if ($n === 3 && count(array_filter($hole, fn($c) => intdiv($c, 13) === $suit)) >= 1) {
+        foreach (array_count_values(array_map(fn ($c) => intdiv($c, 13), $all)) as $suit => $n) {
+            if ($n === 3 && count(array_filter($hole, fn ($c) => intdiv($c, 13) === $suit)) >= 1) {
                 $flush = true;
             }
         }
-        $ranks = array_unique(array_map(fn($c) => $c % 13, $all));
-        $holeRanks = array_unique(array_map(fn($c) => $c % 13, $hole));
+        $ranks = array_unique(array_map(fn ($c) => $c % 13, $all));
+        $holeRanks = array_unique(array_map(fn ($c) => $c % 13, $hole));
         $max = 0;
         $usesHole = false;
         for ($s = -1; $s <= 8; $s++) {
-            $win = array_map(fn($r) => $r < 0 ? 12 : $r, range($s, $s + 4)); // el As también hace de carta baja
+            $win = array_map(fn ($r) => $r < 0 ? 12 : $r, range($s, $s + 4)); // el As también hace de carta baja
             $in = array_intersect($ranks, $win);
             $max = max($max, count($in));
             if (count($in) === 3 && array_intersect($holeRanks, $in)) {

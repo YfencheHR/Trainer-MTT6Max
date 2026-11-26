@@ -18,6 +18,7 @@ use Illuminate\Console\Command;
 class InitializeDatabaseCommand extends Command
 {
     protected $signature = 'db:initialize';
+
     protected $description = 'Aplica las migraciones pendientes y siembra los datos base si la base de datos está vacía';
 
     public function handle(): int
@@ -35,7 +36,7 @@ class InitializeDatabaseCommand extends Command
             $this->info('Datos base ya cargados: no se vuelve a sembrar.');
         }
 
-        $this->info('Base de datos lista. Bots: ' . Bot::count() . ' · Manos hechas: ' . MadeHand::count() . ' · Cartas: ' . Card::count());
+        $this->info('Base de datos lista. Bots: '.Bot::count().' · Manos hechas: '.MadeHand::count().' · Cartas: '.Card::count());
 
         return self::SUCCESS;
     }

@@ -52,7 +52,7 @@ class HandLogSavedTest extends TestCase
         $hand = $this->playBotsHand();
         $winner = collect($hand->players_in_hand)->firstWhere('id', array_key_first($hand->actions['awards']));
 
-        $this->get(route('mtt-simulator.show', $hand->tournament_id))->assertOk()->assertSee('🏆 ' . $winner['name'], false);
+        $this->get(route('mtt-simulator.show', $hand->tournament_id))->assertOk()->assertSee('🏆 '.$winner['name'], false);
     }
 
     public function test_the_tournament_page_paginates_its_hands(): void

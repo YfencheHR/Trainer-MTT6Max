@@ -4,6 +4,7 @@ namespace App\Services\Tournament;
 
 use App\Models\Table;
 use App\Models\Tournament;
+use App\Models\TournamentEvent;
 use App\Models\TournamentHand;
 use App\Models\TournamentPlayer;
 use App\Services\HandPlayService;
@@ -23,8 +24,7 @@ class TournamentRoundService
         private HandPlayService $hands,
         private TableBalanceService $balance,
         private BlindStructureService $blindStructure,
-    ) {
-    }
+    ) {}
 
     // ------------------------------------------------------------ ciegas
 
@@ -48,13 +48,13 @@ class TournamentRoundService
     public function heroTable(Tournament $t): ?Table
     {
         $heroId = $t->players()->where('is_bot', false)->value('id');
-        if (!$heroId) {
+        if (! $heroId) {
             return null;
         }
 
         return Table::where('tournament_id', $t->id)
             ->where('is_active', true)
-            ->whereHas('players', fn($q) => $q->where('tournament_players.id', $heroId))
+            ->whereHas('players', fn ($q) => $q->where('tournament_players.id', $heroId))
             ->first();
     }
 
@@ -147,8 +147,8 @@ class TournamentRoundService
     public function processEliminations(Tournament $t, Table $table, TournamentHand $hand): array
     {
         $busted = collect($hand->players_in_hand)
-            ->filter(fn($p) => (int) $p['stack'] <= 0)
-            ->sortBy(fn($p) => (int) ($p['total'] ?? 0)) // menos fichas iniciales = peor puesto
+            ->filter(fn ($p) => (int) $p['stack'] <= 0)
+            ->sortBy(fn ($p) => (int) ($p['total'] ?? 0)) // menos fichas iniciales = peor puesto
             ->values();
 
         if ($busted->isEmpty()) {
@@ -158,9 +158,9 @@ class TournamentRoundService
         $activeIds = TournamentPlayer::whereIn('id', $busted->pluck('id'))
             ->where('is_eliminated', false)
             ->pluck('id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->all();
-        $busted = $busted->filter(fn($p) => in_array((int) $p['id'], $activeIds, true))->values();
+        $busted = $busted->filter(fn ($p) => in_array((int) $p['id'], $activeIds, true))->values();
 
         if ($busted->isEmpty()) {
             return [];
@@ -177,7 +177,7 @@ class TournamentRoundService
             DB::table('table_players')->where('table_id', $table->id)->where('tournament_player_id', $p['id'])->delete();
             $text = "{$name} eliminado en el puesto {$placement} (Mesa {$table->table_number})";
             $texts[] = $text;
-            \App\Models\TournamentEvent::record($t, 'elimination', $text, $hand->hand_number, [
+            TournamentEvent::record($t, 'elimination', $text, $hand->hand_number, [
                 'placement' => $placement,
                 'table' => $table->table_number,
                 'chips_in_hand' => (int) ($p['total'] ?? 0),
@@ -216,7 +216,7 @@ class TournamentRoundService
 
             $t = $heroHand->tournament;
             $table = $heroHand->table;
-            if (!$table) {
+            if (! $table) {
                 return $this->legacyNextHand($heroHand);
             }
 
@@ -234,7 +234,7 @@ class TournamentRoundService
                 ->count();
             $balanceEvents = $activeTableCount > 1 ? $this->balance->rebalance($t) : [];
             foreach ($balanceEvents as $ev) {
-                \App\Models\TournamentEvent::record($t, $ev['type'], $ev['text'], $heroHand->hand_number, $ev['payload'], $ev['table_id'], $ev['player_id']);
+                TournamentEvent::record($t, $ev['type'], $ev['text'], $heroHand->hand_number, $ev['payload'], $ev['table_id'], $ev['player_id']);
             }
             if ($balanceEvents) {
                 $this->addPendingEvents($t, array_column($balanceEvents, 'text'));
@@ -244,12 +244,12 @@ class TournamentRoundService
             $alive = $t->players()->where('is_eliminated', false)->where('current_stack', '>', 0)->count();
             $heroEliminatedThisRound = $hero && $hero->is_eliminated
                 && collect($heroHand->players_in_hand)->contains(
-                    fn($player) => (int) $player['id'] === (int) $hero->id && (int) $player['stack'] <= 0
+                    fn ($player) => (int) $player['id'] === (int) $hero->id && (int) $player['stack'] <= 0
                 );
 
             if ($heroEliminatedThisRound) {
                 $message = "Has sido eliminado en el puesto {$hero->placement}";
-                \App\Models\TournamentEvent::record(
+                TournamentEvent::record(
                     $t,
                     'hero_eliminated',
                     $message,
@@ -260,7 +260,7 @@ class TournamentRoundService
                 );
 
                 if ($alive > 1) {
-                    $this->addPendingEvents($t, [$message . '. El torneo continuará en modo espectador.']);
+                    $this->addPendingEvents($t, [$message.'. El torneo continuará en modo espectador.']);
                 }
             }
 
@@ -270,7 +270,7 @@ class TournamentRoundService
             $nextBlinds = $this->blindsForRound($t, $nextRound);
             if ($nextBlinds['level'] > $prevBlinds['level']) {
                 $text = "Nivel {$nextBlinds['level']}: ciegas {$nextBlinds['small_blind']}/{$nextBlinds['big_blind']}";
-                \App\Models\TournamentEvent::record($t, 'level_up', $text, $nextRound, $nextBlinds);
+                TournamentEvent::record($t, 'level_up', $text, $nextRound, $nextBlinds);
                 $this->addPendingEvents($t, [$text]);
             }
 
@@ -286,13 +286,14 @@ class TournamentRoundService
                 $t->players()->where('is_eliminated', false)->update(['placement' => 1]);
                 $t->update(['status' => 'completed', 'ended_at' => now()]);
                 $winner = $t->players()->where('placement', 1)->first();
-                \App\Models\TournamentEvent::record($t, 'tournament_finished', 'Torneo terminado: ' . ($winner->name ?? '?') . ' gana', $heroHand->hand_number, ['winner_id' => $winner->id ?? null]);
+                TournamentEvent::record($t, 'tournament_finished', 'Torneo terminado: '.($winner->name ?? '?').' gana', $heroHand->hand_number, ['winner_id' => $winner->id ?? null]);
+
                 return ['hand_id' => null, 'finished' => true, 'events' => $events, 'message' => '¡Has ganado el torneo!'];
             }
 
             // 4) Siguiente mano del héroe con los eventos al inicio del log
             $time = now()->format('H:i:s');
-            $pending = array_map(fn($text) => ['time' => $time, 'text' => $text, 'type' => 'info'], $events);
+            $pending = array_map(fn ($text) => ['time' => $time, 'text' => $text, 'type' => 'info'], $events);
             $watchTable = $hero && $hero->is_eliminated
                 ? $this->spectatorTable($t, $table)
                 : $table->refresh();
@@ -308,7 +309,7 @@ class TournamentRoundService
             ->where('is_active', true)
             ->withCount('players')
             ->get()
-            ->filter(fn(Table $table) => $table->players_count >= 2);
+            ->filter(fn (Table $table) => $table->players_count >= 2);
 
         $table = $tables->firstWhere('id', $preferred->id);
         if ($table) {
@@ -316,7 +317,7 @@ class TournamentRoundService
         }
 
         $table = $tables->sortByDesc('players_count')->first();
-        if (!$table) {
+        if (! $table) {
             throw new \RuntimeException('No hay una mesa activa con suficientes jugadores para continuar como espectador.');
         }
 

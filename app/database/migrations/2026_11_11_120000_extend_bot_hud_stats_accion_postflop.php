@@ -27,7 +27,7 @@ return new class extends Migration
 
     private function apply(array $values): void
     {
-        $list = implode(', ', array_map(fn($v) => "'$v'::character varying", $values));
+        $list = implode(', ', array_map(fn ($v) => "'$v'::character varying", $values));
         DB::statement('ALTER TABLE bot_hud_stats DROP CONSTRAINT IF EXISTS bot_hud_stats_accion_check');
         DB::statement("ALTER TABLE bot_hud_stats ADD CONSTRAINT bot_hud_stats_accion_check CHECK ((accion)::text = ANY ((ARRAY[$list])::text[]))");
     }

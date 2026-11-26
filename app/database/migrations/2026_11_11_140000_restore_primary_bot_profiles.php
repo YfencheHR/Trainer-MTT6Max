@@ -22,7 +22,7 @@ return new class extends Migration
                 $bot->update(['vpip' => $vpip, 'pfr' => $pfr]);
             }
         }
-        (new BotHudStatsSeeder())->run();
+        (new BotHudStatsSeeder)->run();
     }
 
     public function down(): void

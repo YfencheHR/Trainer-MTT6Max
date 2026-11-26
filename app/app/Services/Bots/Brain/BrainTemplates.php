@@ -142,7 +142,7 @@ class BrainTemplates
     {
         $rules = PreflopAutoRules::generate($profile, [
             'open_mix' => self::openMix($p['style']),
-            'adapt' => !empty($p['adapt']),
+            'adapt' => ! empty($p['adapt']),
         ]);
 
         if ($p['style'] === 'setminer') {

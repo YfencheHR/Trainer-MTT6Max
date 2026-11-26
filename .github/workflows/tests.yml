@@ -50,6 +50,7 @@ jobs:
           restore-keys: composer-
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: touch .env
+      - run: vendor/bin/pint --test
       - run: php artisan test
 
   python:

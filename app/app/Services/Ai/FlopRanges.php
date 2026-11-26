@@ -24,7 +24,7 @@ class FlopRanges
 
     /**
      * @param  array  $ctx  contexto de decisión del motor (HandPlayService::botContext)
-     * @return array<int, array<string, float>>  [id del jugador => [mano => peso de 0 a 1]]
+     * @return array<int, array<string, float>> [id del jugador => [mano => peso de 0 a 1]]
      */
     public function forHand(array $ctx): array
     {

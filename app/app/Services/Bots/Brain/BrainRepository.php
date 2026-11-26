@@ -24,9 +24,7 @@ class BrainRepository
     /** @var array<int, array> cerebro actual por bot (réplica de manos reales) */
     private array $botCache = [];
 
-    public function __construct(private BrainAssembler $assembler)
-    {
-    }
+    public function __construct(private BrainAssembler $assembler) {}
 
     /** Cerebro actual de un bot, sin pasar por un jugador de torneo (réplica de manos reales: allí los ids de jugador no existen). */
     public function forBot(Bot $bot): array

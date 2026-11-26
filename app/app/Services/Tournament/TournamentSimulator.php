@@ -19,11 +19,10 @@ class TournamentSimulator
     public function __construct(
         private TournamentRoundService $rounds,
         private TableBalanceService $balance,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param callable|null $progress fn(int $round, int $alive, int $tables): void tras cada ronda
+     * @param  callable|null  $progress  fn(int $round, int $alive, int $tables): void tras cada ronda
      * @return array{rounds:int, finished:bool, winner:?string, players:int}
      */
     public function run(Tournament $t, ?callable $progress = null, int $maxRounds = 3000): array
@@ -89,7 +88,7 @@ class TournamentSimulator
         $t->players()->where('is_eliminated', false)->update(['placement' => 1]);
         $t->update(['status' => 'completed', 'ended_at' => now()]);
         $winner = $t->players()->where('placement', 1)->first();
-        TournamentEvent::record($t, 'tournament_finished', 'Torneo terminado: ' . ($winner->name ?? '?') . ' gana', $round, ['winner_id' => $winner->id ?? null]);
+        TournamentEvent::record($t, 'tournament_finished', 'Torneo terminado: '.($winner->name ?? '?').' gana', $round, ['winner_id' => $winner->id ?? null]);
 
         return ['rounds' => $round, 'finished' => true, 'winner' => $winner->name ?? null, 'players' => $t->players()->count()];
     }

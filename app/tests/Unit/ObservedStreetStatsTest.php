@@ -14,7 +14,7 @@ class ObservedStreetStatsTest extends TestCase
     {
         $players = [['id' => 1, 'folded' => false], ['id' => 2, 'folded' => false]];
 
-        return (new TournamentStatsService())->computeDeltas($players, ['history' => $history, 'bb' => 100, 'street' => 'turn'], [], ['K♣', '7♥', '2♦', '9♠']);
+        return (new TournamentStatsService)->computeDeltas($players, ['history' => $history, 'bb' => 100, 'street' => 'turn'], [], ['K♣', '7♥', '2♦', '9♠']);
     }
 
     public function test_it_counts_bets_with_nothing_to_face_and_folds_against_a_bet_per_street(): void
@@ -53,7 +53,7 @@ class ObservedStreetStatsTest extends TestCase
         $profile = ['preflop' => ['vpip' => 20], 'postflop' => ['turn' => ['f2bet' => 40, 'bet' => 50, 'af' => 2.0], 'vb_ratio' => 2.0]];
         $observed = ['hands' => 50, 'vpip' => 20, 'af' => 4.0, 'af_n' => 25, 'streets' => ['turn' => ['bet' => 10, 'bet_opp' => 25, 'f2bet' => 80, 'f2bet_opp' => 75]]];
 
-        $mixed = (new BotMemory())->apply($profile, $observed, BotMemory::TOURNAMENT);
+        $mixed = (new BotMemory)->apply($profile, $observed, BotMemory::TOURNAMENT);
 
         $this->assertSame(70.0, $mixed['postflop']['turn']['f2bet'], '75 oportunidades: 75/100 de 80 y el resto de 40');
         $this->assertSame(30.0, $mixed['postflop']['turn']['bet'], '25 oportunidades: la mitad de 10 y la mitad de 50');

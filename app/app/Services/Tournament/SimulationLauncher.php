@@ -17,13 +17,13 @@ class SimulationLauncher
 
     public function logPath(string $id): string
     {
-        return $this->dir('runs') . "/{$id}.log";
+        return $this->dir('runs')."/{$id}.log";
     }
 
     /** ¿Hay una simulación en marcha (sin marcador de fin y con registro reciente)? */
     public function running(): ?string
     {
-        $state = $this->dir() . '/simulation.json';
+        $state = $this->dir().'/simulation.json';
         $id = is_file($state) ? (json_decode((string) file_get_contents($state), true)['id'] ?? null) : null;
         if (! $id || ! preg_match('/^[a-f0-9-]{36}$/', $id) || ! is_file($log = $this->logPath($id))) {
             return null;
@@ -36,11 +36,11 @@ class SimulationLauncher
 
     public function launch(string $id, int $players, string $speed): void
     {
-        file_put_contents($this->dir() . '/simulation.json', json_encode(['id' => $id, 'players' => $players, 'speed' => $speed]));
+        file_put_contents($this->dir().'/simulation.json', json_encode(['id' => $id, 'players' => $players, 'speed' => $speed]));
         $log = $this->logPath($id);
         file_put_contents($log, "Simulación de {$players} jugadores en marcha…\n");
 
-        $php = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(base_path('artisan'));
+        $php = escapeshellarg(PHP_BINARY).' '.escapeshellarg(base_path('artisan'));
         // Las líneas «FASE n/3» las lee progress() para decir en qué paso está
         $script = sprintf(
             'echo "FASE 1/3 preparando" && %1$s tournament:simulate --purge && echo "FASE 2/3 simulando" && %1$s tournament:simulate --players=%2$d --speed=%3$s && echo "FASE 3/3 analizando" && %1$s bots:audit-postflop --only-simulated',
@@ -88,7 +88,7 @@ class SimulationLauncher
 
     private function dir(string $sub = ''): string
     {
-        $d = storage_path('app/import' . ($sub ? "/$sub" : ''));
+        $d = storage_path('app/import'.($sub ? "/$sub" : ''));
         if (! is_dir($d)) {
             mkdir($d, 0775, true);
         }

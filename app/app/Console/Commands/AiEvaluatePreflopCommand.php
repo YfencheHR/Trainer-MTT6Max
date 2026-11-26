@@ -211,7 +211,7 @@ class AiEvaluatePreflopCommand extends Command
     /**
      * En qué situación está el jugador al hablar: la misma clasificación que hace el servicio de Python.
      *
-     * @return array{spot: string, key: string, raises: int}|null  null si no la cubre ninguna situación
+     * @return array{spot: string, key: string, raises: int}|null null si no la cubre ninguna situación
      */
     private function situation(array $hand, int $i): ?array
     {

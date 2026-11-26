@@ -21,8 +21,8 @@ class TournamentFactory
     /**
      * Reparte $opponents plazas entre los bots según su porcentaje (método del mayor resto: la suma es exacta) y las baraja.
      *
-     * @param Collection<int, Bot> $bots bots disponibles, indexados por id
-     * @param array<int|string, int|float> $percentages porcentaje (peso) de cada bot por id
+     * @param  Collection<int, Bot>  $bots  bots disponibles, indexados por id
+     * @param  array<int|string, int|float>  $percentages  porcentaje (peso) de cada bot por id
      * @return Bot[] un elemento por plaza (un bot puede repetirse)
      */
     public function allocateBots(Collection $bots, array $percentages, int $opponents): array
@@ -36,7 +36,7 @@ class TournamentFactory
             }
         }
         $missing = $opponents - array_sum(array_column($shares, 'count'));
-        uasort($shares, fn($x, $y) => $y['rest'] <=> $x['rest']);
+        uasort($shares, fn ($x, $y) => $y['rest'] <=> $x['rest']);
         foreach (array_keys($shares) as $botId) {
             if ($missing-- <= 0) {
                 break;
@@ -58,11 +58,11 @@ class TournamentFactory
     /**
      * Crea el torneo (pendiente) con sus jugadores.
      *
-     * @param array $settings starting_stack, big_blind, speed, hands_per_level, ante_by_level, hand_types, show_all_cards,
-     *                        no_hud_data, bot_memory (none|tournament), player_time_mode, time_per_decision_seconds, bank_time_seconds
-     * @param Bot[] $bots rivales (uno por plaza)
-     * @param array{user_id?: int|null, name?: string}|null $hero datos del héroe humano; null = torneo solo de bots
-     * @param bool $heroEntryInConfig incluir la entrada "tú" en config.players (la pantalla de creación siempre lo ha hecho)
+     * @param  array  $settings  starting_stack, big_blind, speed, hands_per_level, ante_by_level, hand_types, show_all_cards,
+     *                           no_hud_data, bot_memory (none|tournament), player_time_mode, time_per_decision_seconds, bank_time_seconds
+     * @param  Bot[]  $bots  rivales (uno por plaza)
+     * @param  array{user_id?: int|null, name?: string}|null  $hero  datos del héroe humano; null = torneo solo de bots
+     * @param  bool  $heroEntryInConfig  incluir la entrada "tú" en config.players (la pantalla de creación siempre lo ha hecho)
      */
     public function create(array $settings, array $bots, ?array $hero, bool $heroEntryInConfig = true): Tournament
     {
@@ -100,7 +100,7 @@ class TournamentFactory
         }
         TournamentEvent::record(
             $tournament, 'tournament_started',
-            'Torneo iniciado: ' . $tournament->players()->count() . ' jugadores en ' . count($seating) . ' mesas',
+            'Torneo iniciado: '.$tournament->players()->count().' jugadores en '.count($seating).' mesas',
             0, ['tables' => $seating, 'config' => $tournament->config]
         );
     }
@@ -140,7 +140,7 @@ class TournamentFactory
                 'source_bot_id' => $bot->id,
                 'user_id' => null,
                 'brain_snapshot_id' => $snapshots[$bot->id] ??= $brains->snapshotFor($bot),
-                'name' => $seen[$bot->id] > 1 ? $baseName . ' ' . $seen[$bot->id] : $baseName,
+                'name' => $seen[$bot->id] > 1 ? $baseName.' '.$seen[$bot->id] : $baseName,
                 'starting_stack' => $startingStack,
                 'current_stack' => $startingStack,
                 'is_bot' => true,

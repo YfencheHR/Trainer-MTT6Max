@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Tournament;
 use App\Models\Table;
+use App\Models\Tournament;
 
 class TableManagementService
 {

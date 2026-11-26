@@ -24,7 +24,7 @@ class PostflopAutoRules
         $tier = $p['tier'];
         $style = $p['style'];
         $overvalues = in_array($tier, ['weak', 'whale'], true);
-        $adapt = !empty($p['adapt']);
+        $adapt = ! empty($p['adapt']);
         $sp = $p['specials'] ?? [];
         $raiseAction = in_array($style, ['maniac', 'lag'], true) ? 'bet_pot' : 'bet_twothirds';
 
@@ -118,16 +118,16 @@ class PostflopAutoRules
                 self::c('spr_after_call', '<=', 1),
                 $style === 'station'
                     ? ['all' => [
-                    self::c('street', '=', 'river'),
-                    self::c('made_category', '>=', 3),
-                    ['any' => [self::c('board_four_flush', '=', false), self::c('made_category', '>=', 5)]],
-                ]]
+                        self::c('street', '=', 'river'),
+                        self::c('made_category', '>=', 3),
+                        ['any' => [self::c('board_four_flush', '=', false), self::c('made_category', '>=', 5)]],
+                    ]]
                     : ['any' => array_values(array_filter([
-                    self::c('perceived_rank', '<=', 3),
-                    self::c('made', 'in', ['straight_flush', 'royal_flush', 'quads', 'full_house']),
-                    // Los flojos sobrevaloran lo que ven: cualquier escalera o color ya es "monstruo" para ellos
-                    $overvalues ? self::c('made_category', '>=', 4) : null,
-                ]))],
+                        self::c('perceived_rank', '<=', 3),
+                        self::c('made', 'in', ['straight_flush', 'royal_flush', 'quads', 'full_house']),
+                        // Los flojos sobrevaloran lo que ven: cualquier escalera o color ya es "monstruo" para ellos
+                        $overvalues ? self::c('made_category', '>=', 4) : null,
+                    ]))],
             ]],
             'paint' => [['action' => 'allin']],
         ];

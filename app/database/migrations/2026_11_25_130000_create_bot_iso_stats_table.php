@@ -27,10 +27,10 @@ return new class extends Migration
             $table->unique(['bot_id', 'position']);
         });
 
-        DB::statement("
+        DB::statement('
             insert into bot_iso_stats (bot_id, position, opportunities, raises, calls, created_at, updated_at)
             select bot_id, posicion, sum(vs_limp_opportunities), sum(vs_limp_raises), sum(vs_limp_calls), now(), now()
-            from bot_preflop_hand_stats group by bot_id, posicion having sum(vs_limp_opportunities) > 0");
+            from bot_preflop_hand_stats group by bot_id, posicion having sum(vs_limp_opportunities) > 0');
     }
 
     public function down(): void

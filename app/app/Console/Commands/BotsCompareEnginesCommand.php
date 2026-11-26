@@ -48,7 +48,7 @@ class BotsCompareEnginesCommand extends Command
                 return self::FAILURE;
             }
             config(['ai.reasoning' => ['ai-brief' => 'brief', 'ai-think' => 'think'][$engine] ?? null]);
-            $decider = $engine === 'rules' ? null : fn(array $ctx, $bot, int $seed) => $ai->decide($ctx, $seed);
+            $decider = $engine === 'rules' ? null : fn (array $ctx, $bot, int $seed) => $ai->decide($ctx, $seed);
             $limit = $engine === 'ai-think' ? (int) $this->option('think-limit') : (int) $this->option('limit');
             $this->info("Motor {$engine}: {$limit} decisiones…");
             $started = microtime(true);
@@ -68,7 +68,7 @@ class BotsCompareEnginesCommand extends Command
         }
         config(['ai.reasoning' => null]);
 
-        $main = array_values(array_filter($engines, fn($e) => $e !== 'ai-think'));
+        $main = array_values(array_filter($engines, fn ($e) => $e !== 'ai-think'));
         $common = $this->commonIds($results, $main);
         $this->report('Decisiones contestadas por todos los motores', $results, $engines, $common, $seconds, $failed);
         if (isset($results['ai-think'])) {
@@ -101,7 +101,7 @@ class BotsCompareEnginesCommand extends Command
         $keep = array_flip($ids);
         $rows = [];
         foreach ($engines as $engine) {
-            $subset = array_values(array_filter($results[$engine] ?? [], fn($r) => isset($keep[$r['id']])));
+            $subset = array_values(array_filter($results[$engine] ?? [], fn ($r) => isset($keep[$r['id']])));
             if (! $subset) {
                 continue;
             }
@@ -138,7 +138,7 @@ class BotsCompareEnginesCommand extends Command
         $lines = [];
         foreach ($engines as $i => $a) {
             foreach (array_slice($engines, $i + 1) as $b) {
-                $same = count(array_filter($ids, fn($id) => ($byId[$a][$id] ?? null) === ($byId[$b][$id] ?? 0)));
+                $same = count(array_filter($ids, fn ($id) => ($byId[$a][$id] ?? null) === ($byId[$b][$id] ?? 0)));
                 $lines[] = ["{$a} ↔ {$b}", round(100 * $same / count($ids)).' %'];
             }
         }

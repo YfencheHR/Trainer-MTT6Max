@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Bot;
 use App\Services\Bots\BotDecisionService;
 use App\Services\Bots\Brain\BrainAssembler;
 use App\Services\Bots\Brain\BrainRepository;
@@ -13,7 +14,6 @@ use App\Services\Equity\EquitySimulationClient;
 use App\Services\Equity\HandMatrixGenerator;
 use App\Services\Equity\HeuristicPreflopStrategyGenerator;
 use App\Services\Ev\EquityCalculator;
-use App\Models\Bot;
 use Illuminate\Database\Events\MigrationsStarted;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -51,6 +51,6 @@ class AppServiceProvider extends ServiceProvider
         // El filtro de bots archivados recuerda si la columna existe; hay que olvidarlo al arrancar la aplicación y cada
         // vez que empieza una migración (migrate:fresh, app:reset...), porque la base de datos puede haberse recreado.
         Bot::forgetArchivedColumn();
-        Event::listen(MigrationsStarted::class, fn() => Bot::forgetArchivedColumn());
+        Event::listen(MigrationsStarted::class, fn () => Bot::forgetArchivedColumn());
     }
 }

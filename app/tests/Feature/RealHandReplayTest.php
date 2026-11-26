@@ -44,7 +44,7 @@ TXT;
 
     private function hands(int $count): array
     {
-        return array_map(fn($i) => sprintf(self::HAND, 1000 + $i), range(1, $count));
+        return array_map(fn ($i) => sprintf(self::HAND, 1000 + $i), range(1, $count));
     }
 
     private function replay(): RealHandReplay
@@ -57,7 +57,7 @@ TXT;
         $result = $this->replay()->run($this->hands(1), $this->bots(), ['candidates' => 4, 'limit' => 100]);
 
         $this->assertSame(0, $result['errors'], (string) $result['first_error']);
-        $alice = array_values(array_filter($result['rows'], fn($r) => $r['player'] === 'Alice'));
+        $alice = array_values(array_filter($result['rows'], fn ($r) => $r['player'] === 'Alice'));
         $this->assertSame(['preflop', 'flop'], array_column($alice, 'street'));
         $this->assertSame(['aggr', 'aggr'], array_column($alice, 'real'), 'subió preflop y apostó el flop');
         $this->assertTrue($alice[0]['known'], 'las cartas de Alice se conocen');

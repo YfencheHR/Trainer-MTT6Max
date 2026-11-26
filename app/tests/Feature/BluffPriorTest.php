@@ -63,7 +63,7 @@ class BluffPriorTest extends TestCase
         $plain = Bot::create(['nombre' => 'Normal', 'tipo' => 'pool', 'metadata' => ['source' => 'pt4_import']]);
         DB::table('bot_bet_size_prior')->insert(['bot_id' => $maniac->id, 'street' => 'river', 'air_share' => 45, 'created_at' => now(), 'updated_at' => now()]);
 
-        $matrix = new BetSizeMatrix();
+        $matrix = new BetSizeMatrix;
         $m = $matrix->forBot($maniac)['river'];
 
         $this->assertEqualsWithDelta(45, $m['bluff_share'], 0.1);

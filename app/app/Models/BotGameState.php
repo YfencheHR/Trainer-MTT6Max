@@ -22,7 +22,7 @@ class BotGameState extends Model
         'total_puesto',
         'board',
         'villanos',
-        'ultimo_movimiento'
+        'ultimo_movimiento',
     ];
 
     protected $casts = [
@@ -32,7 +32,7 @@ class BotGameState extends Model
         'blinds_bb' => 'integer',
         'apuesta_actual' => 'integer',
         'total_puesto' => 'integer',
-        'ultimo_movimiento' => 'datetime'
+        'ultimo_movimiento' => 'datetime',
     ];
 
     /**

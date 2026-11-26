@@ -39,14 +39,14 @@ class StatBounds
      * Acota los valores presentes y mantiene coherente la respuesta a un 3-bet (fold + call + re-raise = 100):
      * lo que se le quita al fold pasa a call, que es la continuación habitual.
      *
-     * @param array<string, int|float> $values
+     * @param  array<string, int|float>  $values
      * @return array<string, int|float>
      */
     public static function apply(array $values): array
     {
         $clamped = false;
         foreach (self::BOUNDS as $stat => [$min, $max]) {
-            if (!array_key_exists($stat, $values) || $values[$stat] === null) {
+            if (! array_key_exists($stat, $values) || $values[$stat] === null) {
                 continue;
             }
             $v = $values[$stat];

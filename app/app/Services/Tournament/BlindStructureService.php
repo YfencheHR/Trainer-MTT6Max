@@ -5,7 +5,7 @@ namespace App\Services\Tournament;
 class BlindStructureService
 {
     /**
-     * @param int[] $antesByLevel Ante amount in chips for each level.
+     * @param  int[]  $antesByLevel  Ante amount in chips for each level.
      * @return array{level:int,small_blind:int,big_blind:int,ante:int,hands_per_level:int}
      */
     public function forRound(
@@ -14,8 +14,7 @@ class BlindStructureService
         int $round,
         ?int $handsPerLevel = null,
         array $antesByLevel = [],
-    ): array
-    {
+    ): array {
         $settings = config("blind-levels.{$speed}", config('blind-levels.tipica'));
         $baseBigBlind = max(2, $baseBigBlind);
         $round = max(1, $round);

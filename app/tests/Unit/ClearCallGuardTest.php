@@ -27,7 +27,7 @@ class ClearCallGuardTest extends TestCase
     {
         $matrix = $this->matrix();
 
-        $this->assertTrue((new ClearCallGuard())->apply($matrix, $this->features()));
+        $this->assertTrue((new ClearCallGuard)->apply($matrix, $this->features()));
         $this->assertSame(0.0, $matrix->points('fold'));
         $this->assertEqualsWithDelta(75.61, $matrix->points('call'), 0.01, 'el fold pasa a call');
         $this->assertEqualsWithDelta(100.0, array_sum($matrix->distribution()), 0.05);
@@ -35,21 +35,21 @@ class ClearCallGuardTest extends TestCase
 
     public function test_it_uses_the_lower_of_the_equity_and_the_equity_against_his_range(): void
     {
-        $this->assertFalse((new ClearCallGuard())->applies($this->features(['equity' => 70.0, 'range_equity' => 25.0])));
+        $this->assertFalse((new ClearCallGuard)->applies($this->features(['equity' => 70.0, 'range_equity' => 25.0])));
     }
 
     public function test_a_marginal_hand_keeps_its_folds(): void
     {
         $matrix = $this->matrix();
 
-        $this->assertFalse((new ClearCallGuard())->apply($matrix, $this->features(['equity' => 30.0, 'range_equity' => 30.0])));   // por debajo del mínimo
-        $this->assertFalse((new ClearCallGuard())->apply($matrix, $this->features(['equity' => 45.0, 'range_equity' => 45.0, 'pot_odds' => 30.0])));   // no llega al doble del precio
+        $this->assertFalse((new ClearCallGuard)->apply($matrix, $this->features(['equity' => 30.0, 'range_equity' => 30.0])));   // por debajo del mínimo
+        $this->assertFalse((new ClearCallGuard)->apply($matrix, $this->features(['equity' => 45.0, 'range_equity' => 45.0, 'pot_odds' => 30.0])));   // no llega al doble del precio
         $this->assertSame(7.28, $matrix->points('fold'));
     }
 
     public function test_it_only_applies_postflop_and_facing_a_bet(): void
     {
-        $guard = new ClearCallGuard();
+        $guard = new ClearCallGuard;
 
         $this->assertFalse($guard->applies($this->features(['street' => 'preflop'])));
         $this->assertFalse($guard->applies($this->features(['facing_bet' => false])));

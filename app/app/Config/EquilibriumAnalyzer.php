@@ -9,9 +9,10 @@ class EquilibriumAnalyzer
     private static function loadConfig()
     {
         if (self::$config === null) {
-            $configPath = __DIR__ . '/gto-equilibrium.json';
+            $configPath = __DIR__.'/gto-equilibrium.json';
             self::$config = json_decode(file_get_contents($configPath), true);
         }
+
         return self::$config;
     }
 
@@ -33,7 +34,7 @@ class EquilibriumAnalyzer
     {
         $range = self::getEquilibriumRange($stat);
 
-        if (!$range) {
+        if (! $range) {
             return null;
         }
 
@@ -46,35 +47,35 @@ class EquilibriumAnalyzer
 
         return [
             [
-                "min" => 0,
-                "max" => $min - $quarters,
-                "color" => "#10b981",
-                "label" => "Por debajo del equilibrio"
+                'min' => 0,
+                'max' => $min - $quarters,
+                'color' => '#10b981',
+                'label' => 'Por debajo del equilibrio',
             ],
             [
-                "min" => $min - $quarters,
-                "max" => $min,
-                "color" => "#84cc16",
-                "label" => "Ligeramente bajo"
+                'min' => $min - $quarters,
+                'max' => $min,
+                'color' => '#84cc16',
+                'label' => 'Ligeramente bajo',
             ],
             [
-                "min" => $min,
-                "max" => $max,
-                "color" => "#f59e0b",
-                "label" => "Equilibrio"
+                'min' => $min,
+                'max' => $max,
+                'color' => '#f59e0b',
+                'label' => 'Equilibrio',
             ],
             [
-                "min" => $max,
-                "max" => $max + $quarters,
-                "color" => "#f97316",
-                "label" => "Ligeramente alto"
+                'min' => $max,
+                'max' => $max + $quarters,
+                'color' => '#f97316',
+                'label' => 'Ligeramente alto',
             ],
             [
-                "min" => $max + $quarters,
-                "max" => 999,
-                "color" => "#ef4444",
-                "label" => "Por encima del equilibrio"
-            ]
+                'min' => $max + $quarters,
+                'max' => 999,
+                'color' => '#ef4444',
+                'label' => 'Por encima del equilibrio',
+            ],
         ];
     }
 }

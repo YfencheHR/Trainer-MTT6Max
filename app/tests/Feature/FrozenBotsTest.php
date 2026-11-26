@@ -17,6 +17,7 @@ use App\Services\Tournament\TournamentFactory;
 use Database\Seeders\BotHudStatsSeeder;
 use Database\Seeders\BotSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -43,7 +44,7 @@ class FrozenBotsTest extends TestCase
     private function tournament(): Tournament
     {
         return Tournament::create([
-            'title' => 'MTT-frozen-' . ++$this->tournaments,
+            'title' => 'MTT-frozen-'.++$this->tournaments,
             'status' => 'pending',
             'config' => ['basic_settings' => ['starting_stack' => 1000, 'num_players' => 2, 'big_blind' => 20], 'players' => [], 'game_settings' => []],
         ]);
@@ -95,15 +96,15 @@ class FrozenBotsTest extends TestCase
         $bot = $this->poolBot();
         $row = ['street' => 'flop', 'pot' => 'limp', 'position' => 'any', 'stack_bucket' => 'all', 'open_opps' => 100, 'opens' => 25,
             'facing' => 80, 'folds' => 50, 'calls' => 25, 'raises' => 5, 'created_at' => now(), 'updated_at' => now()];
-        \Illuminate\Support\Facades\DB::table('bot_postflop_pot_stats')->insert($row + ['bot_id' => $bot->id]);
+        DB::table('bot_postflop_pot_stats')->insert($row + ['bot_id' => $bot->id]);
         $freezer = app(BotFreezer::class);
 
         $first = $freezer->frozenFor($bot);
-        $copied = \Illuminate\Support\Facades\DB::table('bot_postflop_pot_stats')->where('bot_id', $first->id)->first();
+        $copied = DB::table('bot_postflop_pot_stats')->where('bot_id', $first->id)->first();
         $this->assertNotNull($copied, 'la copia congelada también lleva esas estadísticas: el Perceiver las lee con su id');
         $this->assertSame(25, (int) $copied->opens);
 
-        \Illuminate\Support\Facades\DB::table('bot_postflop_pot_stats')->where('bot_id', $bot->id)->update(['opens' => 40]);
+        DB::table('bot_postflop_pot_stats')->where('bot_id', $bot->id)->update(['opens' => 40]);
         $this->assertNotSame($first->id, $freezer->frozenFor($bot->fresh())->id, 'si cambian, se congela una copia nueva');
     }
 
@@ -195,7 +196,7 @@ class FrozenBotsTest extends TestCase
         $tournament = $this->tournament();
         TournamentPlayer::create(['tournament_id' => $tournament->id, 'bot_id' => $used->id, 'name' => 'Rival', 'is_bot' => true, 'starting_stack' => 1000, 'current_stack' => 1000]);
 
-        $result = (new PoolBotRetirer())->retire();
+        $result = (new PoolBotRetirer)->retire();
 
         $this->assertSame(['archived' => 1, 'deleted' => 1], $result);
         $this->assertNotNull(Bot::withoutGlobalScope('active')->find($used->id)?->archived_at, 'El usado se archiva');
@@ -217,7 +218,7 @@ class FrozenBotsTest extends TestCase
         $this->assertNull(Bot::find($copy->id));
         $this->assertNotNull(Bot::withoutGlobalScope('active')->find($copy->id));
 
-        $this->get(route('mtt-simulator.create'))->assertOk()->assertDontSee('bot-percentage-' . $copy->id);
+        $this->get(route('mtt-simulator.create'))->assertOk()->assertDontSee('bot-percentage-'.$copy->id);
     }
 
     public function test_deleting_a_used_profile_from_the_interface_archives_it(): void
@@ -245,6 +246,6 @@ class FrozenBotsTest extends TestCase
             TournamentPlayer::create(['tournament_id' => $tournament->id, 'bot_id' => $bot->id, 'name' => 'Rival', 'is_bot' => true, 'starting_stack' => 1000, 'current_stack' => 1000]);
         }
 
-        $this->assertSame(2, (new PoolBotRetirer())->tournamentsAffected(), 'Cuenta torneos, no jugadores');
+        $this->assertSame(2, (new PoolBotRetirer)->tournamentsAffected(), 'Cuenta torneos, no jugadores');
     }
 }

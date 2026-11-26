@@ -40,24 +40,24 @@ class PreflopRanking
 
     public function code(array $hole): string
     {
-        [$a, $b] = array_map(fn($c) => FastHandEvaluator::card($c), $hole);
+        [$a, $b] = array_map(fn ($c) => FastHandEvaluator::card($c), $hole);
         $ra = $a % 13;
         $rb = $b % 13;
         $hi = max($ra, $rb);
         $lo = min($ra, $rb);
         $letters = FastHandEvaluator::RANKS;
         if ($hi === $lo) {
-            return $letters[$hi] . $letters[$lo];
+            return $letters[$hi].$letters[$lo];
         }
 
-        return $letters[$hi] . $letters[$lo] . (intdiv($a, 13) === intdiv($b, 13) ? 's' : 'o');
+        return $letters[$hi].$letters[$lo].(intdiv($a, 13) === intdiv($b, 13) ? 's' : 'o');
     }
 
     /**
      * Combinaciones concretas (cartas 0-51) de las manos que están en el X % superior del ranking,
      * sin las cartas conocidas ($dead).
      *
-     * @param int[] $dead
+     * @param  int[]  $dead
      * @return array<int, array{0:int,1:int}>
      */
     public function rangeCombos(float $topPercent, array $dead = []): array
@@ -96,7 +96,7 @@ class PreflopRanking
             }
         }
 
-        return array_values(array_filter($out, fn($c) => !isset($deadSet[$c[0]]) && !isset($deadSet[$c[1]])));
+        return array_values(array_filter($out, fn ($c) => ! isset($deadSet[$c[0]]) && ! isset($deadSet[$c[1]])));
     }
 
     /** Grupo legible según el percentil. */
@@ -160,16 +160,16 @@ class PreflopRanking
         for ($hi = 12; $hi >= 0; $hi--) {
             for ($lo = $hi; $lo >= 0; $lo--) {
                 if ($hi === $lo) {
-                    $hands[] = ['code' => $letters[$hi] . $letters[$lo], 'combos' => 6, 'score' => self::chen($hi, $lo, false), 'hi' => $hi, 'lo' => $lo];
+                    $hands[] = ['code' => $letters[$hi].$letters[$lo], 'combos' => 6, 'score' => self::chen($hi, $lo, false), 'hi' => $hi, 'lo' => $lo];
                 } else {
-                    $hands[] = ['code' => $letters[$hi] . $letters[$lo] . 's', 'combos' => 4, 'score' => self::chen($hi, $lo, true), 'hi' => $hi, 'lo' => $lo];
-                    $hands[] = ['code' => $letters[$hi] . $letters[$lo] . 'o', 'combos' => 12, 'score' => self::chen($hi, $lo, false), 'hi' => $hi, 'lo' => $lo];
+                    $hands[] = ['code' => $letters[$hi].$letters[$lo].'s', 'combos' => 4, 'score' => self::chen($hi, $lo, true), 'hi' => $hi, 'lo' => $lo];
+                    $hands[] = ['code' => $letters[$hi].$letters[$lo].'o', 'combos' => 12, 'score' => self::chen($hi, $lo, false), 'hi' => $hi, 'lo' => $lo];
                 }
             }
         }
 
         // Mejor primero; a igualdad: la carta alta y la baja más altas, y suited antes que offsuit
-        usort($hands, fn($a, $b) => [$b['score'], $b['hi'], $b['lo'], str_ends_with($b['code'], 's') ? 1 : 0]
+        usort($hands, fn ($a, $b) => [$b['score'], $b['hi'], $b['lo'], str_ends_with($b['code'], 's') ? 1 : 0]
             <=> [$a['score'], $a['hi'], $a['lo'], str_ends_with($a['code'], 's') ? 1 : 0]);
 
         $total = array_sum(array_column($hands, 'combos')); // 1326
@@ -180,7 +180,7 @@ class PreflopRanking
             $before += $h['combos'];
         }
 
-        if (!is_dir(dirname($path))) {
+        if (! is_dir(dirname($path))) {
             mkdir(dirname($path), 0775, true);
         }
         file_put_contents($path, json_encode($table));

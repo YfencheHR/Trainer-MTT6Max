@@ -76,13 +76,13 @@ class TournamentSimulatorTest extends TestCase
         $this->artisan('tournament:simulate', ['--players' => 4, '--stack' => 1000, '--speed' => 'muy_rapida', '--hands-per-level' => 2, '--max-rounds' => 400])
             ->assertSuccessful();
 
-        $simulated = Tournament::all()->filter(fn($t) => data_get($t->config, 'simulated'));
+        $simulated = Tournament::all()->filter(fn ($t) => data_get($t->config, 'simulated'));
         $this->assertCount(1, $simulated);
         $this->assertSame('completed', $simulated->first()->status);
 
         $this->artisan('tournament:simulate --purge')->assertSuccessful();
 
-        $this->assertSame(0, Tournament::all()->filter(fn($t) => data_get($t->config, 'simulated'))->count());
+        $this->assertSame(0, Tournament::all()->filter(fn ($t) => data_get($t->config, 'simulated'))->count());
         $this->assertNotNull(Tournament::find($real->id), 'El torneo real no se toca');
     }
 }

@@ -6,12 +6,16 @@ use App\Models\Bot;
 use App\Models\BotPreflopHandRange;
 use App\Services\Bots\Brain\BotProfile;
 use App\Services\Bots\Brain\PreflopRanking;
+use Illuminate\Support\Facades\DB;
 
 class RivalPreflopTables
 {
     private const RANKS = 'AKQJT98765432';
+
     private const DB_POSITION = ['HJ' => 'MP'];
+
     private const PRIOR_OPPORTUNITIES = 12;
+
     /** Manos que nunca se foldean (mismas que audita bots:audit-ranges como error). */
     private const PREMIUM = ['AA', 'KK', 'QQ', 'AKs', 'AKo'];
 
@@ -25,7 +29,7 @@ class RivalPreflopTables
 
     public function __construct(private PreflopRanking $ranking, ?HandTypeTilt $tilt = null)
     {
-        $this->tilt = $tilt ?? new HandTypeTilt();
+        $this->tilt = $tilt ?? new HandTypeTilt;
     }
 
     public function hasHand(string $hand): bool
@@ -110,13 +114,13 @@ class RivalPreflopTables
     public function isoFrequencies(Bot $bot, string $position, string $hand): ?array
     {
         $db = self::DB_POSITION[$position] ?? $position;
-        $own = ($this->isoCache[$bot->id] ??= \Illuminate\Support\Facades\DB::table('bot_iso_stats')->where('bot_id', $bot->id)->get()->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+        $own = ($this->isoCache[$bot->id] ??= DB::table('bot_iso_stats')->where('bot_id', $bot->id)->get()->keyBy('position')->map(fn ($r) => (array) $r)->all())[$db] ?? null;
         // La población son solo los perfiles vivos: las copias congeladas (archivadas) repiten las filas de su perfil, una por torneo, y sesgarían la media
-        $pop = ($this->isoPopulation ??= \Illuminate\Support\Facades\DB::table('bot_iso_stats')
+        $pop = ($this->isoPopulation ??= DB::table('bot_iso_stats')
             ->join('bots', 'bots.id', '=', 'bot_iso_stats.bot_id')->whereNull('bots.archived_at')
             ->selectRaw('bot_iso_stats.position as position, sum(bot_iso_stats.opportunities) as opportunities, sum(bot_iso_stats.raises) as raises, sum(bot_iso_stats.calls) as calls')
             ->groupBy('bot_iso_stats.position')->get()
-            ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+            ->keyBy('position')->map(fn ($r) => (array) $r)->all())[$db] ?? null;
         if ((! $own || $own['opportunities'] <= 0) && (! $pop || $pop['opportunities'] <= 0)) {
             return null;
         }
@@ -131,7 +135,7 @@ class RivalPreflopTables
         $raiseTarget = 100 * $rate('raises');
         $callTarget = $position === 'BB' ? 0.0 : 100 * $rate('calls');
         $percentile = $this->ranking->percentileForCode($hand);   // 0 = la mejor mano
-        $ramp = fn(float $target): float => 100 * max(0.0, min(1.0, ($target - $percentile) / (2 * self::ISO_WIDTH) + 0.5));
+        $ramp = fn (float $target): float => 100 * max(0.0, min(1.0, ($target - $percentile) / (2 * self::ISO_WIDTH) + 0.5));
         $raise = $ramp($raiseTarget);
         $call = $position === 'BB' ? 100.0 - $raise : max(0.0, min(100.0 - $raise, $ramp($raiseTarget + $callTarget) - $raise));
 
@@ -158,13 +162,13 @@ class RivalPreflopTables
     {
         $rest = max(0.0, 100.0 - $raise - $push);
         $db = self::DB_POSITION[$position] ?? $position;
-        $own = ($this->limpResponseCache[$bot->id] ??= \Illuminate\Support\Facades\DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->get()
-            ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
-        $pop = ($this->limpResponsePopulation ??= \Illuminate\Support\Facades\DB::table('bot_limp_response_stats')
+        $own = ($this->limpResponseCache[$bot->id] ??= DB::table('bot_limp_response_stats')->where('bot_id', $bot->id)->get()
+            ->keyBy('position')->map(fn ($r) => (array) $r)->all())[$db] ?? null;
+        $pop = ($this->limpResponsePopulation ??= DB::table('bot_limp_response_stats')
             ->join('bots', 'bots.id', '=', 'bot_limp_response_stats.bot_id')->whereNull('bots.archived_at')
             ->selectRaw('bot_limp_response_stats.position as position, sum(bot_limp_response_stats.opportunities) as opportunities, sum(bot_limp_response_stats.folds) as folds')
             ->groupBy('bot_limp_response_stats.position')->get()
-            ->keyBy('position')->map(fn($r) => (array) $r)->all())[$db] ?? null;
+            ->keyBy('position')->map(fn ($r) => (array) $r)->all())[$db] ?? null;
         if ((! $own || $own['opportunities'] <= 0) && (! $pop || $pop['opportunities'] <= 0)) {
             return ['call' => 0.0, 'fold' => $rest];
         }
@@ -183,7 +187,7 @@ class RivalPreflopTables
     /** Dónde cae la mano dentro de SU rango de limp en esa posición (0 = la mejor, 100 = la peor); null si el bot no tiene tabla de limp ahí. */
     private function positionWithinLimpRange(Bot $bot, string $position, string $hand): ?float
     {
-        $key = $bot->id . ':' . $position;
+        $key = $bot->id.':'.$position;
         if (! isset($this->limpRangeCache[$key])) {
             $weights = [];
             foreach (BotPreflopHandRange::where(['bot_id' => $bot->id, 'stack_bucket' => 'all', 'position' => $position])->get(['hand', 'attack_limp']) as $row) {
@@ -246,7 +250,7 @@ class RivalPreflopTables
     {
         return BotPreflopHandRange::where(['bot_id' => $bot->id, 'stack_bucket' => $bucket])
             ->get()
-            ->keyBy(fn($row) => $row->position . ':' . $row->hand);
+            ->keyBy(fn ($row) => $row->position.':'.$row->hand);
     }
 
     /**
@@ -295,7 +299,7 @@ class RivalPreflopTables
     {
         return $bot->preflopHandStats()
             ->get()
-            ->keyBy(fn($row) => $row->posicion . ':' . $row->mano);
+            ->keyBy(fn ($row) => $row->posicion.':'.$row->mano);
     }
 
     /**
@@ -332,7 +336,7 @@ class RivalPreflopTables
 
             return $current * max(0.2, min(5.0, (float) $bucket / (float) $overall));
         };
-        $cap = fn(float $value, float $max = 100.0) => max(0.0, min($max, $value));
+        $cap = fn (float $value, float $max = 100.0) => max(0.0, min($max, $value));
 
         foreach ($profile['positions'] as $position => &$p) {
             $p['open'] = $cap($target('rfi', $p['open']));
@@ -380,7 +384,7 @@ class RivalPreflopTables
         if (! in_array($bucket, ['0-10', '10-20'], true)) {
             return $none;
         }
-        $key = $bot->id . ':' . $bucket;
+        $key = $bot->id.':'.$bucket;
         if (! isset($this->pushShareCache[$key])) {
             $stack = $bot->hudStats()->where('accion', BotProfile::STACK_ACTION)->where('rango_ciegas', $bucket)->first();
             if (! $stack || $stack->shove === null) {
@@ -418,7 +422,7 @@ class RivalPreflopTables
             foreach ($hands as $hand) {
                 $percentiles[$hand] = $this->ranking->percentileForCode($hand);
                 $weights[$hand] = $this->combos($hand);
-                $samples[$hand] = $handStats->get((self::DB_POSITION[$position] ?? $position) . ':' . $hand);
+                $samples[$hand] = $handStats->get((self::DB_POSITION[$position] ?? $position).':'.$hand);
             }
             if ($classShifts) {
                 $percentiles = $this->tilt->apply($percentiles, $weights, $classShifts);
@@ -443,7 +447,7 @@ class RivalPreflopTables
                     )
                 );
             }
-            $openCaps = array_map(fn($freq) => max(0.0, 100.0 - $freq), $trapPrior);
+            $openCaps = array_map(fn ($freq) => max(0.0, 100.0 - $freq), $trapPrior);
             $open = $this->calibrate($openPrior, $openTarget, $weights, $openCaps);
 
             $limpPrior = $this->softBand($percentiles, $openTarget, $openTarget + $limpTarget, $width, $weights);
@@ -455,7 +459,7 @@ class RivalPreflopTables
                     (int) ($sample->open_opportunities ?? 0)
                 );
             }
-            $limpCaps = array_map(fn($freq) => max(0.0, 100.0 - $freq), $open);
+            $limpCaps = array_map(fn ($freq) => max(0.0, 100.0 - $freq), $open);
             $limp = $this->calibrate($limpPrior, $limpTarget, $weights, $limpCaps);
 
             $threeBetTarget = $position === 'UTG' ? 0.0 : $stats['vs_open']['three_bet'];
@@ -529,7 +533,7 @@ class RivalPreflopTables
         foreach ($tables as $position => &$table) {
             foreach ($table['attack'] as $index => &$attack) {
                 $defense = &$table['defense'][$index];
-                $range = $storedRanges->get($position . ':' . $attack['hand']);
+                $range = $storedRanges->get($position.':'.$attack['hand']);
                 if ($range && $range->is_manual) {
                     $attack['open'] = $range->attack_open;
                     $attack['limp'] = $range->attack_limp;
@@ -717,7 +721,7 @@ class RivalPreflopTables
         }
         $continue = min($continue, $defendMass);
 
-        $strongestFirst = array_map(fn($p) => -$p, $percentiles);
+        $strongestFirst = array_map(fn ($p) => -$p, $percentiles);
         $fraction = $this->fillByOrder($strongestFirst, 100.0 * $continue / $defendMass, $defendWeight, $percentiles);
         $continueFreq = $continueWeight = [];
         foreach ($hands as $hand) {
@@ -785,7 +789,7 @@ class RivalPreflopTables
             return [$zero, $zero];
         }
         // Margen en la estadística (como StatBounds): la defensa cubre al menos todas las manos tan fuertes como la peor PREMIUM (AA-KK-QQ-AK, con las que el ranking pone por delante, JJ-TT...).
-        $premiumBoundary = max(array_map(fn($h) => $percentiles[$h], self::PREMIUM));
+        $premiumBoundary = max(array_map(fn ($h) => $percentiles[$h], self::PREMIUM));
         $minDefense = 0.0;
         foreach ($hands as $hand) {
             if ($percentiles[$hand] <= $premiumBoundary) {
@@ -820,7 +824,7 @@ class RivalPreflopTables
             }
             $bluffPercentiles = $this->cumulativePercentiles($scores, $candidateWeights, array_sum($weights));
             $bluff = $this->softTop($bluffPercentiles, $threeBetTarget - $valueTarget, $width, $weights);
-            $caps = array_map(fn($never) => $never ? 0.0 : 75.0, $neverBluff);
+            $caps = array_map(fn ($never) => $never ? 0.0 : 75.0, $neverBluff);
             $bluff = $this->calibrate($bluff, $threeBetTarget - $valueTarget, $weights, $caps);
         }
 
@@ -833,7 +837,7 @@ class RivalPreflopTables
                 (int) ($sample->vs_open_opportunities ?? 0)
             );
         }
-        $threeBet = $this->calibrate($threeBet, $threeBetTarget, $weights, array_map(fn($never) => $never ? 0.0 : 100.0, $neverBluff));
+        $threeBet = $this->calibrate($threeBet, $threeBetTarget, $weights, array_map(fn ($never) => $never ? 0.0 : 100.0, $neverBluff));
 
         $callWeights = [];
         $defendScores = [];
@@ -842,7 +846,7 @@ class RivalPreflopTables
             $defendScores[$hand] = $this->defendScore($hand, $percentiles[$hand]);
         }
         $callPercentiles = $this->cumulativePercentiles($defendScores, $callWeights, array_sum($weights), false);
-        $callCaps = array_map(fn($freq) => 100.0 - $freq, $threeBet);
+        $callCaps = array_map(fn ($freq) => 100.0 - $freq, $threeBet);
         $sumWeights = array_sum($weights);
 
         // closeGaps pasa a call las manos fuertes que el orden por jugabilidad dejaba en fold, y eso SUMA al call objetivo (+4-5 puntos en
@@ -871,8 +875,8 @@ class RivalPreflopTables
      * Ninguna mano más fuerte que la más fuerte que se foldea (>= 50 %) debería foldearse: lo que falte para 100 %
      * (el 3-bet y el call se calibran por separado y dejan huecos) se pasa a call.
      *
-     * @param array<string,float> $primary   frecuencia de la acción agresiva (3-bet / 4-bet)
-     * @param array<string,float> $secondary frecuencia de call (se modifica)
+     * @param  array<string,float>  $primary  frecuencia de la acción agresiva (3-bet / 4-bet)
+     * @param  array<string,float>  $secondary  frecuencia de call (se modifica)
      * @return array<string,float>
      */
     /**
@@ -880,15 +884,15 @@ class RivalPreflopTables
      * mano: frecuencias de 0 / 100 salvo en el borde. A diferencia de calibrate (que desplaza todo por igual y deja una
      * fracción en las manos fuertes), no "filtra" fold ni nada a las manos que el orden pone en el otro extremo.
      *
-     * @param array<string,float> $values      prioridad de cada mano (mayor = antes)
-     * @param array<string,float> $percentiles  fuerza (mayor = más débil) para desempatar
-     * @param array<string,float>|null $caps    tope de cada mano
+     * @param  array<string,float>  $values  prioridad de cada mano (mayor = antes)
+     * @param  array<string,float>  $percentiles  fuerza (mayor = más débil) para desempatar
+     * @param  array<string,float>|null  $caps  tope de cada mano
      * @return array<string,float>
      */
     private function fillByOrder(array $values, float $target, array $weights, array $percentiles, ?array $caps = null): array
     {
         $order = array_keys($values);
-        usort($order, fn($a, $b) => [$values[$b], $percentiles[$b]] <=> [$values[$a], $percentiles[$a]]);
+        usort($order, fn ($a, $b) => [$values[$b], $percentiles[$b]] <=> [$values[$a], $percentiles[$a]]);
 
         $remaining = max(0.0, min(100.0, $target)) / 100.0 * array_sum($weights);
         $out = array_fill_keys(array_keys($values), 0.0);
@@ -909,15 +913,15 @@ class RivalPreflopTables
      * Regresión isotónica (PAV): ajusta los valores para que no decrezcan al pasar de la mano más fuerte a la más débil,
      * conservando la media ponderada. Solo cuentan las manos con peso > 0.
      *
-     * @param array<string,float> $values
-     * @param array<string,float> $percentiles menor = más fuerte
-     * @param array<string,float> $weights
+     * @param  array<string,float>  $values
+     * @param  array<string,float>  $percentiles  menor = más fuerte
+     * @param  array<string,float>  $weights
      * @return array<string,float>
      */
     private function isotonic(array $values, array $percentiles, array $weights): array
     {
-        $order = array_values(array_filter(array_keys($values), fn($h) => ($weights[$h] ?? 0) > 0));
-        usort($order, fn($a, $b) => $percentiles[$a] <=> $percentiles[$b]);
+        $order = array_values(array_filter(array_keys($values), fn ($h) => ($weights[$h] ?? 0) > 0));
+        usort($order, fn ($a, $b) => $percentiles[$a] <=> $percentiles[$b]);
 
         $blocks = [];
         foreach ($order as $hand) {
@@ -1012,14 +1016,14 @@ class RivalPreflopTables
      * Percentil ABSOLUTO (en % de las 1326 combinaciones) de cada mano según un orden y unos pesos: % de combos que
      * hay delante contando la mitad de la propia. $higherBetter indica si una puntuación mayor es mejor.
      *
-     * @param array<string,float> $scores
-     * @param array<string,float> $weights
+     * @param  array<string,float>  $scores
+     * @param  array<string,float>  $weights
      * @return array<string,float>
      */
     private function cumulativePercentiles(array $scores, array $weights, float $total, bool $higherBetter = true): array
     {
         $order = array_keys($scores);
-        usort($order, fn($a, $b) => $higherBetter ? $scores[$b] <=> $scores[$a] : $scores[$a] <=> $scores[$b]);
+        usort($order, fn ($a, $b) => $higherBetter ? $scores[$b] <=> $scores[$a] : $scores[$a] <=> $scores[$b]);
 
         $out = [];
         $before = 0.0;
@@ -1085,7 +1089,7 @@ class RivalPreflopTables
 
         $reraise = $this->calibrate($reraise, $targets['reraise'], $responseWeights);
         // Margen en la estadística: el % de fold a un 3-bet deja siempre continuar con AA-KK-QQ-AK que estén en su rango de apertura.
-        $premiumBoundary = max(array_map(fn($h) => $percentiles[$h], self::PREMIUM));
+        $premiumBoundary = max(array_map(fn ($h) => $percentiles[$h], self::PREMIUM));
         $premiumWeight = 0.0;
         foreach ($hands as $hand) {
             if ($percentiles[$hand] <= $premiumBoundary) {
@@ -1097,7 +1101,7 @@ class RivalPreflopTables
         $foldTarget = min($foldTarget, 100.0 - $minContinue);
         // Lo observado puede dar a una mano fuerte más fold que a una débil con pocas muestras: se exige que el fold no baje al empeorar la mano.
         $fold = $this->isotonic($fold, $percentiles, $responseWeights);
-        $fold = $this->fillByOrder($fold, $foldTarget, $responseWeights, $percentiles, array_map(fn($freq) => 100 - $freq, $reraise));
+        $fold = $this->fillByOrder($fold, $foldTarget, $responseWeights, $percentiles, array_map(fn ($freq) => 100 - $freq, $reraise));
         // Una mano más fuerte que las que se foldean casi siempre no se foldea (el hueco va a call).
         $boundary = null;
         foreach ($hands as $hand) {
@@ -1155,7 +1159,7 @@ class RivalPreflopTables
             }
         }
         $raise = $this->calibrate($raise, $raiseTarget, $responseWeights);
-        $push = $this->calibrate($push, $pushTarget, $responseWeights, array_map(fn($freq) => 100 - $freq, $raise));
+        $push = $this->calibrate($push, $pushTarget, $responseWeights, array_map(fn ($freq) => 100 - $freq, $raise));
 
         return [
             'raise' => $raise,
@@ -1214,8 +1218,8 @@ class RivalPreflopTables
      * Es el % acumulado de peso (combos × frecuencia) de las manos más fuertes, contando la mitad de la propia.
      * Las manos fuera del rango (peso 0) quedan donde les toca, sin influir.
      *
-     * @param array<string, float> $percentiles percentil global de fuerza (menor = más fuerte)
-     * @param array<string, float> $weights     peso de cada mano dentro del rango
+     * @param  array<string, float>  $percentiles  percentil global de fuerza (menor = más fuerte)
+     * @param  array<string, float>  $weights  peso de cada mano dentro del rango
      * @return array<string, float>
      */
     private function percentilesWithin(array $percentiles, array $weights): array
@@ -1226,7 +1230,7 @@ class RivalPreflopTables
         }
 
         $hands = array_keys($percentiles);
-        usort($hands, fn($a, $b) => $percentiles[$a] <=> $percentiles[$b]);
+        usort($hands, fn ($a, $b) => $percentiles[$a] <=> $percentiles[$b]);
 
         $within = [];
         $before = 0.0;
@@ -1265,7 +1269,7 @@ class RivalPreflopTables
     private function softBottom(array $percentiles, float $target, float $width, array $weights): array
     {
         return array_map(
-            fn($value) => 100.0 - $value,
+            fn ($value) => 100.0 - $value,
             $this->softTop($percentiles, 100.0 - max(0.0, min(100.0, $target)), $width, $weights)
         );
     }
@@ -1345,11 +1349,11 @@ class RivalPreflopTables
         foreach ($ranks as $row => $high) {
             foreach ($ranks as $column => $low) {
                 if ($row === $column) {
-                    $hands[] = $high . $low;
+                    $hands[] = $high.$low;
                 } elseif ($row < $column) {
-                    $hands[] = $high . $low . 's';
+                    $hands[] = $high.$low.'s';
                 } else {
-                    $hands[] = $low . $high . 'o';
+                    $hands[] = $low.$high.'o';
                 }
             }
         }

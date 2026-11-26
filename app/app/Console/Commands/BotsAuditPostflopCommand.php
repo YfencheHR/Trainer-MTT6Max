@@ -44,7 +44,7 @@ class BotsAuditPostflopCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->info($rows->count() . ' decisiones postflop de ' . $rows->pluck('name')->map(fn($n) => $this->profile($n))->unique()->count() . ' perfiles, en ' . $rows->pluck('hand_id')->unique()->count() . ' manos.');
+        $this->info($rows->count().' decisiones postflop de '.$rows->pluck('name')->map(fn ($n) => $this->profile($n))->unique()->count().' perfiles, en '.$rows->pluck('hand_id')->unique()->count().' manos.');
 
         $this->frequencies($rows);
         $this->leaks($rows);
@@ -126,16 +126,16 @@ class BotsAuditPostflopCommand extends Command
         $table = [];
         $flags = [];
 
-        foreach ($rows->groupBy(fn($r) => $this->profile($r->name)) as $name => $mine) {
+        foreach ($rows->groupBy(fn ($r) => $this->profile($r->name)) as $name => $mine) {
             $stats = $this->stats($mine->first()->bot_id);
-            $cbetOpp = $mine->filter(fn($r) => $r->street === 'flop' && ! $this->facingBet($r) && $r->pf_aggressor === 'true');
-            $cbets = $cbetOpp->filter(fn($r) => $this->isAggressive($r))->count();
+            $cbetOpp = $mine->filter(fn ($r) => $r->street === 'flop' && ! $this->facingBet($r) && $r->pf_aggressor === 'true');
+            $cbets = $cbetOpp->filter(fn ($r) => $this->isAggressive($r))->count();
 
             $line = [mb_substr((string) $name, 0, 26), $mine->count()];
             $nodes = [['cbet', 'cbet', $cbets, $cbetOpp->count()]];
             foreach (['flop' => 'f2cbet', 'turn' => 'f2beturn', 'river' => 'f2betriver'] as $street => $stat) {
-                $facing = $mine->filter(fn($r) => $r->street === $street && $this->facingBet($r));
-                $nodes[] = ["fold {$street}", $stat, $facing->filter(fn($r) => $r->type === 'fold')->count(), $facing->count()];
+                $facing = $mine->filter(fn ($r) => $r->street === $street && $this->facingBet($r));
+                $nodes[] = ["fold {$street}", $stat, $facing->filter(fn ($r) => $r->type === 'fold')->count(), $facing->count()];
             }
 
             foreach ($nodes as [$label, $stat, $hits, $opps]) {
@@ -153,7 +153,7 @@ class BotsAuditPostflopCommand extends Command
         $this->line('<info>1. Frecuencias observadas / estadística del perfil (nº de decisiones)</info>');
         $this->table(['bot', 'decisiones', 'c-bet flop', 'fold flop', 'fold turn', 'fold river'], $table);
         foreach ($flags as $flag) {
-            $this->warn('  ' . $flag);
+            $this->warn('  '.$flag);
         }
         if (! $flags) {
             $this->line("  Ningún nodo con >= {$min} decisiones se desvía más de {$gap} puntos de su estadística (con pocas manos no hay nodos que comparar).");
@@ -179,29 +179,29 @@ class BotsAuditPostflopCommand extends Command
 
     private function leaks(Collection $rows): void
     {
-        $calls = $rows->filter(fn($r) => $r->type === 'call' && $this->est($r) !== null && (float) $r->required_equity > 0);
-        $folds = $rows->filter(fn($r) => $r->type === 'fold' && $this->est($r) !== null && (float) $r->required_equity > 0);
+        $calls = $rows->filter(fn ($r) => $r->type === 'call' && $this->est($r) !== null && (float) $r->required_equity > 0);
+        $folds = $rows->filter(fn ($r) => $r->type === 'fold' && $this->est($r) !== null && (float) $r->required_equity > 0);
 
-        $badCalls = $calls->filter(fn($r) => $this->est($r) < 100 * (float) $r->required_equity - 2);
-        $goodFolds = $folds->filter(fn($r) => $this->est($r) > 100 * (float) $r->required_equity + 10);
-        $weakVsBarrels = $rows->filter(fn($r) => $r->type === 'call' && in_array($r->street, ['turn', 'river'], true)
+        $badCalls = $calls->filter(fn ($r) => $this->est($r) < 100 * (float) $r->required_equity - 2);
+        $goodFolds = $folds->filter(fn ($r) => $this->est($r) > 100 * (float) $r->required_equity + 10);
+        $weakVsBarrels = $rows->filter(fn ($r) => $r->type === 'call' && in_array($r->street, ['turn', 'river'], true)
             && (float) $r->perceived_rank >= 40 && (int) $r->agg_barrels >= 2);
-        $bluffs = $rows->filter(fn($r) => $this->isAggressive($r) && $this->facingBet($r) && $r->made === 'high_card' && $r->draw === 'none');
+        $bluffs = $rows->filter(fn ($r) => $this->isAggressive($r) && $this->facingBet($r) && $r->made === 'high_card' && $r->draw === 'none');
 
         $this->newLine();
         $this->line('<info>2. Fugas por decisión (con la equity que estimaba el bot)</info>');
         $this->table(['patrón', 'casos', 'sobre', '%'], [
             ['Paga con menos equity de la necesaria', $badCalls->count(), $calls->count(), $this->pct($badCalls->count(), $calls->count()) ?? '-'],
             ['Foldea con equity > necesaria + 10', $goodFolds->count(), $folds->count(), $this->pct($goodFolds->count(), $folds->count()) ?? '-'],
-            ['Paga turn/river con mano débil ante 2+ calles de apuestas', $weakVsBarrels->count(), $rows->filter(fn($r) => $r->type === 'call' && in_array($r->street, ['turn', 'river'], true))->count(), $this->pct($weakVsBarrels->count(), $rows->filter(fn($r) => $r->type === 'call' && in_array($r->street, ['turn', 'river'], true))->count()) ?? '-'],
-            ['Sube ante una apuesta sin pareja ni proyecto (farol)', $bluffs->count(), $rows->filter(fn($r) => $this->isAggressive($r) && $this->facingBet($r))->count(), $this->pct($bluffs->count(), $rows->filter(fn($r) => $this->isAggressive($r) && $this->facingBet($r))->count()) ?? '-'],
+            ['Paga turn/river con mano débil ante 2+ calles de apuestas', $weakVsBarrels->count(), $rows->filter(fn ($r) => $r->type === 'call' && in_array($r->street, ['turn', 'river'], true))->count(), $this->pct($weakVsBarrels->count(), $rows->filter(fn ($r) => $r->type === 'call' && in_array($r->street, ['turn', 'river'], true))->count()) ?? '-'],
+            ['Sube ante una apuesta sin pareja ni proyecto (farol)', $bluffs->count(), $rows->filter(fn ($r) => $this->isAggressive($r) && $this->facingBet($r))->count(), $this->pct($bluffs->count(), $rows->filter(fn ($r) => $this->isAggressive($r) && $this->facingBet($r))->count()) ?? '-'],
         ]);
 
         foreach ([['Pagos con menos equity de la necesaria', $badCalls], ['Pagos débiles ante varias calles de apuestas', $weakVsBarrels]] as [$title, $set]) {
             if ($set->isNotEmpty()) {
                 $this->line("  <comment>{$title}:</comment>");
                 foreach ($set->take(8) as $r) {
-                    $this->line('   ' . $this->describe($r));
+                    $this->line('   '.$this->describe($r));
                 }
             }
         }
@@ -209,7 +209,7 @@ class BotsAuditPostflopCommand extends Command
         if ($goodFolds->isNotEmpty()) {
             $this->line('  <comment>Folds con equity muy por encima de la necesaria:</comment>');
             foreach ($goodFolds->take(8) as $r) {
-                $this->line('   ' . $this->describe($r));
+                $this->line('   '.$this->describe($r));
             }
         }
     }
@@ -218,7 +218,7 @@ class BotsAuditPostflopCommand extends Command
 
     private function worst(Collection $rows): void
     {
-        $worst = $rows->filter(fn($r) => $r->ev_diff !== null && (int) $r->ev_diff < 0)->sortBy('ev_diff')->take((int) $this->option('worst'));
+        $worst = $rows->filter(fn ($r) => $r->ev_diff !== null && (int) $r->ev_diff < 0)->sortBy('ev_diff')->take((int) $this->option('worst'));
 
         $this->newLine();
         $this->line('<info>3. Peores decisiones por pérdida de EV (fichas)</info>');

@@ -25,14 +25,14 @@ class BotsBetMatrixCommand extends Command
         }
 
         $rows = [];
-        foreach (Bot::all()->filter(fn(Bot $b) => $b->isPool())->sortBy('id') as $bot) {
+        foreach (Bot::all()->filter(fn (Bot $b) => $b->isPool())->sortBy('id') as $bot) {
             $m = $matrix->forBot($bot);
             if (! $m) {
                 continue;
             }
             $rows[] = array_merge(
                 [$bot->id, mb_substr($bot->nombre, 0, 28)],
-                ...array_map(fn($s) => [$m[$s]['n'], $m[$s]['bluff_share'] . '%'], array_keys(BetTier::STREETS))
+                ...array_map(fn ($s) => [$m[$s]['n'], $m[$s]['bluff_share'].'%'], array_keys(BetTier::STREETS))
             );
         }
         if (! $rows) {
@@ -46,7 +46,7 @@ class BotsBetMatrixCommand extends Command
         foreach (array_keys(BetTier::STREETS) as $street) {
             $total = array_sum(array_map('array_sum', $pop[$street] ?? []));
             $popRow[] = $total;
-            $popRow[] = $total > 0 ? round(100 * array_sum($pop[$street]['air'] ?? []) / $total, 2) . '%' : '-';
+            $popRow[] = $total > 0 ? round(100 * array_sum($pop[$street]['air'] ?? []) / $total, 2).'%' : '-';
         }
         array_unshift($rows, $popRow);
 
@@ -73,7 +73,7 @@ class BotsBetMatrixCommand extends Command
             $this->line("<comment>{$street}</comment>  ({$data['n']} apuestas observadas)");
             $rows = [];
             foreach (BetTier::TIERS as $tier) {
-                $rows[] = array_merge([$tier, $data['share'][$tier] . '%'], array_map(fn($b) => $data['sizes'][$tier][$b] . '%', array_keys(BetTier::BUCKETS)));
+                $rows[] = array_merge([$tier, $data['share'][$tier].'%'], array_map(fn ($b) => $data['sizes'][$tier][$b].'%', array_keys(BetTier::BUCKETS)));
             }
             $this->table(array_merge(['mano', 'parte del rango'], array_values($labels)), $rows);
         }

@@ -21,13 +21,14 @@ class AnalyzeEvCommand extends Command
     public function handle(DecisionEvAnalyzer $analyzer): int
     {
         $tournament = Tournament::find($this->argument('tournament'));
-        if (!$tournament) {
+        if (! $tournament) {
             $this->error('Torneo no encontrado');
+
             return self::FAILURE;
         }
 
         $q = TournamentHand::where('tournament_id', $tournament->id)->where('status', 'completed')->whereHas('handActions');
-        if (!$this->option('force')) {
+        if (! $this->option('force')) {
             $q->whereNull('ev_analyzed_at');
         }
 

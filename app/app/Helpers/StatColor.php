@@ -33,12 +33,15 @@ class StatColor
             return '#10b981'; // Verde - Nit
         } elseif ($value <= 20) {
             $progress = ($value - 12) / 8;
+
             return self::interpolateColor('#10b981', '#f59e0b', $progress);
         } elseif ($value <= 40) {
             $progress = ($value - 20) / 20;
+
             return self::interpolateColor('#f59e0b', '#ef4444', $progress);
         } elseif ($value <= 60) {
             $progress = ($value - 40) / 20;
+
             return self::interpolateColor('#ef4444', '#a855f7', $progress);
         } else {
             return '#a855f7'; // Púrpura - Extremo
@@ -58,10 +61,12 @@ class StatColor
         } elseif ($value <= 10) {
             // Amarillo - Transición Verde->Amarillo->Naranja
             $progress = ($value - 5) / 5;
+
             return self::interpolateColor('#10b981', '#f59e0b', $progress);
         } elseif ($value <= 20) {
             // Naranja - Transición Amarillo->Naranja->Rojo
             $progress = ($value - 10) / 10;
+
             return self::interpolateColor('#f59e0b', '#ef4444', $progress);
         } else {
             return '#ef4444'; // Rojo - Excesivo
@@ -81,10 +86,12 @@ class StatColor
         } elseif ($value <= 30) {
             // Amarillo - Transición Verde->Amarillo->Naranja
             $progress = ($value - 10) / 20;
+
             return self::interpolateColor('#10b981', '#f59e0b', $progress);
         } elseif ($value <= 60) {
             // Naranja - Transición Amarillo->Naranja->Rojo
             $progress = ($value - 30) / 30;
+
             return self::interpolateColor('#f59e0b', '#ef4444', $progress);
         } else {
             return '#ef4444'; // Rojo - Alto
@@ -110,8 +117,8 @@ class StatColor
         $g = (int) ($g1 + ($g2 - $g1) * $progress);
         $b = (int) ($b1 + ($b2 - $b1) * $progress);
 
-        return '#' . str_pad(dechex($r), 2, '0', STR_PAD_LEFT) .
-                     str_pad(dechex($g), 2, '0', STR_PAD_LEFT) .
+        return '#'.str_pad(dechex($r), 2, '0', STR_PAD_LEFT).
+                     str_pad(dechex($g), 2, '0', STR_PAD_LEFT).
                      str_pad(dechex($b), 2, '0', STR_PAD_LEFT);
     }
 }

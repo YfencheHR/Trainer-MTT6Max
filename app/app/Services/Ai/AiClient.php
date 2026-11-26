@@ -22,7 +22,7 @@ class AiClient
 
     /**
      * @param  list<string>  $legalActions  acciones permitidas ahora
-     * @return array<string,float>  probabilidad de cada acción (suma 1)
+     * @return array<string,float> probabilidad de cada acción (suma 1)
      */
     public function decide(array $state, array $legalActions, int $seed): array
     {
