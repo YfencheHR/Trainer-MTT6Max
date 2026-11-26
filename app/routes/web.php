@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\BotController;
-use App\Http\Controllers\GameActionController;
 use App\Http\Controllers\GamePlayController;
 use App\Http\Controllers\HandMatrixController;
 use App\Http\Controllers\HandReplayController;
@@ -106,11 +105,4 @@ Route::prefix('api')->group(function () {
     Route::get('/bots', [BotController::class, 'api']);
     Route::get('/bots/{bot}', [BotController::class, 'apiShow']);
     Route::get('/bots/{bot}/preflop-ranges/{position}', [BotController::class, 'getPreflopRanges']);
-
-    // Game Action Routes
-    Route::post('/tournaments/{tournament}/hands/start', [GameActionController::class, 'startHand'])->name('api.hand.start');
-    Route::post('/hands/{hand}/action', [GameActionController::class, 'recordAction'])->name('api.hand.action');
-    Route::post('/hands/{hand}/next-street', [GameActionController::class, 'moveToNextStreet'])->name('api.hand.next-street');
-    Route::post('/hands/{hand}/showdown', [GameActionController::class, 'evaluateShowdown'])->name('api.hand.showdown');
-    Route::get('/hands/{hand}', [GameActionController::class, 'getHandState'])->name('api.hand.state');
 });
