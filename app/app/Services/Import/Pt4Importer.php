@@ -387,6 +387,7 @@ class Pt4Importer
             'general' => $general,
             'positions' => $byPos,
             'preflop_hands' => $this->preflopHands($in, $label),
+            'iso' => $this->isoStats($in, $label),
             'vs_opener' => $this->vsOpener($in, $label),
             'postflop' => $postflop,
             'postflop_pot' => $this->postflopByPot($in),
@@ -707,6 +708,30 @@ class Pt4Importer
                 $vals[$k] = round(BotStreets::isRatio($k) ? $value : max(0.0, min(100.0, $value)), 2);
             }
             $out[$bucket] = $vals;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Qué hace el jugador por posición con limpers delante y sin subida previa: oportunidades, subidas (aislar) e igualadas. Se cuenta sobre TODAS las manos,
+     * también las que no tienen cartas conocidas: PokerTracker solo guarda las cartas de quien llega al showdown (y las del héroe), así que filtrar por
+     * cartas deja casi sin folds la muestra (comprobado contra DB0.backup: ~70 % de folds en total frente a ~7 % entre las manos con cartas).
+     *
+     * @return array<string, array{opportunities: int, raises: int, calls: int}>
+     */
+    private function isoStats(string $in, string $label): array
+    {
+        $limp = '(cnt_p_face_limpers > 0 and not flg_p_face_raise)';
+        $out = [];
+        foreach ($this->tmp()->select("
+            select $label as pos, coalesce(sum($limp::int), 0) as opportunities,
+              coalesce(sum(($limp and cnt_p_raise > 0)::int), 0) as raises,
+              coalesce(sum(($limp and flg_p_limp)::int), 0) as calls
+            from fresh_stats where id_player = any(?) group by $label", [$in]) as $row) {
+            if ($row->pos && (int) $row->opportunities > 0) {
+                $out[$row->pos] = ['opportunities' => (int) $row->opportunities, 'raises' => (int) $row->raises, 'calls' => (int) $row->calls];
+            }
         }
 
         return $out;
@@ -1458,6 +1483,10 @@ class Pt4Importer
         }
 
         $this->storePreflopHandStats($bot, $agg['preflop_hands'] ?? []);
+        if (! $this->merge) {
+            DB::table('bot_iso_stats')->where('bot_id', $bot->id)->delete();
+        }
+        $this->storeIsoStats($bot, $agg['iso'] ?? []);
         $this->storePotStats($bot, $agg['pot_stats'] ?? []);
         $this->storeLimpResponseStats($bot, $agg['limp_response'] ?? []);
 
@@ -1587,14 +1616,21 @@ class Pt4Importer
 
         $bot->allPreflopHandRanges()->where('is_manual', false)->delete();
 
-        // Resumen por posición de lo que hace con limpers delante (los contadores por mano ya están sumados): lo lee el bot al decidir
-        DB::table('bot_iso_stats')->where('bot_id', $bot->id)->delete();
-        DB::statement(
-            'insert into bot_iso_stats (bot_id, position, opportunities, raises, calls, created_at, updated_at)
-             select bot_id, posicion, sum(vs_limp_opportunities), sum(vs_limp_raises), sum(vs_limp_calls), now(), now()
-             from bot_preflop_hand_stats where bot_id = ? group by bot_id, posicion having sum(vs_limp_opportunities) > 0',
-            [$bot->id]
-        );
+    }
+
+    /** Resumen por posición de lo que hace con limpers delante (lo lee el bot al decidir); como los contadores por mano, se suma entre importaciones. */
+    private function storeIsoStats(Bot $bot, array $iso): void
+    {
+        $now = now()->toDateTimeString();
+        foreach ($iso as $position => $c) {
+            DB::statement(
+                'insert into bot_iso_stats (bot_id, position, opportunities, raises, calls, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)
+                 on conflict (bot_id, position) do update set
+                   opportunities = bot_iso_stats.opportunities + excluded.opportunities, raises = bot_iso_stats.raises + excluded.raises,
+                   calls = bot_iso_stats.calls + excluded.calls, updated_at = excluded.updated_at',
+                [$bot->id, $position, $c['opportunities'], $c['raises'], $c['calls'], $now, $now]
+            );
+        }
     }
 
     // ---------------------------------------------------------------- postflop por tipo de bote, posición y stack
