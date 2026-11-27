@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). Las versiones siguen [SemVer](https://semver.org/lang/es/); mientras sea `0.x` pueden cambiar cosas entre versiones.
 
+## [Sin publicar]
+
+### Corregido
+- **Importación de PokerTracker**: la estadística de lo que hace cada perfil ante limpers solo contaba manos con cartas conocidas, y PokerTracker no guarda las de quien foldea, así que los bots casi nunca foldeaban ante limpers (1-2 % frente a ~70 % real). Quien ya haya importado debe **volver a importar** para corregirlo.
+
 ## [0.1.0-beta] - 2026-11-26
 
 Primera versión pública para probar.
